@@ -1,0 +1,14 @@
+{
+  "name": "cfgm-os",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "bun x tsc --noEmit",
+    "test:coverage": "bun test --coverage"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "@types/bun": "latest"
+  }
+}
