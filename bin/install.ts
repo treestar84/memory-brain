@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, symlink, readlink } from "node:fs/promises";
+import { readFile, writeFile, mkdir, symlink } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { existsSync } from "node:fs";
 
