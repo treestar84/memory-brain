@@ -24,6 +24,10 @@ export class MemoryStorage implements Storage {
     this.files.set(path, JSON.stringify(data, null, 2));
   }
 
+  async writeRaw(path: string, content: string): Promise<void> {
+    this.files.set(path, content);
+  }
+
   async listFiles(dir: string, pattern?: string): Promise<string[]> {
     const prefix = dir.endsWith("/") ? dir : dir + "/";
     const results: string[] = [];

@@ -52,6 +52,14 @@ export class FsStorage implements Storage {
     await rename(tmp, full);
   }
 
+  async writeRaw(path: string, content: string): Promise<void> {
+    const full = this.resolve(path);
+    await mkdir(dirname(full), { recursive: true });
+    const tmp = full + ".tmp." + randomUUID().slice(0, 8);
+    await writeFile(tmp, content);
+    await rename(tmp, full);
+  }
+
   async listFiles(dir: string, pattern?: string): Promise<string[]> {
     try {
       const entries = await readdir(this.resolve(dir));

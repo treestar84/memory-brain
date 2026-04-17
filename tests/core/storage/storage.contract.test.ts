@@ -104,6 +104,14 @@ function contractSuite(
       await cleanup();
     });
 
+    test("writeRaw + readJsonl round-trip", async () => {
+      const content = '{"a":1}\n{"b":2}\n';
+      await storage.writeRaw("raw.jsonl", content);
+      const records = await storage.readJsonl("raw.jsonl");
+      expect(records).toEqual([{ a: 1 }, { b: 2 }]);
+      await cleanup();
+    });
+
     test("concurrent appendJsonl preserves all records", async () => {
       const promises = Array.from({ length: 50 }, (_, i) =>
         storage.appendJsonl("concurrent.jsonl", { i })
