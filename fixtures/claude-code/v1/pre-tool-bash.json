@@ -1,0 +1,1 @@
+{ "type": "PreToolUse", "session_id": "sess-abc-123", "cwd": "/Users/treestar/dev/my-project", "tool_name": "Bash", "tool_input": { "command": "bun test src/api/user.test.ts" } }

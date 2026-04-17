@@ -1,0 +1,1 @@
+{ "type": "UserPromptSubmit", "session_id": "sess-abc-123", "cwd": "/Users/treestar/dev/my-project", "message": "Fix the authentication bug in user.ts" }

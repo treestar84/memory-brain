@@ -1,0 +1,1 @@
+{ "type": "PostToolUse", "session_id": "sess-abc-123", "cwd": "/Users/treestar/dev/my-project", "tool_name": "Edit", "tool_input": { "file_path": "/project/src/api/user.ts" }, "tool_output": "File edited successfully" }
