@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach } from "bun:test";
-import { ActiveProblemStore, type Problem } from "../../../src/core/binder/ActiveProblemStore";
+import { ActiveProblemStore } from "../../../src/core/binder/ActiveProblemStore";
 import { MemoryStorage } from "../../../src/core/storage/MemoryStorage";
 import { FakeClock } from "../../../src/core/clock/Clock";
 
