@@ -30,18 +30,23 @@ export class MemoryStorage implements Storage {
 
   async listFiles(dir: string, pattern?: string): Promise<string[]> {
     const prefix = dir.endsWith("/") ? dir : dir + "/";
-    const results: string[] = [];
+    const results = new Set<string>();
     for (const key of this.files.keys()) {
       if (!key.startsWith(prefix)) continue;
       const relative = key.slice(prefix.length);
-      if (relative.includes("/")) continue;
-      if (pattern) {
-        const ext = pattern.replace("*", "");
-        if (!relative.endsWith(ext)) continue;
+      const firstSlash = relative.indexOf("/");
+      if (firstSlash >= 0) {
+        // immediate subdirectory name; skip when pattern filtering for file extension
+        if (!pattern) results.add(relative.slice(0, firstSlash));
+      } else {
+        if (pattern) {
+          const ext = pattern.replace("*", "");
+          if (!relative.endsWith(ext)) continue;
+        }
+        results.add(relative);
       }
-      results.push(relative);
     }
-    return results;
+    return [...results];
   }
 
   async exists(path: string): Promise<boolean> {
