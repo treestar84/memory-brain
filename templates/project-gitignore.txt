@@ -1,0 +1,12 @@
+# memory-brain: default is all local. Uncomment to share.
+.memory-brain/ledger/raw/
+.memory-brain/ledger/curated/
+.memory-brain/ledger/pending-analysis.jsonl
+.memory-brain/ledger/expired-analysis.jsonl
+.memory-brain/state/
+.memory-brain/security/
+
+# Team sharing (opt-in)
+# !.memory-brain/problems/*/problem.yaml
+# !.memory-brain/problems/*/ontology.module.yaml
+# !.memory-brain/ontologies/modules/

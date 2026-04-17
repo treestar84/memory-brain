@@ -1,0 +1,5 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.memory-brain/
+.DS_Store
