@@ -99,7 +99,8 @@ function contractSuite(
     test("writeJsonAtomic overwrites existing", async () => {
       await storage.writeJsonAtomic("over.json", { v: 1 });
       await storage.writeJsonAtomic("over.json", { v: 2 });
-      expect(await storage.readJson("over.json")).toEqual({ v: 2 });
+      const result = await storage.readJson("over.json");
+      expect(result).toEqual({ v: 2 });
       await cleanup();
     });
 
