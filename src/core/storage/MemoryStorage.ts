@@ -28,6 +28,10 @@ export class MemoryStorage implements Storage {
     this.files.set(path, content);
   }
 
+  async readText(path: string): Promise<string | null> {
+    return this.files.get(path) ?? null;
+  }
+
   async listFiles(dir: string, pattern?: string): Promise<string[]> {
     const prefix = dir.endsWith("/") ? dir : dir + "/";
     const results = new Set<string>();

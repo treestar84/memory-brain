@@ -60,6 +60,15 @@ export class FsStorage implements Storage {
     await rename(tmp, full);
   }
 
+  async readText(path: string): Promise<string | null> {
+    try {
+      return await readFile(this.resolve(path), "utf-8");
+    } catch (e: any) {
+      if (e.code === "ENOENT") return null;
+      throw e;
+    }
+  }
+
   async listFiles(dir: string, pattern?: string): Promise<string[]> {
     try {
       const entries = await readdir(this.resolve(dir));

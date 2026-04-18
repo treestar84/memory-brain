@@ -8,6 +8,8 @@ import { Expirer } from "../../src/core/ledger/Expirer";
 import { ObservationNormalizer } from "../../src/core/normalizer/ObservationNormalizer";
 import { Redactor } from "../../src/core/security/Redactor";
 import { ObservationBundler } from "../../src/core/flow/ObservationBundler";
+import { CueCardInjector } from "../../src/core/flow/CueCardInjector";
+import { CueCardFallback } from "../../src/core/flow/CueCardFallback";
 import { handleSessionStart } from "../../src/hooks/session-start";
 import { handleUserPromptSubmit } from "../../src/hooks/user-prompt-submit";
 import { handlePreToolUse } from "../../src/hooks/pre-tool-use";
@@ -25,6 +27,8 @@ describe("Phase 1 Golden Path E2E", () => {
   let expirer: Expirer;
   let normalizer: ObservationNormalizer;
   let bundler: ObservationBundler;
+  let injector: CueCardInjector;
+  let fallback: CueCardFallback;
 
   beforeEach(() => {
     storage = new MemoryStorage();
@@ -35,6 +39,8 @@ describe("Phase 1 Golden Path E2E", () => {
     expirer = new Expirer(storage, clock, 7);
     normalizer = new ObservationNormalizer(new Redactor(storage, clock));
     bundler = new ObservationBundler(storage, clock);
+    injector = new CueCardInjector();
+    fallback = new CueCardFallback();
   });
 
   test("full session lifecycle: start → prompt → tools → end", async () => {
@@ -45,7 +51,7 @@ describe("Phase 1 Golden Path E2E", () => {
       payload: { stage: "session-start" }, raw: {}, adapterVersion: "claude-code@1.0",
     };
     const startOutput = await handleSessionStart(startEvent, {
-      storage, clock, problemStore, queue, ledger, expirer,
+      storage, clock, problemStore, queue, ledger, expirer, bundler, injector, fallback,
     });
     expect(startOutput).toContain("초기화");
 
@@ -157,7 +163,7 @@ describe("Phase 1 Golden Path E2E", () => {
       payload: { stage: "session-start" }, raw: {}, adapterVersion: "claude-code@1.0",
     };
     await handleSessionStart(startEvent, {
-      storage, clock, problemStore, queue, ledger, expirer,
+      storage, clock, problemStore, queue, ledger, expirer, bundler, injector, fallback,
     });
 
     expect(await queue.count()).toBe(0);

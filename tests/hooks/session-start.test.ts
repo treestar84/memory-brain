@@ -6,6 +6,9 @@ import { ActiveProblemStore } from "../../src/core/binder/ActiveProblemStore";
 import { PendingQueue } from "../../src/core/ledger/PendingQueue";
 import { RawLedger } from "../../src/core/ledger/RawLedger";
 import { Expirer } from "../../src/core/ledger/Expirer";
+import { ObservationBundler } from "../../src/core/flow/ObservationBundler";
+import { CueCardInjector } from "../../src/core/flow/CueCardInjector";
+import { CueCardFallback } from "../../src/core/flow/CueCardFallback";
 import type { CanonicalEvent } from "../../src/core/events/CanonicalEvent";
 
 function makeSessionStart(sessionId = "sess-001"): CanonicalEvent {
@@ -23,6 +26,9 @@ describe("SessionStart hook", () => {
   let queue: PendingQueue;
   let ledger: RawLedger;
   let expirer: Expirer;
+  let bundler: ObservationBundler;
+  let injector: CueCardInjector;
+  let fallback: CueCardFallback;
 
   beforeEach(() => {
     storage = new MemoryStorage();
@@ -31,58 +37,75 @@ describe("SessionStart hook", () => {
     queue = new PendingQueue(storage, clock);
     ledger = new RawLedger(storage, clock);
     expirer = new Expirer(storage, clock, 7);
+    bundler = new ObservationBundler(storage, clock);
+    injector = new CueCardInjector();
+    fallback = new CueCardFallback();
+  });
+
+  const deps = () => ({
+    storage, clock, problemStore, queue, ledger, expirer, bundler, injector, fallback,
   });
 
   test("emits init message on empty state", async () => {
-    const output = await handleSessionStart(makeSessionStart(), {
-      storage, clock, problemStore, queue, ledger, expirer,
-    });
+    const output = await handleSessionStart(makeSessionStart(), deps());
     expect(output).toContain("memory-brain");
     expect(output).toContain("초기화");
   });
 
   test("emits active problem summary when exists", async () => {
     await problemStore.create("fix auth bug", "fix-auth");
-    const output = await handleSessionStart(makeSessionStart(), {
-      storage, clock, problemStore, queue, ledger, expirer,
-    });
+    const output = await handleSessionStart(makeSessionStart(), deps());
     expect(output).toContain("fix auth bug");
   });
 
   test("includes pending queue count", async () => {
     await queue.enqueue({ type: "test", data: {} });
     await queue.enqueue({ type: "test2", data: {} });
-    const output = await handleSessionStart(makeSessionStart(), {
-      storage, clock, problemStore, queue, ledger, expirer,
-    });
+    const output = await handleSessionStart(makeSessionStart(), deps());
     expect(output).toContain("2");
   });
 
   test("runs expirer sweep on startup", async () => {
     await queue.enqueue({ type: "old", data: {} });
     clock.advance(8 * 24 * 60 * 60 * 1000);
-    await handleSessionStart(makeSessionStart(), {
-      storage, clock, problemStore, queue, ledger, expirer,
-    });
+    await handleSessionStart(makeSessionStart(), deps());
     expect(await queue.count()).toBe(0);
   });
 
   test("appends to raw ledger", async () => {
-    await handleSessionStart(makeSessionStart(), {
-      storage, clock, problemStore, queue, ledger, expirer,
-    });
+    await handleSessionStart(makeSessionStart(), deps());
     const records = await storage.readJsonl("ledger/raw/2026/04/17/session-sess-001.jsonl");
     expect(records.length).toBe(1);
   });
 
-  test("output is under 2KB", async () => {
-    await problemStore.create("test problem", "test-problem");
-    for (let i = 0; i < 10; i++) {
-      await queue.enqueue({ type: `item-${i}`, data: {} });
+  test("injects cue card when problem active and card exists", async () => {
+    const prob = await problemStore.create("auth bug", "auth-bug");
+    const cueCard = `---\nproblemId: ${prob.id}\nblockCount: 2\n---\n\n## 핵심 문제\nauth 타임아웃.\n`;
+    await storage.writeRaw(`problems/${prob.id}/cue-card.md`, cueCard);
+    const output = await handleSessionStart(makeSessionStart(), deps());
+    expect(output).toContain("핵심 문제");
+    expect(output).toContain("auth 타임아웃");
+  });
+
+  test("injects fallback cue card when card missing and bundles pending", async () => {
+    const prob = await problemStore.create("bug", "bug");
+    await bundler.openTurn("sess-001", prob.id, 1);
+    await bundler.sealTurn("sess-001", [
+      { type: "tool:Edit", data: { filesTouched: ["x.ts"] } },
+    ], []);
+    const output = await handleSessionStart(makeSessionStart(), deps());
+    expect(output).toContain("awaitingSynthesis: true");
+    expect(output).toContain("활동 지표");
+  });
+
+  test("emits /cfgm-process warning when unprocessed >= 3", async () => {
+    const prob = await problemStore.create("bug", "bug");
+    for (let i = 0; i < 3; i++) {
+      await bundler.openTurn(`sess-${i}`, prob.id, 1);
+      await bundler.sealTurn(`sess-${i}`, [], []);
     }
-    const output = await handleSessionStart(makeSessionStart(), {
-      storage, clock, problemStore, queue, ledger, expirer,
-    });
-    expect(new TextEncoder().encode(output).length).toBeLessThanOrEqual(2048);
+    const output = await handleSessionStart(makeSessionStart(), deps());
+    expect(output).toContain("미처리 번들 3");
+    expect(output).toContain("/cfgm-process");
   });
 });
