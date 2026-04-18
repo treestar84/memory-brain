@@ -52,7 +52,7 @@ describe("TemplateRegistry", () => {
     expect(t).toBeNull();
   });
 
-  test("listIds returns sorted ids", async () => {
+  test("listIds returns all ids", async () => {
     const ids = await registry.listIds();
     expect(ids.sort()).toEqual(["architecture", "bugfix"]);
   });

@@ -9,9 +9,16 @@ export class TemplateRegistry {
     const files = await this.storage.listFiles("flow-patterns", "*.yaml");
     const templates: FlowTemplate[] = [];
     for (const file of files) {
-      const content = await this.storage.readText(`flow-patterns/${file}`);
+      let content: string | null;
+      try {
+        content = await this.storage.readText(`flow-patterns/${file}`);
+      } catch {
+        continue;
+      }
       if (!content) continue;
-      templates.push(parse(content) as FlowTemplate);
+      const parsed = parse(content);
+      if (!parsed || typeof (parsed as { id?: unknown }).id !== "string") continue;
+      templates.push(parsed as FlowTemplate);
     }
     return templates;
   }
@@ -19,7 +26,9 @@ export class TemplateRegistry {
   async get(templateId: string): Promise<FlowTemplate | null> {
     const content = await this.storage.readText(`flow-patterns/${templateId}.yaml`);
     if (!content) return null;
-    return parse(content) as FlowTemplate;
+    const parsed = parse(content);
+    if (!parsed || typeof (parsed as { id?: unknown }).id !== "string") return null;
+    return parsed as FlowTemplate;
   }
 
   async listIds(): Promise<string[]> {
