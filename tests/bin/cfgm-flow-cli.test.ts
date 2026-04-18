@@ -173,4 +173,51 @@ describe("bin/cfgm-inspect-graph", () => {
     expect(graph.blocks).toHaveLength(1);
     expect(graph.blocks[0].blockId).toBe("b1");
   });
+
+  test("--filter gap keeps only Gap blocks, excluding other types", () => {
+    const causeDelta = {
+      op: "block-add",
+      timestampIso: "2026-04-18T00:00:00Z",
+      block: validBlock({ blockId: "c1", type: "Cause" }),
+    };
+    const gapDelta = {
+      op: "block-add",
+      timestampIso: "2026-04-18T00:01:00Z",
+      block: validBlock({
+        blockId: "gap:semantic:c1",
+        type: "Gap",
+        confidence: 1,
+        detectorId: "semantic",
+        subject: { blockId: "c1" },
+        severity: 0.5,
+      }),
+    };
+    const apply = spawnSync("bun", ["run", "bin/cfgm-apply-delta.ts"], {
+      cwd: process.cwd(),
+      env: CLI_ENV(projectDir),
+      input: JSON.stringify([causeDelta, gapDelta]),
+      encoding: "utf-8",
+    });
+    expect(apply.status).toBe(0);
+
+    const inspect = spawnSync(
+      "bun",
+      [
+        "run",
+        "bin/cfgm-inspect-graph.ts",
+        "--problem",
+        "p1",
+        "--format",
+        "json",
+        "--filter",
+        "gap",
+      ],
+      { cwd: process.cwd(), env: CLI_ENV(projectDir), encoding: "utf-8" },
+    );
+    expect(inspect.status).toBe(0);
+    const graph = JSON.parse(inspect.stdout);
+    expect(graph.blocks).toHaveLength(1);
+    expect(graph.blocks[0].type).toBe("Gap");
+    expect(graph.blocks[0].blockId).toBe("gap:semantic:c1");
+  });
 });
