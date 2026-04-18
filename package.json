@@ -10,5 +10,8 @@
   "devDependencies": {
     "typescript": "^5.8.0",
     "@types/bun": "latest"
+  },
+  "dependencies": {
+    "yaml": "^2.8.3"
   }
 }
