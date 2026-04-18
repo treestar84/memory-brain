@@ -6,6 +6,7 @@ export type PendingItem = {
   id: string;
   enqueuedAt: string;
   payload: { type: string; data: Record<string, unknown> };
+  sessionId?: string;
 };
 
 const PENDING_PATH = "ledger/pending-analysis.jsonl";
@@ -16,14 +17,26 @@ export class PendingQueue {
     private readonly clock: Clock
   ) {}
 
-  async enqueue(payload: { type: string; data: Record<string, unknown> }): Promise<PendingItem> {
+  async enqueue(
+    payload: { type: string; data: Record<string, unknown> },
+    sessionId?: string
+  ): Promise<PendingItem> {
     const item: PendingItem = {
       id: `pend-${randomUUID().slice(0, 8)}`,
       enqueuedAt: this.clock.isoNow(),
       payload,
+      ...(sessionId !== undefined ? { sessionId } : {}),
     };
     await this.storage.appendJsonl(PENDING_PATH, item);
     return item;
+  }
+
+  async drainForSession(sessionId: string): Promise<PendingItem[]> {
+    const items = await this.list();
+    const mine = items.filter((i) => i.sessionId === sessionId);
+    const rest = items.filter((i) => i.sessionId !== sessionId);
+    await this.rewriteJsonl(rest);
+    return mine;
   }
 
   async list(): Promise<PendingItem[]> {

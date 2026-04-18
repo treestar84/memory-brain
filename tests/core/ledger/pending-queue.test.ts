@@ -66,4 +66,21 @@ describe("PendingQueue", () => {
   test("peek returns null when empty", async () => {
     expect(await queue.peek()).toBeNull();
   });
+
+  test("enqueue persists sessionId and drainForSession returns and removes only that session's items", async () => {
+    const a = await queue.enqueue({ type: "t", data: {} }, "sessA");
+    const b = await queue.enqueue({ type: "t", data: {} }, "sessB");
+    const c = await queue.enqueue({ type: "t", data: {} }, "sessA");
+    const drained = await queue.drainForSession("sessA");
+    expect(drained.map(i => i.id).sort()).toEqual([a.id, c.id].sort());
+    const remaining = await queue.list();
+    expect(remaining.map(i => i.id)).toEqual([b.id]);
+  });
+
+  test("enqueue without sessionId stores undefined and drainForSession skips those", async () => {
+    await queue.enqueue({ type: "t", data: {} });
+    const drained = await queue.drainForSession("sessA");
+    expect(drained).toEqual([]);
+    expect(await queue.count()).toBe(1);
+  });
 });

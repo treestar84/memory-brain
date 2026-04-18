@@ -5,6 +5,7 @@ import { FakeClock } from "../../src/core/clock/Clock";
 import { ActiveProblemStore } from "../../src/core/binder/ActiveProblemStore";
 import { RawLedger } from "../../src/core/ledger/RawLedger";
 import { PendingQueue } from "../../src/core/ledger/PendingQueue";
+import { ObservationBundler } from "../../src/core/flow/ObservationBundler";
 import type { CanonicalEvent } from "../../src/core/events/CanonicalEvent";
 
 function makeSessionEnd(): CanonicalEvent {
@@ -22,6 +23,7 @@ describe("SessionEnd hook", () => {
   let problemStore: ActiveProblemStore;
   let ledger: RawLedger;
   let queue: PendingQueue;
+  let bundler: ObservationBundler;
 
   beforeEach(() => {
     storage = new MemoryStorage();
@@ -29,10 +31,11 @@ describe("SessionEnd hook", () => {
     problemStore = new ActiveProblemStore(storage, clock);
     ledger = new RawLedger(storage, clock);
     queue = new PendingQueue(storage, clock);
+    bundler = new ObservationBundler(storage, clock);
   });
 
   test("appends session-end to raw ledger", async () => {
-    await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue });
+    await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler });
     const records = await storage.readJsonl("ledger/raw/2026/04/17/session-sess-001.jsonl");
     expect(records.length).toBe(1);
   });
@@ -40,26 +43,48 @@ describe("SessionEnd hook", () => {
   test("updates lastConfirmedAt on active problem", async () => {
     await problemStore.create("test", "test");
     clock.advance(60_000);
-    await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue });
+    await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler });
     const active = await problemStore.getActive();
     expect(active?.lastConfirmedAt).toBe(clock.isoNow());
   });
 
   test("safe when no active problem", async () => {
-    const output = await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue });
+    const output = await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler });
     expect(output).toBeNull();
   });
 
   test("idempotent — calling twice is safe", async () => {
     await problemStore.create("test", "test");
-    await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue });
-    await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue });
+    await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler });
+    await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler });
     const records = await storage.readJsonl("ledger/raw/2026/04/17/session-sess-001.jsonl");
     expect(records.length).toBe(2);
   });
 
   test("returns null (no stdout output)", async () => {
-    const output = await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue });
+    const output = await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler });
     expect(output).toBeNull();
+  });
+
+  test("seals the currently open turn into a bundle", async () => {
+    await problemStore.create("bug", "bug");
+    const active = (await problemStore.getActive())!;
+    await bundler.openTurn("sess-001", active.id, 1);
+    await queue.enqueue({ type: "tool:Bash", data: { exitCode: 0 } }, "sess-001");
+
+    await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler });
+
+    const unprocessed = await bundler.listUnprocessed();
+    expect(unprocessed).toHaveLength(1);
+    expect(unprocessed[0].turnOrdinal).toBe(1);
+    expect(unprocessed[0].observations).toHaveLength(1);
+    expect(await queue.count()).toBe(0);
+  });
+
+  test("no-op when no turn is open", async () => {
+    const out = await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler });
+    expect(out).toBeNull();
+    const unprocessed = await bundler.listUnprocessed();
+    expect(unprocessed).toHaveLength(0);
   });
 });

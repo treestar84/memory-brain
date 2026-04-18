@@ -23,10 +23,13 @@ export async function handlePostToolUse(
   if (!observation) return null;
 
   if (observation.needsAnalysis) {
-    await deps.queue.enqueue({
-      type: observation.type,
-      data: observation.data,
-    });
+    await deps.queue.enqueue(
+      {
+        type: observation.type,
+        data: observation.data,
+      },
+      event.sessionId
+    );
   }
 
   return null;

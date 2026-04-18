@@ -7,6 +7,7 @@ import { PendingQueue } from "../../src/core/ledger/PendingQueue";
 import { Expirer } from "../../src/core/ledger/Expirer";
 import { ObservationNormalizer } from "../../src/core/normalizer/ObservationNormalizer";
 import { Redactor } from "../../src/core/security/Redactor";
+import { ObservationBundler } from "../../src/core/flow/ObservationBundler";
 import { handleSessionStart } from "../../src/hooks/session-start";
 import { handleUserPromptSubmit } from "../../src/hooks/user-prompt-submit";
 import { handlePreToolUse } from "../../src/hooks/pre-tool-use";
@@ -23,6 +24,7 @@ describe("Phase 1 Golden Path E2E", () => {
   let queue: PendingQueue;
   let expirer: Expirer;
   let normalizer: ObservationNormalizer;
+  let bundler: ObservationBundler;
 
   beforeEach(() => {
     storage = new MemoryStorage();
@@ -32,6 +34,7 @@ describe("Phase 1 Golden Path E2E", () => {
     queue = new PendingQueue(storage, clock);
     expirer = new Expirer(storage, clock, 7);
     normalizer = new ObservationNormalizer(new Redactor(storage, clock));
+    bundler = new ObservationBundler(storage, clock);
   });
 
   test("full session lifecycle: start → prompt → tools → end", async () => {
@@ -58,7 +61,7 @@ describe("Phase 1 Golden Path E2E", () => {
       raw: {}, adapterVersion: "claude-code@1.0",
     };
     const promptOutput = await handleUserPromptSubmit(promptEvent, {
-      storage, clock, problemStore, queue, ledger,
+      storage, clock, problemStore, queue, ledger, bundler,
     });
     expect(promptOutput).toContain("Fix auth timeout");
 
@@ -131,7 +134,7 @@ describe("Phase 1 Golden Path E2E", () => {
       cwd: "/project", timestampIso: clock.isoNow(),
       payload: { stage: "session-end" }, raw: {}, adapterVersion: "claude-code@1.0",
     };
-    await handleSessionEnd(endEvent, { storage, clock, problemStore, ledger, queue });
+    await handleSessionEnd(endEvent, { storage, clock, problemStore, ledger, queue, bundler });
 
     // 11. Verify final state
     const active = await problemStore.getActive();

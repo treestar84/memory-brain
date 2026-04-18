@@ -70,7 +70,7 @@ export class ObservationBundler {
       }
       if (i === 0) primary = bundle;
     }
-    await this.storage.writeJsonAtomic(this.turnStatePath(sessionId), { closed: true, sealedAt });
+    await this.storage.writeJsonAtomic(this.turnStatePath(sessionId), { ...state, closed: true, sealedAt });
     return primary;
   }
 
