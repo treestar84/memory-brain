@@ -122,9 +122,39 @@ bun run bin/cfgm-apply-delta.ts --mark-processed <bundleId>
 - cue card 재작성 여부
 - 이상 상황 (discard, 검증 실패 등)
 
+## Gap 블록 생성 규칙 (Epic 3)
+
+- `type: "Gap"`, `detectorId: "semantic"` — 구조적 `rule:*`는 코어가 자동 산출하므로 직접 생성 금지
+- `subject.blockId` 필수 — 결손이 지시하는 기존 블록
+- `severity`: 0.0~1.0 (얼마나 시급한 결손인지)
+- `semanticBoost` 선택 — 이 Gap이 특히 중요하면 0.5~1.0 부여 (VOI 가중)
+- `blockId` 규약은 자유이나 `gap:semantic:<subject>` 패턴 권장
+
+## Question 블록 생성 규칙 (Epic 3)
+
+- `type: "Question"`, `gapBlockId` 필수 — 대응하는 Gap의 blockId
+- `relations`에 `{ kind: "followsFrom", targetBlockId: <gapBlockId>, confidence: 1.0 }` 부착 권장
+- `label`: 500바이트 이내 — 초과 시 UserPromptSubmit 훅이 주입을 스킵하고 오류 로그 남김
+- `problemId`: 대응 Gap과 동일해야 한다
+- `confidence: 1.0` (Question은 사실 기록, 가설 아님)
+
+## Answer 기록 규칙 (Epic 3)
+
+Question에 답이 된 관측이 bundle에 있으면:
+1. 답변 내용에 대응하는 블록(Evidence/Outcome/Cause 등)을 `block-add`
+2. Question을 `block-supersede`로 마감 — `supersededBy`는 답변 블록 blockId, `reason: "answered"`
+3. 연관 Gap이 해소됐으면 semantic Gap도 `block-supersede`로 마감 (구조적 Gap은 projection에서 자동 제거)
+
+## Question 리프레이즈 규칙 (Epic 3)
+
+- 기존 Question 문구를 고치려면 기존 Question을 `block-supersede`(`reason: "rephrased"`) + 새 Question `block-add`
+- 새 Question의 `gapBlockId`는 원본과 동일해야 한다
+- 텍스트 유사도 판정이 아닌 `block-supersede`를 통한 명시적 교체
+
 ## 금지 사항
 
 - 번들 관측의 내용을 절단·키워드 매칭 후 type을 결정하지 않는다 — 전체를 읽고 판단
 - Confidence를 임의 고정값(0.5 등)으로 일괄 부여하지 않는다 — 맥락별 판단
 - cue card 바디에 시간표·할 일 목록·사용자에 대한 지시를 쓰지 않는다 — 이 스킬은 기술적 지식 저장만 담당
 - 의미 없는 모든 툴 호출을 블록으로 만들지 않는다 — 노이즈는 버린다
+- 구조적 Gap(`detectorId: "rule:*"`)을 수동으로 `block-add`하지 않는다 — projection에서 자동 생성됨
