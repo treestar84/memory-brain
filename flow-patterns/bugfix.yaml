@@ -1,0 +1,20 @@
+# flow-patterns/bugfix.yaml
+id: bugfix
+version: "1.0.0"
+description: "버그/장애 재현 및 수정 패턴"
+requiredBlockTypes:
+  - Action
+  - Outcome
+recommendedBlockTypes:
+  - Trigger
+  - Cause
+  - Evidence
+  - Hypothesis
+expectedRelations:
+  - from: Action
+    to: Outcome
+    kind: followsFrom
+  - from: Evidence
+    to: Cause
+    kind: evidencedBy
+minConfidence: 0.6

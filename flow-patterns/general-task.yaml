@@ -1,0 +1,15 @@
+# flow-patterns/general-task.yaml
+id: general-task
+version: "1.0.0"
+description: "범용 기본 문제 해결 패턴"
+requiredBlockTypes:
+  - Action
+recommendedBlockTypes:
+  - Cause
+  - Evidence
+  - Outcome
+expectedRelations:
+  - from: Action
+    to: Outcome
+    kind: followsFrom
+minConfidence: 0.5

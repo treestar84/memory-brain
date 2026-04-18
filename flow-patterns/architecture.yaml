@@ -1,0 +1,21 @@
+# flow-patterns/architecture.yaml
+id: architecture
+version: "1.0.0"
+description: "아키텍처 결정 패턴"
+requiredBlockTypes:
+  - Context
+  - Action
+recommendedBlockTypes:
+  - Constraint
+  - Hypothesis
+  - Evidence
+  - Outcome
+  - Rule
+expectedRelations:
+  - from: Evidence
+    to: Hypothesis
+    kind: validatedBy
+  - from: Action
+    to: Outcome
+    kind: followsFrom
+minConfidence: 0.65
