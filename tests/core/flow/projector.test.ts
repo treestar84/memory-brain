@@ -1,6 +1,10 @@
 import { describe, test, expect } from "bun:test";
 import { FlowGraphProjector } from "../../../src/core/flow/FlowGraphProjector";
 import type { FlowBlock, FlowDelta } from "../../../src/core/flow/types";
+import { FakeClock } from "../../../src/core/clock/Clock";
+import { OrphanActionDetector } from "../../../src/core/gap/detectors/OrphanActionDetector";
+import { VoiScorer } from "../../../src/core/gap/VoiScorer";
+import { QuestionLifecycleResolver } from "../../../src/core/gap/QuestionLifecycleResolver";
 
 const mkBlock = (id: string, overrides: Partial<FlowBlock> = {}): FlowBlock => ({
   blockId: id, problemId: "p1", type: "Cause", status: "confirmed",
@@ -90,5 +94,116 @@ describe("FlowGraphProjector", () => {
     const g = p.project("p1", deltas);
     expect(g.blocks).toHaveLength(1);
     expect(g.blocks[0].blockId).toBe("a");
+  });
+});
+
+describe("FlowGraphProjector — Epic 3 확장", () => {
+  const clock = new FakeClock(new Date("2026-04-18T10:00:00Z"));
+
+  test("구조적 Gap 블록이 projection 결과에 포함됨", () => {
+    const projector = new FlowGraphProjector(
+      [new OrphanActionDetector()],
+      new VoiScorer(),
+      new QuestionLifecycleResolver(),
+    );
+    const deltas: FlowDelta[] = [
+      addDelta(
+        mkBlock("a1", { type: "Action", problemId: "p", label: "edit", confidence: 0.8 }),
+        "2026-04-18T00:00:00Z",
+      ),
+    ];
+    const graph = projector.project("p", deltas, [], clock);
+    const gap = graph.blocks.find((b) => b.type === "Gap");
+    expect(gap).toBeDefined();
+    expect(gap!.blockId).toBe("gap:rule:orphan-action:a1");
+    expect(gap!.voiCached).toBeGreaterThan(0);
+  });
+
+  test("의미적 Gap(delta) + 구조적 Gap 공존", () => {
+    const projector = new FlowGraphProjector(
+      [new OrphanActionDetector()],
+      new VoiScorer(),
+      new QuestionLifecycleResolver(),
+    );
+    const deltas: FlowDelta[] = [
+      addDelta(
+        mkBlock("a1", { type: "Action", problemId: "p", label: "edit", confidence: 0.8 }),
+        "2026-04-18T00:00:00Z",
+      ),
+      addDelta(
+        mkBlock("gap:semantic:a1", {
+          type: "Gap",
+          problemId: "p",
+          label: "의미적 결손",
+          confidence: 1,
+          detectorId: "semantic",
+          subject: { blockId: "a1" },
+          severity: 0.8,
+        }),
+        "2026-04-18T00:00:01Z",
+      ),
+    ];
+    const graph = projector.project("p", deltas, [], clock);
+    const gaps = graph.blocks.filter((b) => b.type === "Gap");
+    expect(gaps).toHaveLength(2);
+    expect(gaps.every((g) => g.voiCached !== undefined)).toBe(true);
+  });
+
+  test("Question 블록에 lifecycle 병합", () => {
+    const projector = new FlowGraphProjector(
+      [],
+      new VoiScorer(),
+      new QuestionLifecycleResolver(),
+    );
+    const deltas: FlowDelta[] = [
+      addDelta(
+        mkBlock("g1", {
+          type: "Gap",
+          problemId: "p",
+          label: "?",
+          confidence: 1,
+          detectorId: "semantic",
+          subject: { blockId: "x" },
+          severity: 0.5,
+        }),
+        "2026-04-18T00:00:00Z",
+      ),
+      addDelta(
+        mkBlock("q1", {
+          type: "Question",
+          problemId: "p",
+          label: "증거 있어?",
+          confidence: 1,
+          gapBlockId: "g1",
+        }),
+        "2026-04-18T00:00:01Z",
+      ),
+    ];
+    const graph = projector.project("p", deltas, [], clock);
+    const q = graph.blocks.find((b) => b.blockId === "q1")!;
+    expect(q.lifecycle).toBe("pending");
+    expect(q.voiCached).toBeDefined();
+  });
+
+  test("결정성: 동일 입력 → 동일 출력", () => {
+    const projector1 = new FlowGraphProjector(
+      [new OrphanActionDetector()],
+      new VoiScorer(),
+      new QuestionLifecycleResolver(),
+    );
+    const projector2 = new FlowGraphProjector(
+      [new OrphanActionDetector()],
+      new VoiScorer(),
+      new QuestionLifecycleResolver(),
+    );
+    const deltas: FlowDelta[] = [
+      addDelta(
+        mkBlock("a1", { type: "Action", problemId: "p", label: "edit", confidence: 0.8 }),
+        "2026-04-18T00:00:00Z",
+      ),
+    ];
+    const g1 = projector1.project("p", deltas, [], clock);
+    const g2 = projector2.project("p", deltas, [], clock);
+    expect(JSON.stringify(g1)).toBe(JSON.stringify(g2));
   });
 });
