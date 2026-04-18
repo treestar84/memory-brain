@@ -31,6 +31,25 @@ export type FlowBlock = {
   staleAfter: string | null;
   supersededBy: string | null;
   bundleId: string;
+
+  // Gap 전용 (type === "Gap")
+  detectorId?: string;
+  subject?: { blockId: string };
+  severity?: number;
+  semanticBoost?: number;
+
+  // Question 전용 (type === "Question")
+  gapBlockId?: string;
+  lifecycle?: "pending" | "asked" | "answered" | "stale";
+  askedAt?: string | null;
+  answeredByBundleId?: string | null;
+  answerBlockId?: string | null;
+
+  // Gap·Question 공통
+  voiCached?: number;
+
+  // Outcome 전용
+  polarity?: "+" | "-" | null;
 };
 
 export type FlowDelta =

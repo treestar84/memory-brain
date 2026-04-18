@@ -73,3 +73,61 @@ describe("FlowGraphValidator", () => {
     expect(v.validateRelationTargets(orphan).ok).toBe(false);
   });
 });
+
+describe("FlowGraphValidator — Epic 3 확장", () => {
+  const validator = new FlowGraphValidator();
+  const baseBlock = (over: Record<string, unknown> = {}) => ({
+    blockId: "b1", problemId: "p1", type: "Problem" as const,
+    status: "confirmed" as const, label: "x", confidence: 0.8,
+    supportedBy: [], relations: [], createdAt: "2026-04-18T00:00:00Z",
+    lastConfirmedAt: null, staleAfter: null, supersededBy: null, bundleId: "bnd",
+    ...over,
+  });
+
+  test("Gap 블록에 detectorId·subject 없으면 reject", () => {
+    const delta = { op: "block-add" as const, timestampIso: "2026-04-18T00:00:00Z",
+      block: baseBlock({ type: "Gap" }) };
+    expect(validator.validateDelta(delta as any).ok).toBe(false);
+  });
+
+  test("Gap 블록에 detectorId·subject 있으면 통과", () => {
+    const delta = { op: "block-add" as const, timestampIso: "2026-04-18T00:00:00Z",
+      block: baseBlock({ type: "Gap", detectorId: "semantic", subject: { blockId: "b2" } }) };
+    expect(validator.validateDelta(delta as any).ok).toBe(true);
+  });
+
+  test("Gap detectorId rule:* reject (projection-derived만 허용)", () => {
+    const delta = { op: "block-add" as const, timestampIso: "2026-04-18T00:00:00Z",
+      block: baseBlock({ type: "Gap", detectorId: "rule:orphan-action", subject: { blockId: "b2" } }) };
+    expect(validator.validateDelta(delta as any).ok).toBe(false);
+  });
+
+  test("Question 블록에 gapBlockId 없으면 reject", () => {
+    const delta = { op: "block-add" as const, timestampIso: "2026-04-18T00:00:00Z",
+      block: baseBlock({ type: "Question" }) };
+    expect(validator.validateDelta(delta as any).ok).toBe(false);
+  });
+
+  test("Question 블록에 gapBlockId 있으면 통과", () => {
+    const delta = { op: "block-add" as const, timestampIso: "2026-04-18T00:00:00Z",
+      block: baseBlock({ type: "Question", gapBlockId: "gap:semantic:b2" }) };
+    expect(validator.validateDelta(delta as any).ok).toBe(true);
+  });
+
+  test("Outcome polarity는 '+' | '-' | null만 허용", () => {
+    const delta = { op: "block-add" as const, timestampIso: "2026-04-18T00:00:00Z",
+      block: baseBlock({ type: "Outcome", polarity: "?" }) };
+    expect(validator.validateDelta(delta as any).ok).toBe(false);
+  });
+
+  test("Outcome polarity '+' 통과, '-' 통과, null 통과, 미설정 통과", () => {
+    for (const polarity of ["+", "-", null]) {
+      const delta = { op: "block-add" as const, timestampIso: "2026-04-18T00:00:00Z",
+        block: baseBlock({ type: "Outcome", polarity }) };
+      expect(validator.validateDelta(delta as any).ok).toBe(true);
+    }
+    const delta = { op: "block-add" as const, timestampIso: "2026-04-18T00:00:00Z",
+      block: baseBlock({ type: "Outcome" }) };
+    expect(validator.validateDelta(delta as any).ok).toBe(true);
+  });
+});

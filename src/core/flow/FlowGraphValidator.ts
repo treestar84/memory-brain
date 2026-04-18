@@ -12,7 +12,30 @@ export class FlowGraphValidator {
   validateDelta(delta: unknown): ValidationResult {
     if (!isFlowDelta(delta)) return { ok: false, reason: "delta fails type guard" };
     const d = delta as FlowDelta;
-    if (d.op === "block-add") return this.validateBlock(d.block);
+    if (d.op === "block-add") {
+      const base = this.validateBlock(d.block);
+      if (!base.ok) return base;
+      const b = d.block;
+      if (b.type === "Gap") {
+        if (!b.detectorId || !b.subject?.blockId) {
+          return { ok: false, reason: "Gap block requires detectorId and subject" };
+        }
+        if (b.detectorId.startsWith("rule:")) {
+          return { ok: false, reason: "Structural Gap (rule:*) cannot be added via delta; they are projection-derived" };
+        }
+      }
+      if (b.type === "Question") {
+        if (!b.gapBlockId) {
+          return { ok: false, reason: "Question block requires gapBlockId" };
+        }
+      }
+      if (b.type === "Outcome" && b.polarity !== undefined && b.polarity !== null) {
+        if (b.polarity !== "+" && b.polarity !== "-") {
+          return { ok: false, reason: "Outcome polarity must be '+' | '-' | null" };
+        }
+      }
+      return { ok: true };
+    }
     if (d.op === "relation-add") {
       if (d.relation.confidence < 0 || d.relation.confidence > 1)
         return { ok: false, reason: "relation confidence out of range" };

@@ -9,4 +9,14 @@ export const FLOW_CONFIG = {
   CUE_CARD_HARD_KB: 6,
   STDOUT_INJECT_BUDGET_KB: 1.5,
   FALLBACK_CARD_BUDGET_KB: 1,
+  DEFAULT_STALE_DAYS: 7,
+  QUESTION_PENDING_STALE_DAYS: 30,
+  QUESTION_LABEL_MAX_BYTES: 500,
+  VOI_WEIGHTS: {
+    severity: 0.35,
+    centrality: 0.20,
+    recency: 0.15,
+    confidenceGap: 0.15,
+    semanticBoost: 0.15,
+  },
 } as const;
