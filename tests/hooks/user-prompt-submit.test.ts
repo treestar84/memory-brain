@@ -6,7 +6,9 @@ import { ActiveProblemStore } from "../../src/core/binder/ActiveProblemStore";
 import { PendingQueue } from "../../src/core/ledger/PendingQueue";
 import { RawLedger } from "../../src/core/ledger/RawLedger";
 import { ObservationBundler } from "../../src/core/flow/ObservationBundler";
+import { QuestionQueue } from "../../src/core/gap/QuestionQueue";
 import type { CanonicalEvent } from "../../src/core/events/CanonicalEvent";
+import type { FlowBlock, FlowGraph } from "../../src/core/flow/types";
 
 function makePromptSubmit(message = "Fix the bug"): CanonicalEvent {
   return {
@@ -124,5 +126,220 @@ describe("UserPromptSubmit hook", () => {
     const unprocessed = await bundler.listUnprocessed();
     expect(unprocessed).toHaveLength(1);
     expect(unprocessed[0].turnOrdinal).toBe(1);
+  });
+});
+
+describe("UserPromptSubmit hook — Epic 3 Question 주입", () => {
+  let storage: MemoryStorage;
+  let clock: FakeClock;
+  let problemStore: ActiveProblemStore;
+  let queue: PendingQueue;
+  let ledger: RawLedger;
+  let bundler: ObservationBundler;
+  let questionQueue: QuestionQueue;
+
+  beforeEach(() => {
+    storage = new MemoryStorage();
+    clock = new FakeClock(new Date("2026-04-18T10:00:00Z"));
+    problemStore = new ActiveProblemStore(storage, clock);
+    queue = new PendingQueue(storage, clock);
+    ledger = new RawLedger(storage, clock);
+    bundler = new ObservationBundler(storage, clock);
+    questionQueue = new QuestionQueue(storage, clock);
+  });
+
+  const mkGap = (over: Partial<FlowBlock>): FlowBlock => ({
+    blockId: "g1",
+    problemId: "p",
+    type: "Gap",
+    status: "confirmed",
+    label: "결손",
+    confidence: 1,
+    supportedBy: [],
+    relations: [],
+    createdAt: "2026-04-18T10:00:00Z",
+    lastConfirmedAt: null,
+    staleAfter: null,
+    supersededBy: null,
+    bundleId: "",
+    detectorId: "semantic",
+    subject: { blockId: "s" },
+    severity: 0.5,
+    voiCached: 0.5,
+    ...over,
+  });
+
+  const mkQ = (over: Partial<FlowBlock>): FlowBlock => ({
+    blockId: "q1",
+    problemId: "p",
+    type: "Question",
+    status: "confirmed",
+    label: "증거를 공유해줘",
+    confidence: 1,
+    supportedBy: [],
+    relations: [],
+    createdAt: "2026-04-18T10:00:00Z",
+    lastConfirmedAt: null,
+    staleAfter: null,
+    supersededBy: null,
+    bundleId: "",
+    gapBlockId: "g1",
+    lifecycle: "pending",
+    voiCached: 0.5,
+    ...over,
+  });
+
+  const mkGraph = (problemId: string, blocks: FlowBlock[]): FlowGraph => ({
+    problemId,
+    blocks,
+    cueCardMeta: { lastSyntheticAt: null, bodyHash: null, bodyBytes: 0, stale: false },
+  });
+
+  const evt = (): CanonicalEvent => ({
+    platform: "claude-code",
+    stage: "prompt-submit",
+    sessionId: "sess-e3",
+    cwd: "/p",
+    timestampIso: clock.isoNow(),
+    payload: { stage: "prompt-submit", message: "continue" },
+    raw: {},
+    adapterVersion: "claude-code@1.0",
+  });
+
+  test("active problem 있고 pending 상위 1개 → stdout 주입 + asked append", async () => {
+    const prob = await problemStore.create("bug", "bug");
+    await questionQueue.rebuild(
+      mkGraph(prob.id, [
+        mkGap({ problemId: prob.id }),
+        mkQ({ problemId: prob.id }),
+      ]),
+    );
+
+    const out = await handleUserPromptSubmit(evt(), {
+      storage,
+      clock,
+      problemStore,
+      queue,
+      ledger,
+      bundler,
+      questionQueue,
+    });
+
+    expect(out).toContain("## 🧠 memory-brain — 확인 질문");
+    expect(out).toContain("증거를 공유해줘");
+    const asked = await questionQueue.listAsked();
+    expect(asked).toHaveLength(1);
+    expect(asked[0].questionBlockId).toBe("q1");
+    expect(asked[0].gapBlockId).toBe("g1");
+  });
+
+  test("gate 1 (동일 questionBlockId asked) → 스킵", async () => {
+    const prob = await problemStore.create("bug", "bug");
+    await questionQueue.appendAsked({
+      questionBlockId: "q1",
+      gapBlockId: "g1",
+      problemId: prob.id,
+      askedAtIso: clock.isoNow(),
+      sessionId: "prev",
+      promptTurnOrdinal: 1,
+    });
+    await questionQueue.rebuild(
+      mkGraph(prob.id, [mkGap({ problemId: prob.id }), mkQ({ problemId: prob.id })]),
+    );
+
+    const out = await handleUserPromptSubmit(evt(), {
+      storage,
+      clock,
+      problemStore,
+      queue,
+      ledger,
+      bundler,
+      questionQueue,
+    });
+    expect(out).not.toContain("확인 질문");
+    expect((await questionQueue.listAsked()).length).toBe(1);
+  });
+
+  test("gate 2 (동일 gapBlockId asked) → 스킵", async () => {
+    const prob = await problemStore.create("bug", "bug");
+    await questionQueue.appendAsked({
+      questionBlockId: "q1",
+      gapBlockId: "g1",
+      problemId: prob.id,
+      askedAtIso: clock.isoNow(),
+      sessionId: "prev",
+      promptTurnOrdinal: 1,
+    });
+    await questionQueue.rebuild(
+      mkGraph(prob.id, [
+        mkGap({ problemId: prob.id }),
+        mkQ({ blockId: "q2", problemId: prob.id, gapBlockId: "g1", label: "더 묻기" }),
+      ]),
+    );
+
+    const out = await handleUserPromptSubmit(evt(), {
+      storage,
+      clock,
+      problemStore,
+      queue,
+      ledger,
+      bundler,
+      questionQueue,
+    });
+    expect(out).not.toContain("확인 질문");
+    expect((await questionQueue.listAsked()).length).toBe(1);
+  });
+
+  test("label > 500B → 스킵 + hook-errors.jsonl 기록", async () => {
+    const prob = await problemStore.create("bug", "bug");
+    const bigLabel = "가".repeat(200);
+    await questionQueue.rebuild(
+      mkGraph(prob.id, [
+        mkGap({ problemId: prob.id }),
+        mkQ({ problemId: prob.id, label: bigLabel }),
+      ]),
+    );
+
+    const out = await handleUserPromptSubmit(evt(), {
+      storage,
+      clock,
+      problemStore,
+      queue,
+      ledger,
+      bundler,
+      questionQueue,
+    });
+    expect(out).not.toContain("확인 질문");
+    const errors = await storage.readJsonl("security/hook-errors.jsonl");
+    expect(
+      errors.some((e) => (e as { kind?: string }).kind === "question-oversized"),
+    ).toBe(true);
+  });
+
+  test("active problem 없음 → 주입 스킵", async () => {
+    const out = await handleUserPromptSubmit(evt(), {
+      storage,
+      clock,
+      problemStore,
+      queue,
+      ledger,
+      bundler,
+      questionQueue,
+    });
+    expect(out).toBeNull();
+  });
+
+  test("pending 비어 있음 → 주입 스킵", async () => {
+    await problemStore.create("bug", "bug");
+    const out = await handleUserPromptSubmit(evt(), {
+      storage,
+      clock,
+      problemStore,
+      queue,
+      ledger,
+      bundler,
+      questionQueue,
+    });
+    expect(out).not.toContain("확인 질문");
   });
 });

@@ -5,6 +5,8 @@ import type { ActiveProblemStore } from "../core/binder/ActiveProblemStore";
 import type { PendingQueue } from "../core/ledger/PendingQueue";
 import type { RawLedger } from "../core/ledger/RawLedger";
 import type { ObservationBundler } from "../core/flow/ObservationBundler";
+import type { QuestionQueue } from "../core/gap/QuestionQueue";
+import { FLOW_CONFIG } from "../core/flow/config";
 
 export type PromptSubmitDeps = {
   storage: Storage;
@@ -13,6 +15,7 @@ export type PromptSubmitDeps = {
   queue: PendingQueue;
   ledger: RawLedger;
   bundler: ObservationBundler;
+  questionQueue?: QuestionQueue;
 };
 
 type CurrentTurnState = {
@@ -26,7 +29,7 @@ type CurrentTurnState = {
 
 export async function handleUserPromptSubmit(
   event: CanonicalEvent,
-  deps: PromptSubmitDeps
+  deps: PromptSubmitDeps,
 ): Promise<string | null> {
   await deps.ledger.append(event);
 
@@ -46,10 +49,7 @@ export async function handleUserPromptSubmit(
 
   if (!active) return null;
 
-  const lines: string[] = [
-    `### 🧠 memory-brain`,
-    `**문제:** ${active.title}`,
-  ];
+  const lines: string[] = [`### 🧠 memory-brain`, `**문제:** ${active.title}`];
 
   const pendingCount = await deps.queue.count();
   if (pendingCount > 0) {
@@ -60,5 +60,54 @@ export async function handleUserPromptSubmit(
     }
   }
 
+  const question = await injectQuestion(event, deps, active.id, nextOrdinal);
+  if (question) lines.push(question);
+
   return lines.join("\n");
+}
+
+async function injectQuestion(
+  event: CanonicalEvent,
+  deps: PromptSubmitDeps,
+  activeProblemId: string,
+  turnOrdinal: number,
+): Promise<string | null> {
+  const { questionQueue, storage, clock } = deps;
+  if (!questionQueue) return null;
+
+  const pending = await questionQueue.listPending();
+  if (pending.length === 0) return null;
+
+  const asked = await questionQueue.listAsked();
+  const askedQuestionIds = new Set(asked.map((a) => a.questionBlockId));
+  const askedGapIds = new Set(asked.map((a) => a.gapBlockId));
+
+  for (const cand of pending) {
+    if (cand.problemId !== activeProblemId) continue;
+    if (askedQuestionIds.has(cand.questionBlockId)) continue;
+    if (askedGapIds.has(cand.gapBlockId)) continue;
+
+    const bytes = new TextEncoder().encode(cand.label).length;
+    if (bytes > FLOW_CONFIG.QUESTION_LABEL_MAX_BYTES) {
+      await storage.appendJsonl("security/hook-errors.jsonl", {
+        kind: "question-oversized",
+        questionBlockId: cand.questionBlockId,
+        bytes,
+        at: clock.isoNow(),
+      });
+      continue;
+    }
+
+    await questionQueue.appendAsked({
+      questionBlockId: cand.questionBlockId,
+      gapBlockId: cand.gapBlockId,
+      problemId: cand.problemId,
+      askedAtIso: clock.isoNow(),
+      sessionId: event.sessionId,
+      promptTurnOrdinal: turnOrdinal,
+    });
+
+    return `\n## 🧠 memory-brain — 확인 질문\n> ${cand.label}\n\n(답변은 다음 /cfgm-process에 반영됩니다)`;
+  }
+  return null;
 }
