@@ -25,6 +25,15 @@ export class FsStorage implements Storage {
     await appendFile(full, JSON.stringify(record) + "\n", { flag: "a" });
   }
 
+  async rewriteJsonl(path: string, records: readonly unknown[]): Promise<void> {
+    const full = this.resolve(path);
+    await mkdir(dirname(full), { recursive: true });
+    const body = records.map((r) => JSON.stringify(r)).join("\n");
+    const tmp = full + ".tmp." + randomUUID().slice(0, 8);
+    await writeFile(tmp, body.length > 0 ? body + "\n" : "");
+    await rename(tmp, full);
+  }
+
   async readJsonl<T = unknown>(path: string): Promise<T[]> {
     try {
       const content = await readFile(this.resolve(path), "utf-8");

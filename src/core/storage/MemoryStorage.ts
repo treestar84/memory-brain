@@ -8,6 +8,14 @@ export class MemoryStorage implements Storage {
     this.files.set(path, existing + JSON.stringify(record) + "\n");
   }
 
+  async rewriteJsonl(path: string, records: readonly unknown[]): Promise<void> {
+    if (records.length === 0) {
+      this.files.set(path, "");
+      return;
+    }
+    this.files.set(path, records.map((r) => JSON.stringify(r)).join("\n") + "\n");
+  }
+
   async readJsonl<T = unknown>(path: string): Promise<T[]> {
     const content = this.files.get(path);
     if (!content) return [];

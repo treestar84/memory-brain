@@ -1,5 +1,6 @@
 export interface Storage {
   appendJsonl(path: string, record: unknown): Promise<void>;
+  rewriteJsonl(path: string, records: readonly unknown[]): Promise<void>;
   readJsonl<T = unknown>(path: string): Promise<T[]>;
   readJson<T = unknown>(path: string): Promise<T | null>;
   writeJsonAtomic(path: string, data: unknown): Promise<void>;
