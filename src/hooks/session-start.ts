@@ -10,6 +10,8 @@ import type { CueCardInjector } from "../core/flow/CueCardInjector";
 import type { CueCardFallback } from "../core/flow/CueCardFallback";
 import { FLOW_CONFIG } from "../core/flow/config";
 import type { OntologyModule } from "../core/ontology/OntologyModule";
+import type { ResumeSheetReader } from "../core/compaction/ResumeSheetReader";
+import type { ResumeSheet } from "../core/compaction/types";
 
 export type HookDeps = {
   storage: Storage;
@@ -22,7 +24,45 @@ export type HookDeps = {
   injector: CueCardInjector;
   fallback: CueCardFallback;
   ontologyModule?: OntologyModule;
+  resumeReader?: ResumeSheetReader;
 };
+
+function formatResumeSheet(sheet: ResumeSheet, currentProblemId: string | null): string[] {
+  const lines: string[] = [];
+  lines.push("### 🔁 이전 세션 재개");
+
+  if (sheet.problemId && currentProblemId && sheet.problemId !== currentProblemId) {
+    lines.push(`(이전 문제 \`${sheet.problemId}\`에서 세이브됨)`);
+  }
+  lines.push(`세이브 시각: ${sheet.generatedAt}`);
+
+  if (sheet.recentDeltas.length > 0) {
+    lines.push("");
+    lines.push("**최근 변경:**");
+    for (const d of sheet.recentDeltas.slice(-5)) {
+      lines.push(`- ${d.summary}`);
+    }
+  }
+
+  if (sheet.openGaps.length > 0) {
+    lines.push("");
+    lines.push(`**미해결 gap:** ${sheet.openGaps.length}개`);
+    const top = sheet.openGaps[0];
+    if (top) {
+      lines.push(`(최고 voi: ${top.detectorId} severity=${top.severity.toFixed(2)})`);
+    }
+  }
+
+  if (sheet.topPendingQuestions.length > 0) {
+    lines.push("");
+    lines.push("**다음 질문:**");
+    for (const q of sheet.topPendingQuestions) {
+      lines.push(`- [voi=${q.voi.toFixed(2)}] ${q.label}`);
+    }
+  }
+
+  return lines;
+}
 
 export async function handleSessionStart(
   event: CanonicalEvent,
@@ -35,6 +75,20 @@ export async function handleSessionStart(
   const pendingCount = await deps.queue.count();
 
   const lines: string[] = ["### 🧠 memory-brain"];
+
+  if (deps.resumeReader) {
+    let resumeSheet: ResumeSheet | null = null;
+    try {
+      resumeSheet = await deps.resumeReader.consume();
+    } catch (e) {
+      console.error("[session-start] resume reader failed:", e);
+    }
+    if (resumeSheet) {
+      lines.push("");
+      lines.push(...formatResumeSheet(resumeSheet, active?.id ?? null));
+      lines.push("");
+    }
+  }
 
   if (!active) {
     lines.push("초기화됨. `/cfgm-new-problem`으로 문제를 생성하세요.");

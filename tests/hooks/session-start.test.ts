@@ -11,6 +11,9 @@ import { CueCardInjector } from "../../src/core/flow/CueCardInjector";
 import { CueCardFallback } from "../../src/core/flow/CueCardFallback";
 import type { CanonicalEvent } from "../../src/core/events/CanonicalEvent";
 import { OntologyModule } from "../../src/core/ontology/OntologyModule";
+import { ResumeSheetReader } from "../../src/core/compaction/ResumeSheetReader";
+import { resumeSheetPath } from "../../src/core/compaction/config";
+import { RESUME_SHEET_VERSION } from "../../src/core/compaction/types";
 
 function makeSessionStart(sessionId = "sess-001"): CanonicalEvent {
   return {
@@ -181,5 +184,112 @@ describe("SessionStart hook — Epic 4 ontology 주입", () => {
       bundler, injector, fallback, ontologyModule,
     });
     expect(out).not.toContain("템플릿");
+  });
+});
+
+describe("SessionStart hook — Epic 5 resume-sheet 복원", () => {
+  let storage: MemoryStorage;
+  let clock: FakeClock;
+  let problemStore: ActiveProblemStore;
+  let queue: PendingQueue;
+  let ledger: RawLedger;
+  let expirer: Expirer;
+  let bundler: ObservationBundler;
+  let injector: CueCardInjector;
+  let fallback: CueCardFallback;
+  let resumeReader: ResumeSheetReader;
+
+  beforeEach(() => {
+    storage = new MemoryStorage();
+    clock = new FakeClock(new Date("2026-04-19T10:00:00Z"));
+    problemStore = new ActiveProblemStore(storage, clock);
+    queue = new PendingQueue(storage, clock);
+    ledger = new RawLedger(storage, clock);
+    expirer = new Expirer(storage, clock, 7);
+    bundler = new ObservationBundler(storage, clock);
+    injector = new CueCardInjector();
+    fallback = new CueCardFallback();
+    resumeReader = new ResumeSheetReader(storage);
+  });
+
+  const evt = (): CanonicalEvent => ({
+    platform: "claude-code", stage: "session-start", sessionId: "sess-new",
+    cwd: "/p", timestampIso: clock.isoNow(),
+    payload: { stage: "session-start" }, raw: {}, adapterVersion: "claude-code@1.0",
+  });
+
+  const deps = () => ({
+    storage, clock, problemStore, queue, ledger, expirer,
+    bundler, injector, fallback, resumeReader,
+  });
+
+  test("resume-sheet 있음 → 복원 헤더 + 요약 주입 + 파일 삭제", async () => {
+    const prob = await problemStore.create("auth bug", "auth");
+    await storage.writeJsonAtomic(resumeSheetPath("old-sid"), {
+      version: RESUME_SHEET_VERSION,
+      generatedAt: "2026-04-19T09:00:00.000Z",
+      sessionId: "old-sid",
+      problemId: prob.id,
+      recentDeltas: [
+        { op: "block-add", timestampIso: "2026-04-19T08:00:00Z", summary: "+ Action retry" },
+      ],
+      openGaps: [
+        { gapBlockId: "g1", detectorId: "rule:orphan-action", subjectBlockId: "s1",
+          severity: 0.8, voi: 0.7, hasQuestion: true },
+      ],
+      topPendingQuestions: [
+        { questionBlockId: "q1", label: "Did retry succeed?", voi: 0.7 },
+      ],
+    });
+
+    const out = await handleSessionStart(evt(), deps());
+    expect(out).toContain("이전 세션 재개");
+    expect(out).toContain("+ Action retry");
+    expect(out).toContain("Did retry succeed?");
+    expect(await storage.exists(resumeSheetPath("old-sid"))).toBe(false);
+  });
+
+  test("resume-sheet 없음 → 기존 동작 유지", async () => {
+    await problemStore.create("auth bug", "auth");
+    const out = await handleSessionStart(evt(), deps());
+    expect(out).toContain("auth bug");
+    expect(out).not.toContain("이전 세션 재개");
+  });
+
+  test("resumeReader 미전달 → 기존 동작 유지", async () => {
+    await problemStore.create("auth bug", "auth");
+    const out = await handleSessionStart(evt(), {
+      storage, clock, problemStore, queue, ledger, expirer, bundler, injector, fallback,
+    });
+    expect(out).not.toContain("이전 세션 재개");
+  });
+
+  test("resume-sheet의 problemId가 현재 active와 다름 → 이전 문제 라벨", async () => {
+    await problemStore.create("current problem", "curr");
+    await storage.writeJsonAtomic(resumeSheetPath("old-sid"), {
+      version: RESUME_SHEET_VERSION,
+      generatedAt: "2026-04-19T09:00:00.000Z",
+      sessionId: "old-sid",
+      problemId: "DIFFERENT-PROBLEM-ID",
+      recentDeltas: [],
+      openGaps: [],
+      topPendingQuestions: [],
+    });
+    const out = await handleSessionStart(evt(), deps());
+    expect(out).toContain("이전 세션 재개");
+    expect(out).toContain("이전 문제");
+  });
+
+  test("reader 예외 → 훅 계속 동작, 요약만 생략", async () => {
+    await problemStore.create("auth bug", "auth");
+    const brokenReader = {
+      consume: async () => { throw new Error("boom"); },
+    } as unknown as ResumeSheetReader;
+    const out = await handleSessionStart(evt(), {
+      storage, clock, problemStore, queue, ledger, expirer,
+      bundler, injector, fallback, resumeReader: brokenReader,
+    });
+    expect(out).toContain("auth bug");
+    expect(out).not.toContain("이전 세션 재개");
   });
 });
