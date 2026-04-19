@@ -59,4 +59,43 @@ describe("handlePreCompact", () => {
     await handlePreCompact(compactEvent("sid-abcdef"), deps);
     expect(await storage.exists(resumeSheetPath("sid-abcdef"))).toBe(true);
   });
+
+  test("ledger append 실패 → 예외 삼키고 writer는 계속 실행", async () => {
+    const brokenLedger = {
+      append: async () => { throw new Error("disk full"); },
+    } as unknown as RawLedger;
+    const result = await handlePreCompact(compactEvent("sid-1"), {
+      ledger: brokenLedger,
+      writer: deps.writer,
+    });
+    expect(result).toBeNull();
+    expect(await storage.exists(resumeSheetPath("sid-1"))).toBe(true);
+  });
+
+  test("writer write 실패 → 예외 삼키고 null 반환", async () => {
+    const brokenWriter = {
+      write: async () => { throw new Error("permission denied"); },
+    } as unknown as ResumeSheetWriter;
+    const result = await handlePreCompact(compactEvent("sid-1"), {
+      ledger: deps.ledger,
+      writer: brokenWriter,
+    });
+    expect(result).toBeNull();
+    const events = await storage.readJsonl("ledger/raw/2026/04/19/session-sid-1.jsonl");
+    expect(events.length).toBe(1);
+  });
+
+  test("ledger·writer 둘 다 실패 → 예외 없이 null 반환", async () => {
+    const brokenLedger = {
+      append: async () => { throw new Error("ledger boom"); },
+    } as unknown as RawLedger;
+    const brokenWriter = {
+      write: async () => { throw new Error("writer boom"); },
+    } as unknown as ResumeSheetWriter;
+    const result = await handlePreCompact(compactEvent("sid-1"), {
+      ledger: brokenLedger,
+      writer: brokenWriter,
+    });
+    expect(result).toBeNull();
+  });
 });

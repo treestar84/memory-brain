@@ -11,7 +11,15 @@ export async function handlePreCompact(
   event: CanonicalEvent,
   deps: PreCompactDeps,
 ): Promise<string | null> {
-  await deps.ledger.append(event);
-  await deps.writer.write(event.sessionId);
+  try {
+    await deps.ledger.append(event);
+  } catch (e) {
+    console.error("[pre-compact] ledger append failed:", e);
+  }
+  try {
+    await deps.writer.write(event.sessionId);
+  } catch (e) {
+    console.error("[pre-compact] writer failed:", e);
+  }
   return null;
 }
