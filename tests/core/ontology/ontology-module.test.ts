@@ -51,10 +51,14 @@ describe("OntologyModule", () => {
   });
 
   test("recordPatterns throws when module missing", async () => {
-    await expect(module.recordPatterns("missing", {})).rejects.toThrow();
+    let threw = false;
+    try { await module.recordPatterns("missing", {}); } catch { threw = true; }
+    expect(threw).toBe(true);
   });
 
   test("incrementResolvedRuns throws when module missing", async () => {
-    await expect(module.incrementResolvedRuns("missing")).rejects.toThrow();
+    let threw = false;
+    try { await module.incrementResolvedRuns("missing"); } catch { threw = true; }
+    expect(threw).toBe(true);
   });
 });
