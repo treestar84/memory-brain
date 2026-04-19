@@ -105,7 +105,27 @@ Delta 스키마 (모든 op에 `problemId` 필수 — `block-add`는 `block.probl
 - **soft 예산 4KB 준수**, 6KB 초과 절대 금지
 - 재작성 후 `cue-card-regen` 델타로 `bodyHash` (SHA-256 hex)와 `bodyBytes` 기록
 
-### 9. 번들 처리 완료 마킹
+### 9. Ontology 모듈 갱신 (Epic 4)
+
+이번 합성에서 추가한 블록 타입 빈도를 `bin/cfgm-ontology-record.ts`로 기록한다.
+해당 problem의 `ontology.module.yaml`이 없으면 `general-task`로 자동 생성된다.
+
+```bash
+echo '{"blockTypeCounts":{"Action":1,"Outcome":1}}' | \
+  bun run bin/cfgm-ontology-record.ts --problem <problemId>
+```
+
+문제가 해결 완료됐다고 판단되면 (Outcome positive + 더 이상 열린 Gap 없음 등) `--resolve` 추가:
+
+```bash
+echo '{"blockTypeCounts":{}}' | \
+  bun run bin/cfgm-ontology-record.ts --problem <problemId> --resolve
+```
+
+`resolvedRuns`가 3에 도달하면 승격이 자동 트리거된다.
+Step 11 결과 요약에 `resolvedRuns` 값과 승격 여부를 포함한다.
+
+### 10. 번들 처리 완료 마킹
 
 ```bash
 bun run bin/cfgm-apply-delta.ts --mark-processed <bundleId>
@@ -113,7 +133,7 @@ bun run bin/cfgm-apply-delta.ts --mark-processed <bundleId>
 
 모든 번들 처리 완료 후 `bun run bin/cfgm-list-bundles.ts --unprocessed`로 확인.
 
-### 10. 결과 요약
+### 11. 결과 요약
 
 사용자에게 stdout으로 보고:
 - 처리한 번들 수
