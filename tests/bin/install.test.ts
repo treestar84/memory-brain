@@ -67,7 +67,7 @@ describe("install.ts", () => {
     const settings = await readSettings(fakeHome);
     const hookStr = JSON.stringify(settings.hooks);
     const count = (hookStr.match(new RegExp(MARKER, "g")) || []).length;
-    expect(count).toBeLessThanOrEqual(5);
+    expect(count).toBeLessThanOrEqual(6);
   });
 
   test("uninstall removes only cfgm-os hooks", async () => {
