@@ -61,4 +61,10 @@ describe("OntologyModule", () => {
     try { await module.incrementResolvedRuns("missing"); } catch { threw = true; }
     expect(threw).toBe(true);
   });
+
+  test("markPromoted throws when module missing", async () => {
+    let threw = false;
+    try { await module.markPromoted("missing", "2026-04-18T12:00:00Z"); } catch { threw = true; }
+    expect(threw).toBe(true);
+  });
 });
