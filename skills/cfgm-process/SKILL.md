@@ -171,6 +171,20 @@ Question에 답이 된 관측이 bundle에 있으면:
 - 새 Question의 `gapBlockId`는 원본과 동일해야 한다
 - 텍스트 유사도 판정이 아닌 `block-supersede`를 통한 명시적 교체
 
+### 12. 구조 검증 (Epic 6)
+
+모든 번들 처리·cue card 갱신이 끝난 후 FlowGraph를 검증한다:
+
+```bash
+bun run bin/cfgm-validate.ts --problem <problemId>
+```
+
+결과를 Step 11 요약에 포함한다:
+- ✅ 유효: 문구 추가 없이 진행
+- ❌ 오류: 위반 항목을 요약에 나열하고, 원인 블록을 보정하거나 `/cfgm-validate`로 추가 조사를 권장
+
+검증 실패가 처리를 중단시키지는 않는다. 리포트는 `.memory-brain/state/validation-report.json`에 저장된다.
+
 ## 금지 사항
 
 - 번들 관측의 내용을 절단·키워드 매칭 후 type을 결정하지 않는다 — 전체를 읽고 판단
