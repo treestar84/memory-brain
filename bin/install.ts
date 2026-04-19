@@ -10,7 +10,8 @@ const HOOKS_DIR = resolve(PROJECT, "src/hooks");
 const SKILL_LINK = join(HOME, ".claude", "skills", "CFGM-OS");
 
 type HookEntry = { matcher: string; hooks: string[] };
-type HookType = "SessionStart" | "UserPromptSubmit" | "PreToolUse" | "PostToolUse" | "Stop";
+type HookType =
+  | "SessionStart" | "UserPromptSubmit" | "PreToolUse" | "PostToolUse" | "Stop" | "PreCompact";
 
 function buildHookEntries(): Record<HookType, HookEntry> {
   const entry = (type: string): HookEntry => ({
@@ -23,6 +24,7 @@ function buildHookEntries(): Record<HookType, HookEntry> {
     PreToolUse: entry("PreToolUse"),
     PostToolUse: entry("PostToolUse"),
     Stop: entry("Stop"),
+    PreCompact: entry("PreCompact"),
   };
 }
 
