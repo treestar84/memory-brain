@@ -7,6 +7,7 @@ import {
   stat,
   mkdir,
   rename,
+  unlink,
 } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { existsSync } from "node:fs";
@@ -103,6 +104,15 @@ export class FsStorage implements Storage {
       return (await stat(this.resolve(path))).size;
     } catch {
       return 0;
+    }
+  }
+
+  async delete(path: string): Promise<void> {
+    try {
+      await unlink(this.resolve(path));
+    } catch (e: any) {
+      if (e.code === "ENOENT") return;
+      throw e;
     }
   }
 }

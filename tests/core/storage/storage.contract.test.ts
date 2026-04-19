@@ -112,6 +112,29 @@ function contractSuite(
       await cleanup();
     });
 
+    test("delete removes existing file", async () => {
+      await storage.writeJsonAtomic("to-delete.json", { x: 1 });
+      expect(await storage.exists("to-delete.json")).toBe(true);
+      await storage.delete("to-delete.json");
+      expect(await storage.exists("to-delete.json")).toBe(false);
+      await cleanup();
+    });
+
+    test("delete is no-op for missing file", async () => {
+      await storage.delete("never-existed.json");
+      expect(await storage.exists("never-existed.json")).toBe(false);
+      await cleanup();
+    });
+
+    test("delete preserves sibling files", async () => {
+      await storage.writeJsonAtomic("dir/keep.json", { a: 1 });
+      await storage.writeJsonAtomic("dir/remove.json", { b: 2 });
+      await storage.delete("dir/remove.json");
+      expect(await storage.exists("dir/keep.json")).toBe(true);
+      expect(await storage.exists("dir/remove.json")).toBe(false);
+      await cleanup();
+    });
+
     test("concurrent appendJsonl preserves all records", async () => {
       const promises = Array.from({ length: 50 }, (_, i) =>
         storage.appendJsonl("concurrent.jsonl", { i })

@@ -72,4 +72,8 @@ export class MemoryStorage implements Storage {
     if (content === undefined) return 0;
     return new TextEncoder().encode(content).length;
   }
+
+  async delete(path: string): Promise<void> {
+    this.files.delete(path);
+  }
 }

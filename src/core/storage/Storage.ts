@@ -10,4 +10,5 @@ export interface Storage {
   exists(path: string): Promise<boolean>;
   ensureDir(path: string): Promise<void>;
   fileSize(path: string): Promise<number>;
+  delete(path: string): Promise<void>;
 }

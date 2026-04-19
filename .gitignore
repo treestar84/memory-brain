@@ -3,3 +3,13 @@ dist/
 *.tsbuildinfo
 .memory-brain/
 .DS_Store
+.omx/
+
+# Editor / tool local config
+.claude/
+.cursor/
+.agents/
+_bmad/
+
+# Temp working files
+request.md
