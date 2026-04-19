@@ -22,6 +22,10 @@ if (problemIdx < 0) {
   process.exit(1);
 }
 const problemId = args[problemIdx + 1];
+if (!problemId || problemId.startsWith("--")) {
+  console.error("--problem requires a non-empty id argument");
+  process.exit(1);
+}
 const shouldResolve = args.includes("--resolve");
 
 async function main() {

@@ -4,7 +4,11 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
-const CLI_ENV = (projectDir: string) => ({ ...process.env, CFGM_PROJECT: projectDir });
+const CLI_ENV = (projectDir: string) => ({
+  ...process.env,
+  CFGM_PROJECT: projectDir,
+  CFGM_USER_HOME: join(projectDir, "user-home"),
+});
 
 describe("bin/cfgm-ontology-record", () => {
   let projectDir: string;
