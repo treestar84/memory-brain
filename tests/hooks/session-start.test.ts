@@ -395,3 +395,69 @@ describe("SessionStart hook — E6-S3 decay sweep 통합", () => {
     expect(out).toContain("auth bug");
   });
 });
+
+describe("SessionStart hook — v1.5 identity 넛지", () => {
+  let storage: MemoryStorage;
+  let clock: FakeClock;
+  let problemStore: ActiveProblemStore;
+  let queue: PendingQueue;
+  let ledger: RawLedger;
+  let expirer: Expirer;
+  let bundler: ObservationBundler;
+  let injector: CueCardInjector;
+  let fallback: CueCardFallback;
+
+  const IDENTITY_FILES = ["telos.md", "persona.md", "user.md", "tools.md", "voice.md"];
+
+  const evt = (): CanonicalEvent => ({
+    platform: "claude-code", stage: "session-start", sessionId: "s-nudge",
+    cwd: "/p", timestampIso: "2026-04-20T00:00:00Z",
+    payload: { stage: "session-start" }, raw: {}, adapterVersion: "claude-code@1.0",
+  });
+
+  beforeEach(() => {
+    storage = new MemoryStorage();
+    clock = new FakeClock(new Date("2026-04-20T00:00:00Z"));
+    problemStore = new ActiveProblemStore(storage, clock);
+    queue = new PendingQueue(storage, clock);
+    ledger = new RawLedger(storage, clock);
+    expirer = new Expirer(storage, clock, 7);
+    bundler = new ObservationBundler(storage, clock);
+    injector = new CueCardInjector();
+    fallback = new CueCardFallback();
+  });
+
+  const makeDeps = () => ({
+    storage, clock, problemStore, queue, ledger, expirer, bundler, injector, fallback,
+  });
+
+  test("identity 파일 미스캐폴딩 → 넛지 미발동", async () => {
+    const out = await handleSessionStart(evt(), makeDeps());
+    expect(out).not.toContain("identity 파일이 모두 비어 있습니다");
+  });
+
+  test("모든 identity 파일이 존재하되 비어 있음(주석/헤딩만) → 넛지 발동", async () => {
+    for (const f of IDENTITY_FILES) {
+      await storage.writeRaw(`identity/${f}`, "# Title\n\n<!-- prompt comment -->\n");
+    }
+    const out = await handleSessionStart(evt(), makeDeps());
+    expect(out).toContain("identity 파일이 모두 비어 있습니다");
+    expect(out).toContain("cfgm-identity-bootstrap");
+  });
+
+  test("한 파일에만 내용이 있으면 넛지 미발동", async () => {
+    for (const f of IDENTITY_FILES) {
+      await storage.writeRaw(`identity/${f}`, "# Title\n");
+    }
+    await storage.writeRaw("identity/telos.md", "# TELOS\n\n나는 X를 추구한다.\n");
+    const out = await handleSessionStart(evt(), makeDeps());
+    expect(out).not.toContain("identity 파일이 모두 비어 있습니다");
+  });
+
+  test("일부 파일만 존재(부분 스캐폴딩) → 넛지 미발동", async () => {
+    await storage.writeRaw("identity/telos.md", "# Title\n");
+    await storage.writeRaw("identity/persona.md", "# Title\n");
+    const out = await handleSessionStart(evt(), makeDeps());
+    expect(out).not.toContain("identity 파일이 모두 비어 있습니다");
+  });
+});

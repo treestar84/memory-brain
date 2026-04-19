@@ -5,7 +5,9 @@
   "scripts": {
     "test": "bun test",
     "typecheck": "bun x tsc --noEmit",
-    "test:coverage": "bun test --coverage"
+    "test:coverage": "bun test --coverage",
+    "install:brain": "bun run bin/install-brain.ts",
+    "uninstall:brain": "bun run bin/uninstall-brain.ts"
   },
   "devDependencies": {
     "typescript": "^5.8.0",

@@ -29,6 +29,26 @@ export type HookDeps = {
   decayEngine?: StaleDecayEngine;
 };
 
+const IDENTITY_FILES = ["telos.md", "persona.md", "user.md", "tools.md", "voice.md"] as const;
+
+export function isIdentityEmpty(content: string | null): boolean {
+  if (!content) return true;
+  const stripped = content
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/^#+.*$/gm, "")
+    .replace(/\s+/g, "");
+  return stripped.length === 0;
+}
+
+async function shouldNudgeIdentity(storage: Storage): Promise<boolean> {
+  for (const f of IDENTITY_FILES) {
+    const content = await storage.readText(`identity/${f}`);
+    if (content === null) return false;
+    if (!isIdentityEmpty(content)) return false;
+  }
+  return true;
+}
+
 function formatResumeSheet(sheet: ResumeSheet, currentProblemId: string | null): string[] {
   const lines: string[] = [];
   lines.push("### 🔁 이전 세션 재개");
@@ -141,6 +161,11 @@ export async function handleSessionStart(
 
   if (pendingCount > 0) {
     lines.push(`**대기 분석:** ${pendingCount}건 → \`/cfgm-process\`로 처리`);
+  }
+
+  if (await shouldNudgeIdentity(deps.storage)) {
+    lines.push("");
+    lines.push("> 💡 identity 파일이 모두 비어 있습니다 — \"identity 인터뷰 시작해줘\"라고 말하면 3분 대화로 채워집니다. (스킬: cfgm-identity-bootstrap)");
   }
 
   return lines.join("\n");
