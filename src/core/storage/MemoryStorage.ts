@@ -76,4 +76,16 @@ export class MemoryStorage implements Storage {
   async delete(path: string): Promise<void> {
     this.files.delete(path);
   }
+
+  async listFilesRecursive(dir: string): Promise<string[]> {
+    const prefix = dir.endsWith("/") ? dir : dir + "/";
+    return [...this.files.keys()].filter((k) => k.startsWith(prefix));
+  }
+
+  async deleteDir(dir: string): Promise<void> {
+    const prefix = dir.endsWith("/") ? dir : dir + "/";
+    for (const key of [...this.files.keys()]) {
+      if (key.startsWith(prefix)) this.files.delete(key);
+    }
+  }
 }

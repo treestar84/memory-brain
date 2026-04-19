@@ -11,4 +11,6 @@ export interface Storage {
   ensureDir(path: string): Promise<void>;
   fileSize(path: string): Promise<number>;
   delete(path: string): Promise<void>;
+  listFilesRecursive(dir: string): Promise<string[]>;
+  deleteDir(dir: string): Promise<void>;
 }

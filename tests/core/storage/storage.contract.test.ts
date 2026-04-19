@@ -135,6 +135,29 @@ function contractSuite(
       await cleanup();
     });
 
+    test("listFilesRecursive returns all nested files", async () => {
+      await storage.writeJsonAtomic("tree/a/file1.json", { a: 1 });
+      await storage.writeJsonAtomic("tree/b/file2.json", { b: 2 });
+      await storage.writeJsonAtomic("tree/file3.json", { c: 3 });
+      const files = await storage.listFilesRecursive("tree");
+      expect(files).toHaveLength(3);
+      expect(files.some((f) => f.endsWith("file1.json"))).toBe(true);
+      expect(files.some((f) => f.endsWith("file2.json"))).toBe(true);
+      expect(files.some((f) => f.endsWith("file3.json"))).toBe(true);
+      await cleanup();
+    });
+
+    test("deleteDir removes all files under dir", async () => {
+      await storage.writeJsonAtomic("to-delete/a.json", { a: 1 });
+      await storage.writeJsonAtomic("to-delete/sub/b.json", { b: 2 });
+      await storage.writeJsonAtomic("keep/c.json", { c: 3 });
+      await storage.deleteDir("to-delete");
+      expect(await storage.exists("to-delete/a.json")).toBe(false);
+      expect(await storage.exists("to-delete/sub/b.json")).toBe(false);
+      expect(await storage.exists("keep/c.json")).toBe(true);
+      await cleanup();
+    });
+
     test("concurrent appendJsonl preserves all records", async () => {
       const promises = Array.from({ length: 50 }, (_, i) =>
         storage.appendJsonl("concurrent.jsonl", { i })
