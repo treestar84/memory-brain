@@ -1,7 +1,7 @@
 # CFGM-OS 아티팩트 인벤토리
 
 > 최종 갱신: 2026-04-19  
-> 기준 커밋: `a6bfe71` (feat(E4-S9): E2E golden path for Epic 4 ontology lifecycle)
+> 기준 커밋: `f2eb6f7` (feat(E6-S7): E2E golden path for Epic 6 governance lifecycle)
 
 ---
 
@@ -63,7 +63,6 @@
 | 아티팩트 | 경로 | 설명 |
 |---|---|---|
 | Gap 타입 | `src/core/gap/types.ts` | `GapCandidate`, `QuestionLifecycle`, `PendingQuestionRecord` 등 |
-| Gap 가드 | `src/core/gap/guards.ts` | 타입 가드 |
 | GapAnalyzer | `src/core/gap/GapAnalyzer.ts` | 8개 감지기 오케스트레이션 |
 | VoiScorer | `src/core/gap/VoiScorer.ts` | Value-of-Information 점수 계산 |
 | QuestionQueue | `src/core/gap/QuestionQueue.ts` | pending/asked 질문 큐 |
@@ -89,16 +88,32 @@
 
 ---
 
-## 진행 중인 에픽
+### Epic 5 — Compaction Survival
 
-### Epic 5 — Compaction Survival (설계 중)
+| 아티팩트 | 경로 | 설명 |
+|---|---|---|
+| Resume-sheet 타입 | `src/core/compaction/types.ts` | `ResumeSheet`, `RESUME_SHEET_VERSION` |
+| Resume-sheet 설정 | `src/core/compaction/config.ts` | `resumeSheetPath(sessionId)` |
+| ResumeSheetWriter | `src/core/compaction/ResumeSheetWriter.ts` | PreCompact 시 세션 스코프 스냅샷 저장 |
+| ResumeSheetReader | `src/core/compaction/ResumeSheetReader.ts` | SessionStart consume-once 복원 |
+| 훅: PreCompact | `src/hooks/pre-compact.ts` | best-effort try/catch — ledger/writer 예외 삼킴 |
+| SessionStart 통합 | `src/hooks/session-start.ts` | resume-sheet 감지 시 재개 헤더 + 요약 주입 |
+| ADR-004 | `docs/adr/004-session-scoped-resume-sheet.md` | 단일 세션 모델 결정 근거 |
 
-- **목표**: PreCompact 훅에서 그래프 델타·미해결 gap·다음 질문을 resume-sheet로 보존, SessionStart에서 복원
-- **결정된 사항**:
-  - resume-sheet 저장 위치: `state/resume-sheet-<sessionId>.json` (세션 스코프)
-  - 복원 방식: consume-once (SessionStart에서 읽고 즉시 삭제)
-  - 아키텍처: ResumeSheetWriter 서비스 클래스 분리 (추천안 A)
-- **상태**: 브레인스토밍 진행 중 → 스펙 작성 예정
+---
+
+### Epic 6 — Governance (Lean)
+
+| 아티팩트 | 경로 | 설명 |
+|---|---|---|
+| ProblemStatus | `src/core/binder/ActiveProblemStore.ts` | `active\|resolved\|archived` 라이프사이클 (`resolveProblem`, `archiveProblem`) |
+| StaleDecayEngine | `src/core/governance/StaleDecayEngine.ts` | `staleAfter` 지난 블록 자동 supersede (SessionStart sweep) |
+| StructuralValidator | `src/core/governance/StructuralValidator.ts` | shacl-lite.yaml 기반 그래프 검증 (orphan-question · broken-supersede-chain · cause-needs-provenance) |
+| RotationEngine | `src/core/governance/RotationEngine.ts` | 90일 경과 resolved 문제 → `.archive/` 이동 + `.archive/index.json` |
+| Governance 설정 | `src/core/governance/config.ts` | `GOVERNANCE_CONFIG` (decay grace, rotation days, 검증 리포트 경로) |
+| shacl-lite 스키마 | `src/core/governance/assets/shacl-lite.yaml` | 기본 검증 규칙 (Storage 오버라이드 가능) |
+| CLI: cfgm-validate | `bin/cfgm-validate.ts`, `skills/cfgm-validate/` | on-demand 그래프 검증 |
+| CLI: cfgm-rotate | `bin/cfgm-rotate.ts`, `skills/cfgm-rotate/` | dry-run/apply 아카이브 이동 |
 
 ---
 
@@ -106,13 +121,12 @@
 
 | 에픽 | 목표 | 의존성 |
 |---|---|---|
-| Epic 6 — Governance | 시간 decay · shacl-lite 검증 · 충돌 해결 · 90일 rotation | Epic 4, 5 |
 | Epic 7 — Codex Adapter | Codex CLI 크로스-플랫폼 지원 | Epic 1~3 |
 
 ---
 
 ## 테스트 현황
 
-- **전체 통과**: 332개 (Epic 4 완료 기준)
+- **전체 통과**: 405개 (Epic 6 완료 기준)
 - **TypeScript**: `bun run typecheck` 클린
-- **패턴**: contract test (Storage), unit test (각 서비스), E2E golden path (Epic 4)
+- **패턴**: contract test (Storage), unit test (각 서비스), E2E golden path (Epic 1~6)
