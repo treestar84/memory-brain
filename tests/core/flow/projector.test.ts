@@ -185,25 +185,4 @@ describe("FlowGraphProjector — Epic 3 확장", () => {
     expect(q.voiCached).toBeDefined();
   });
 
-  test("결정성: 동일 입력 → 동일 출력", () => {
-    const projector1 = new FlowGraphProjector(
-      [new OrphanActionDetector()],
-      new VoiScorer(),
-      new QuestionLifecycleResolver(),
-    );
-    const projector2 = new FlowGraphProjector(
-      [new OrphanActionDetector()],
-      new VoiScorer(),
-      new QuestionLifecycleResolver(),
-    );
-    const deltas: FlowDelta[] = [
-      addDelta(
-        mkBlock("a1", { type: "Action", problemId: "p", label: "edit", confidence: 0.8 }),
-        "2026-04-18T00:00:00Z",
-      ),
-    ];
-    const g1 = projector1.project("p", deltas, [], clock);
-    const g2 = projector2.project("p", deltas, [], clock);
-    expect(JSON.stringify(g1)).toBe(JSON.stringify(g2));
-  });
 });

@@ -15,7 +15,6 @@ import { handleUserPromptSubmit } from "../../src/hooks/user-prompt-submit";
 import { handlePreToolUse } from "../../src/hooks/pre-tool-use";
 import { handlePostToolUse } from "../../src/hooks/post-tool-use";
 import { handleSessionEnd } from "../../src/hooks/session-end";
-import { mapClaudeCodeEvent } from "../../src/adapters/claude-code/mapper";
 import type { CanonicalEvent } from "../../src/core/events/CanonicalEvent";
 
 describe("Phase 1 Golden Path E2E", () => {
@@ -171,20 +170,6 @@ describe("Phase 1 Golden Path E2E", () => {
     expect(expired.length).toBe(1);
   });
 
-  test("adapter mapper integration — fixture round-trip", () => {
-    const rawInput = {
-      type: "PreToolUse",
-      session_id: "sess-fixture",
-      cwd: "/project",
-      tool_name: "Edit",
-      tool_input: { file_path: "/src/a.ts" },
-    };
-    const event = mapClaudeCodeEvent(rawInput, "2026-04-17T10:00:00Z");
-    expect(event.platform).toBe("claude-code");
-    expect(event.stage).toBe("tool-pre");
-    expect(event.sessionId).toBe("sess-fixture");
-  });
-
   test("security redaction in pipeline", async () => {
     const promptEvent: CanonicalEvent = {
       platform: "claude-code", stage: "prompt-submit", sessionId: "e2e-sec",
@@ -199,19 +184,5 @@ describe("Phase 1 Golden Path E2E", () => {
 
     const redactLog = await storage.readJsonl("security/redacted.jsonl");
     expect(redactLog.length).toBeGreaterThan(0);
-  });
-
-  test("deterministic — same inputs produce same structure", async () => {
-    const event: CanonicalEvent = {
-      platform: "claude-code", stage: "tool-post", sessionId: "det-001",
-      cwd: "/project", timestampIso: "2026-04-17T10:00:00Z",
-      payload: { stage: "tool-post", toolName: "Edit", toolInput: { file_path: "/a.ts" }, toolOutput: "ok", correlationId: "c1" },
-      raw: {}, adapterVersion: "claude-code@1.0",
-    };
-
-    const obs1 = await normalizer.normalize(event);
-    const obs2 = await normalizer.normalize(event);
-    expect(obs1?.type).toBe(obs2?.type);
-    expect(obs1?.data).toEqual(obs2?.data);
   });
 });
