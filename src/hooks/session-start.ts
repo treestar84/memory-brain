@@ -12,6 +12,7 @@ import { FLOW_CONFIG } from "../core/flow/config";
 import type { OntologyModule } from "../core/ontology/OntologyModule";
 import type { ResumeSheetReader } from "../core/compaction/ResumeSheetReader";
 import type { ResumeSheet } from "../core/compaction/types";
+import type { StaleDecayEngine } from "../core/governance/StaleDecayEngine";
 
 export type HookDeps = {
   storage: Storage;
@@ -25,6 +26,7 @@ export type HookDeps = {
   fallback: CueCardFallback;
   ontologyModule?: OntologyModule;
   resumeReader?: ResumeSheetReader;
+  decayEngine?: StaleDecayEngine;
 };
 
 function formatResumeSheet(sheet: ResumeSheet, currentProblemId: string | null): string[] {
@@ -70,6 +72,17 @@ export async function handleSessionStart(
 ): Promise<string> {
   await deps.ledger.append(event);
   await deps.expirer.sweep(deps.queue);
+
+  if (deps.decayEngine) {
+    const active = await deps.problemStore.getActive();
+    if (active) {
+      try {
+        await deps.decayEngine.sweep(active.id);
+      } catch (e) {
+        console.error("[session-start] decay sweep failed:", e);
+      }
+    }
+  }
 
   const active = await deps.problemStore.getActive();
   const pendingCount = await deps.queue.count();

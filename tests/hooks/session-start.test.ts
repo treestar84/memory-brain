@@ -14,6 +14,9 @@ import { OntologyModule } from "../../src/core/ontology/OntologyModule";
 import { ResumeSheetReader } from "../../src/core/compaction/ResumeSheetReader";
 import { resumeSheetPath } from "../../src/core/compaction/config";
 import { RESUME_SHEET_VERSION } from "../../src/core/compaction/types";
+import { StaleDecayEngine } from "../../src/core/governance/StaleDecayEngine";
+import { FlowGraphStore } from "../../src/core/flow/FlowGraphStore";
+import type { FlowBlock, FlowGraph } from "../../src/core/flow/types";
 
 function makeSessionStart(sessionId = "sess-001"): CanonicalEvent {
   return {
@@ -291,5 +294,104 @@ describe("SessionStart hook — Epic 5 resume-sheet 복원", () => {
     });
     expect(out).toContain("auth bug");
     expect(out).not.toContain("이전 세션 재개");
+  });
+});
+
+describe("SessionStart hook — E6-S3 decay sweep 통합", () => {
+  let storage: MemoryStorage;
+  let clock: FakeClock;
+  let problemStore: ActiveProblemStore;
+  let flowStore: FlowGraphStore;
+  let queue: PendingQueue;
+  let ledger: RawLedger;
+  let expirer: Expirer;
+  let bundler: ObservationBundler;
+  let injector: CueCardInjector;
+  let fallback: CueCardFallback;
+  let decayEngine: StaleDecayEngine;
+
+  const BASE_TIME = "2026-04-19T10:00:00.000Z";
+
+  beforeEach(() => {
+    storage = new MemoryStorage();
+    clock = new FakeClock(new Date(BASE_TIME));
+    problemStore = new ActiveProblemStore(storage, clock);
+    flowStore = new FlowGraphStore(storage, clock);
+    queue = new PendingQueue(storage, clock);
+    ledger = new RawLedger(storage, clock);
+    expirer = new Expirer(storage, clock, 7);
+    bundler = new ObservationBundler(storage, clock);
+    injector = new CueCardInjector();
+    fallback = new CueCardFallback();
+    decayEngine = new StaleDecayEngine(flowStore, clock);
+  });
+
+  const evt = (): CanonicalEvent => ({
+    platform: "claude-code", stage: "session-start", sessionId: "sess-e6",
+    cwd: "/p", timestampIso: BASE_TIME,
+    payload: { stage: "session-start" }, raw: {}, adapterVersion: "claude-code@1.0",
+  });
+
+  function mkGraph(problemId: string, staleAfter: string | null): FlowGraph {
+    const block: FlowBlock = {
+      blockId: "b1", problemId, type: "Action", status: "confirmed",
+      label: "stale action", confidence: 0.8, supportedBy: [], relations: [],
+      createdAt: BASE_TIME, lastConfirmedAt: BASE_TIME,
+      staleAfter, supersededBy: null, bundleId: "bnd-1",
+    };
+    return {
+      problemId,
+      blocks: [block],
+      cueCardMeta: { lastSyntheticAt: null, bodyHash: null, bodyBytes: 0, stale: false },
+    };
+  }
+
+  test("decayEngine 미전달 → 기존 동작 유지 (에러 없음)", async () => {
+    await problemStore.create("auth bug", "auth");
+    const out = await handleSessionStart(evt(), {
+      storage, clock, problemStore, queue, ledger, expirer,
+      bundler, injector, fallback,
+    });
+    expect(out).toContain("auth bug");
+  });
+
+  test("stale 블록 있는 active 문제 → SessionStart 시 자동 decay", async () => {
+    const past = new Date(new Date(BASE_TIME).getTime() - 1000).toISOString();
+    const prob = await problemStore.create("auth bug", "auth");
+    await flowStore.writeSnapshot(prob.id, mkGraph(prob.id, past));
+
+    await handleSessionStart(evt(), {
+      storage, clock, problemStore, queue, ledger, expirer,
+      bundler, injector, fallback, decayEngine,
+    });
+
+    const snapshot = await flowStore.readSnapshot(prob.id);
+    expect(snapshot!.blocks[0].status).toBe("superseded");
+  });
+
+  test("stale 없는 블록 → decay 후 그대로 confirmed 유지", async () => {
+    const future = new Date(new Date(BASE_TIME).getTime() + 86400_000).toISOString();
+    const prob = await problemStore.create("auth bug", "auth");
+    await flowStore.writeSnapshot(prob.id, mkGraph(prob.id, future));
+
+    await handleSessionStart(evt(), {
+      storage, clock, problemStore, queue, ledger, expirer,
+      bundler, injector, fallback, decayEngine,
+    });
+
+    const snapshot = await flowStore.readSnapshot(prob.id);
+    expect(snapshot!.blocks[0].status).toBe("confirmed");
+  });
+
+  test("decayEngine 예외 → 훅 계속 동작 (best-effort)", async () => {
+    await problemStore.create("auth bug", "auth");
+    const brokenEngine = {
+      sweep: async () => { throw new Error("sweep failed"); },
+    } as unknown as StaleDecayEngine;
+    const out = await handleSessionStart(evt(), {
+      storage, clock, problemStore, queue, ledger, expirer,
+      bundler, injector, fallback, decayEngine: brokenEngine,
+    });
+    expect(out).toContain("auth bug");
   });
 });
