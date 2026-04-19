@@ -1,5 +1,6 @@
 import type { Storage } from "../storage/Storage";
 import type { Clock } from "../clock/Clock";
+import type { OntologyModule } from "../ontology/OntologyModule";
 import { randomUUID } from "node:crypto";
 
 export type Problem = {
@@ -20,7 +21,8 @@ const STATE_PATH = "state/active-problem.json";
 export class ActiveProblemStore {
   constructor(
     private readonly storage: Storage,
-    private readonly clock: Clock
+    private readonly clock: Clock,
+    private readonly ontologyModule?: OntologyModule
   ) {}
 
   private async load(): Promise<ActiveState> {
@@ -38,7 +40,7 @@ export class ActiveProblemStore {
     return state.problems.find((p) => p.id === state.activeId) ?? null;
   }
 
-  async create(title: string, slug: string): Promise<Problem> {
+  async create(title: string, slug: string, templateId = "general-task"): Promise<Problem> {
     const state = await this.load();
     const problem: Problem = {
       id: `prob-${randomUUID().slice(0, 8)}`,
@@ -50,6 +52,7 @@ export class ActiveProblemStore {
     state.problems.push(problem);
     state.activeId = problem.id;
     await this.save(state);
+    await this.ontologyModule?.create(problem.id, templateId, "1.0.0");
     return problem;
   }
 

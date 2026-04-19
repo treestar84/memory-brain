@@ -2,6 +2,7 @@ import { describe, test, expect, beforeEach } from "bun:test";
 import { ActiveProblemStore } from "../../../src/core/binder/ActiveProblemStore";
 import { MemoryStorage } from "../../../src/core/storage/MemoryStorage";
 import { FakeClock } from "../../../src/core/clock/Clock";
+import { OntologyModule } from "../../../src/core/ontology/OntologyModule";
 
 describe("ActiveProblemStore", () => {
   let storage: MemoryStorage;
@@ -64,5 +65,39 @@ describe("ActiveProblemStore", () => {
   test("getSummary returns empty message when no active", async () => {
     const summary = await store.getSummary();
     expect(summary).toContain("활성 문제 없음");
+  });
+});
+
+describe("ActiveProblemStore — ontologyModule 연동", () => {
+  let storage: MemoryStorage;
+  let clock: FakeClock;
+
+  beforeEach(() => {
+    storage = new MemoryStorage();
+    clock = new FakeClock(new Date("2026-04-18T10:00:00Z"));
+  });
+
+  test("create with ontologyModule → module 파일 생성", async () => {
+    const ontologyModule = new OntologyModule(storage, clock);
+    const store = new ActiveProblemStore(storage, clock, ontologyModule);
+    const prob = await store.create("auth bug", "auth", "bugfix");
+    const mod = await ontologyModule.read(prob.id);
+    expect(mod?.templateId).toBe("bugfix");
+    expect(mod?.resolvedRuns).toBe(0);
+  });
+
+  test("create without ontologyModule → 모듈 파일 미생성 (하위호환)", async () => {
+    const store = new ActiveProblemStore(storage, clock);
+    const prob = await store.create("auth bug", "auth");
+    const content = await storage.readText(`problems/${prob.id}/ontology.module.yaml`);
+    expect(content).toBeNull();
+  });
+
+  test("create templateId 기본값 general-task", async () => {
+    const ontologyModule = new OntologyModule(storage, clock);
+    const store = new ActiveProblemStore(storage, clock, ontologyModule);
+    const prob = await store.create("auth bug", "auth");
+    const mod = await ontologyModule.read(prob.id);
+    expect(mod?.templateId).toBe("general-task");
   });
 });
