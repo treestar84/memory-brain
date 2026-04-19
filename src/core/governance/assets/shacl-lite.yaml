@@ -1,0 +1,29 @@
+version: "shacl-lite@1.0.0"
+rules:
+  # Question 블록은 반드시 존재하는 Gap을 gapBlockId로 참조해야 함
+  - id: orphan-question
+    type: orphan-check
+    blockType: Question
+    field: gapBlockId
+    severity: error
+    message: "Question block references a non-existent Gap via gapBlockId"
+
+  # supersededBy가 설정된 블록은 유효한 blockId 또는 허용된 sentinel을 가져야 함
+  - id: broken-supersede-chain
+    type: supersede-chain
+    severity: error
+    message: "Block.supersededBy references a non-existent blockId"
+
+  # Cause 블록은 최소 1개 이상의 supportedBy 출처를 가져야 함 (경고)
+  - id: cause-needs-provenance
+    type: provenance-check
+    blockType: Cause
+    severity: warning
+    message: "Cause block has no supportedBy evidence"
+
+  # Hypothesis 블록은 최소 1개 이상의 supportedBy 출처를 가져야 함 (경고)
+  - id: hypothesis-needs-provenance
+    type: provenance-check
+    blockType: Hypothesis
+    severity: warning
+    message: "Hypothesis block has no supportedBy evidence"
