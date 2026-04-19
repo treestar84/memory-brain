@@ -9,6 +9,7 @@ import type { ObservationBundler } from "../core/flow/ObservationBundler";
 import type { CueCardInjector } from "../core/flow/CueCardInjector";
 import type { CueCardFallback } from "../core/flow/CueCardFallback";
 import { FLOW_CONFIG } from "../core/flow/config";
+import type { OntologyModule } from "../core/ontology/OntologyModule";
 
 export type HookDeps = {
   storage: Storage;
@@ -20,6 +21,7 @@ export type HookDeps = {
   bundler: ObservationBundler;
   injector: CueCardInjector;
   fallback: CueCardFallback;
+  ontologyModule?: OntologyModule;
 };
 
 export async function handleSessionStart(
@@ -39,6 +41,14 @@ export async function handleSessionStart(
   } else {
     lines.push(`**문제:** ${active.title} (\`${active.slug}\`)`);
     lines.push(`확인: ${active.lastConfirmedAt}`);
+
+    if (deps.ontologyModule) {
+      const moduleData = await deps.ontologyModule.read(active.id);
+      if (moduleData) {
+        lines.push(`**템플릿:** ${moduleData.templateId} v${moduleData.templateVersion}`);
+        lines.push(`**완료 횟수:** ${moduleData.resolvedRuns} / 3`);
+      }
+    }
 
     const cueCardPath = `problems/${active.id}/cue-card.md`;
     let cueCardMd = await deps.storage.readText(cueCardPath);

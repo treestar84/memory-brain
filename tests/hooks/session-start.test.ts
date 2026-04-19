@@ -10,6 +10,7 @@ import { ObservationBundler } from "../../src/core/flow/ObservationBundler";
 import { CueCardInjector } from "../../src/core/flow/CueCardInjector";
 import { CueCardFallback } from "../../src/core/flow/CueCardFallback";
 import type { CanonicalEvent } from "../../src/core/events/CanonicalEvent";
+import { OntologyModule } from "../../src/core/ontology/OntologyModule";
 
 function makeSessionStart(sessionId = "sess-001"): CanonicalEvent {
   return {
@@ -107,5 +108,78 @@ describe("SessionStart hook", () => {
     const output = await handleSessionStart(makeSessionStart(), deps());
     expect(output).toContain("미처리 번들 3");
     expect(output).toContain("/cfgm-process");
+  });
+});
+
+describe("SessionStart hook — Epic 4 ontology 주입", () => {
+  let storage: MemoryStorage;
+  let clock: FakeClock;
+  let problemStore: ActiveProblemStore;
+  let queue: PendingQueue;
+  let ledger: RawLedger;
+  let expirer: Expirer;
+  let bundler: ObservationBundler;
+  let injector: CueCardInjector;
+  let fallback: CueCardFallback;
+  let ontologyModule: OntologyModule;
+
+  beforeEach(() => {
+    storage = new MemoryStorage();
+    clock = new FakeClock(new Date("2026-04-18T10:00:00Z"));
+    problemStore = new ActiveProblemStore(storage, clock);
+    queue = new PendingQueue(storage, clock);
+    ledger = new RawLedger(storage, clock);
+    expirer = new Expirer(storage, clock, 7);
+    bundler = new ObservationBundler(storage, clock);
+    injector = new CueCardInjector();
+    fallback = new CueCardFallback();
+    ontologyModule = new OntologyModule(storage, clock);
+  });
+
+  const evt = (): CanonicalEvent => ({
+    platform: "claude-code", stage: "session-start", sessionId: "sess-e4",
+    cwd: "/p", timestampIso: clock.isoNow(),
+    payload: { stage: "session-start" }, raw: {}, adapterVersion: "claude-code@1.0",
+  });
+
+  test("모듈 있을 때 templateId + resolvedRuns 주입", async () => {
+    const prob = await problemStore.create("auth bug", "auth");
+    await ontologyModule.create(prob.id, "bugfix", "1.0.0");
+    const out = await handleSessionStart(evt(), {
+      storage, clock, problemStore, queue, ledger, expirer,
+      bundler, injector, fallback, ontologyModule,
+    });
+    expect(out).toContain("bugfix");
+    expect(out).toContain("0 / 3");
+  });
+
+  test("resolvedRuns 1 후 반영", async () => {
+    const prob = await problemStore.create("auth bug", "auth");
+    await ontologyModule.create(prob.id, "bugfix", "1.0.0");
+    await ontologyModule.incrementResolvedRuns(prob.id);
+    const out = await handleSessionStart(evt(), {
+      storage, clock, problemStore, queue, ledger, expirer,
+      bundler, injector, fallback, ontologyModule,
+    });
+    expect(out).toContain("1 / 3");
+  });
+
+  test("ontologyModule 미전달 시 기존 동작 유지", async () => {
+    await problemStore.create("auth bug", "auth");
+    const out = await handleSessionStart(evt(), {
+      storage, clock, problemStore, queue, ledger, expirer,
+      bundler, injector, fallback,
+    });
+    expect(out).toContain("auth bug");
+    expect(out).not.toContain("템플릿");
+  });
+
+  test("모듈 파일 없음 → 주입 스킵", async () => {
+    await problemStore.create("auth bug", "auth");
+    const out = await handleSessionStart(evt(), {
+      storage, clock, problemStore, queue, ledger, expirer,
+      bundler, injector, fallback, ontologyModule,
+    });
+    expect(out).not.toContain("템플릿");
   });
 });
