@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
-import { resolve } from "node:path";
 import { FsStorage } from "../src/core/storage/FsStorage";
 import { RealClock } from "../src/core/clock/Clock";
 import { QuestionQueue } from "../src/core/gap/QuestionQueue";
+import { resolveStorageRoot } from "../src/hooks/bootstrap";
 
-const PROJECT = process.env.CFGM_PROJECT || process.cwd();
-const storage = new FsStorage(resolve(PROJECT, ".memory-brain"));
+const storage = new FsStorage(resolveStorageRoot());
 const queue = new QuestionQueue(storage, new RealClock());
 
 const args = process.argv.slice(2);

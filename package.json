@@ -7,7 +7,8 @@
     "typecheck": "bun x tsc --noEmit",
     "test:coverage": "bun test --coverage",
     "install:brain": "bun run bin/install-brain.ts",
-    "uninstall:brain": "bun run bin/uninstall-brain.ts"
+    "uninstall:brain": "bun run bin/uninstall-brain.ts",
+    "viewer": "bun run bin/cfgm-viewer.ts"
   },
   "devDependencies": {
     "typescript": "^5.8.0",

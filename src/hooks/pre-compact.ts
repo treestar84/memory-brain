@@ -23,3 +23,10 @@ export async function handlePreCompact(
   }
   return null;
 }
+
+if (import.meta.main) {
+  const { runHook } = await import("../adapters/claude-code/hook-runner");
+  const { buildDeps } = await import("./bootstrap");
+  const deps = buildDeps();
+  await runHook(async (event) => handlePreCompact(event, { ledger: deps.ledger, writer: deps.resumeWriter }));
+}

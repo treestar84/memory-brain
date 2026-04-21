@@ -30,6 +30,15 @@ export type HookDeps = {
 };
 
 const IDENTITY_FILES = ["telos.md", "persona.md", "user.md", "tools.md", "voice.md"] as const;
+const IDENTITY_LABELS: Record<(typeof IDENTITY_FILES)[number], string> = {
+  "telos.md": "Telos",
+  "persona.md": "Persona",
+  "user.md": "User",
+  "tools.md": "Tools",
+  "voice.md": "Voice",
+};
+const IDENTITY_PER_FILE_BYTES = 320;
+const IDENTITY_TOTAL_BYTES = 1600;
 
 export function isIdentityEmpty(content: string | null): boolean {
   if (!content) return true;
@@ -40,6 +49,32 @@ export function isIdentityEmpty(content: string | null): boolean {
   return stripped.length === 0;
 }
 
+function firstMeaningfulParagraph(content: string): string {
+  const lines = content
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .split("\n");
+  const picked: string[] = [];
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) {
+      if (picked.length > 0) break;
+      continue;
+    }
+    if (line.startsWith("#")) continue;
+    picked.push(line);
+  }
+  return picked.join(" ").replace(/\s+/g, " ").trim();
+}
+
+function clipToBytes(text: string, maxBytes: number): string {
+  const enc = new TextEncoder();
+  const bytes = enc.encode(text);
+  if (bytes.byteLength <= maxBytes) return text;
+  const slice = bytes.subarray(0, maxBytes);
+  const dec = new TextDecoder("utf-8", { fatal: false });
+  return dec.decode(slice).replace(/\s+\S*$/, "").trimEnd() + "…";
+}
+
 async function shouldNudgeIdentity(storage: Storage): Promise<boolean> {
   for (const f of IDENTITY_FILES) {
     const content = await storage.readText(`identity/${f}`);
@@ -47,6 +82,26 @@ async function shouldNudgeIdentity(storage: Storage): Promise<boolean> {
     if (!isIdentityEmpty(content)) return false;
   }
   return true;
+}
+
+export async function buildIdentityDigest(storage: Storage): Promise<string[]> {
+  const rows: string[] = [];
+  let totalBytes = 0;
+  const enc = new TextEncoder();
+  for (const f of IDENTITY_FILES) {
+    const content = await storage.readText(`identity/${f}`);
+    if (!content || isIdentityEmpty(content)) continue;
+    const paragraph = firstMeaningfulParagraph(content);
+    if (!paragraph) continue;
+    const clipped = clipToBytes(paragraph, IDENTITY_PER_FILE_BYTES);
+    const row = `- **${IDENTITY_LABELS[f]}:** ${clipped}`;
+    const rowBytes = enc.encode(row).byteLength;
+    if (totalBytes + rowBytes > IDENTITY_TOTAL_BYTES) break;
+    rows.push(row);
+    totalBytes += rowBytes;
+  }
+  if (rows.length === 0) return [];
+  return ["### 🪞 identity", ...rows];
 }
 
 function formatResumeSheet(sheet: ResumeSheet, currentProblemId: string | null): string[] {
@@ -109,6 +164,12 @@ export async function handleSessionStart(
 
   const lines: string[] = ["### 🧠 memory-brain"];
 
+  const identityDigest = await buildIdentityDigest(deps.storage);
+  if (identityDigest.length > 0) {
+    lines.push("");
+    lines.push(...identityDigest);
+  }
+
   if (deps.resumeReader) {
     let resumeSheet: ResumeSheet | null = null;
     try {
@@ -169,4 +230,11 @@ export async function handleSessionStart(
   }
 
   return lines.join("\n");
+}
+
+if (import.meta.main) {
+  const { runHook } = await import("../adapters/claude-code/hook-runner");
+  const { buildDeps } = await import("./bootstrap");
+  const deps = buildDeps();
+  await runHook(async (event) => handleSessionStart(event, deps));
 }

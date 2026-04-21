@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>memory-brain · Flow Graph Viewer</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Apple SD Gothic Neo", sans-serif;
+         margin: 0; background: #0b0b0e; color: #e4e4e7; }
+  code, .mono { font-family: ui-monospace, SF Mono, Menlo, monospace; }
+  header { padding: 14px 22px; border-bottom: 1px solid #27272a;
+           display: flex; justify-content: space-between; align-items: baseline; }
+  header h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+  header .refresh { color: #52525b; font-size: 11px; }
+  main { display: grid; grid-template-columns: 300px 1fr; height: calc(100vh - 53px); }
+  #problems { border-right: 1px solid #27272a; overflow-y: auto; padding: 10px; }
+  #graph { padding: 20px 24px; overflow-y: auto; }
+  .problem { padding: 10px 12px; border-radius: 6px; margin-bottom: 4px; cursor: pointer;
+             border-left: 3px solid transparent; transition: background 0.1s; }
+  .problem:hover { background: #17171b; }
+  .problem.selected { background: #27272a; border-left-color: #71717a; }
+  .problem.active { border-left-color: #22c55e; }
+  .problem.active.selected { border-left-color: #22c55e; background: #14532d22; }
+  .problem .title { font-weight: 600; margin-bottom: 3px; font-size: 13px; }
+  .problem .meta { font-size: 11px; color: #71717a; }
+  .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .dot.active { background: #22c55e; }
+  .dot.resolved { background: #3b82f6; }
+  .dot.archived { background: #52525b; }
+
+  .summary { margin-bottom: 18px; color: #a1a1aa; font-size: 12px; }
+  .summary code { color: #e4e4e7; background: #27272a; padding: 1px 6px; border-radius: 3px; }
+  .summary .title { color: #e4e4e7; font-size: 14px; font-weight: 600; }
+
+  .group { margin-bottom: 18px; }
+  .group-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+                 color: #71717a; margin-bottom: 8px; font-weight: 600; }
+
+  .block { border: 1px solid #27272a; border-radius: 6px; padding: 11px 14px;
+           margin-bottom: 8px; background: #121217; }
+  .block.superseded { opacity: 0.38; }
+  .block-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .block-label { flex: 1; font-weight: 500; min-width: 180px; }
+  .block-type { display: inline-block; padding: 2px 8px; border-radius: 4px;
+                font-size: 10px; font-weight: 700; letter-spacing: 0.02em; }
+  .t-Problem { background: #7c3aed33; color: #a78bfa; }
+  .t-State, .t-Trigger, .t-Context, .t-Constraint, .t-Rule { background: #52525b33; color: #a1a1aa; }
+  .t-Cause { background: #dc262633; color: #f87171; }
+  .t-Hypothesis { background: #d9770633; color: #fb923c; }
+  .t-Action { background: #2563eb33; color: #60a5fa; }
+  .t-Evidence { background: #05966933; color: #34d399; }
+  .t-Outcome { background: #0891b233; color: #22d3ee; }
+  .t-Gap { background: #be123c33; color: #fb7185; }
+  .t-Question { background: #9333ea33; color: #c084fc; }
+
+  .tag { display: inline-block; font-size: 10px; color: #71717a;
+         background: #27272a; padding: 1px 6px; border-radius: 3px; }
+  .lifecycle-pending { color: #fbbf24; background: #78350f33; }
+  .lifecycle-asked { color: #60a5fa; background: #1e3a8a33; }
+  .lifecycle-answered { color: #34d399; background: #06402133; }
+  .lifecycle-stale { color: #71717a; background: #27272a; }
+
+  .relations { margin-top: 8px; font-size: 12px; color: #a1a1aa;
+               padding-top: 8px; border-top: 1px dashed #27272a; }
+  .relation { display: block; margin-bottom: 2px; }
+  .relation-kind { color: #fbbf24; font-weight: 600; margin-right: 4px; }
+
+  .block-meta { margin-top: 6px; font-size: 10px; color: #52525b; }
+  .empty { color: #52525b; padding: 60px 20px; text-align: center; font-size: 13px; }
+  .error { color: #f87171; padding: 20px; background: #7f1d1d22; border-radius: 6px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🧠 memory-brain · Flow Graph Viewer</h1>
+  <span class="refresh mono" id="refresh">-</span>
+</header>
+<main>
+  <aside id="problems"></aside>
+  <section id="graph"></section>
+</main>
+<script>
+const BLOCK_ORDER = ["Problem","State","Trigger","Context","Constraint",
+                     "Cause","Hypothesis","Action","Evidence","Outcome",
+                     "Rule","Gap","Question"];
+
+let selectedId = null;
+let activeId = null;
+
+function el(tag, attrs, ...children) {
+  const n = document.createElement(tag);
+  if (attrs) {
+    for (const k of Object.keys(attrs)) {
+      const v = attrs[k];
+      if (v == null || v === false) continue;
+      if (k === 'class') n.className = v;
+      else if (k === 'dataset') for (const dk of Object.keys(v)) n.dataset[dk] = v[dk];
+      else if (k === 'onClick') n.addEventListener('click', v);
+      else n.setAttribute(k, v);
+    }
+  }
+  for (const c of children.flat()) {
+    if (c == null || c === false) continue;
+    n.appendChild(c instanceof Node ? c : document.createTextNode(String(c)));
+  }
+  return n;
+}
+
+function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+function setMessage(node, text, cls) {
+  clear(node);
+  node.appendChild(el('div', { class: cls || 'empty' }, text));
+}
+
+async function loadProblems() {
+  const root = document.getElementById('problems');
+  try {
+    const res = await fetch('/api/problems');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    activeId = data.active;
+    renderProblems(root, data.problems || []);
+    document.getElementById('refresh').textContent = new Date().toLocaleTimeString('ko-KR');
+    if (selectedId) await loadGraph(selectedId);
+  } catch (e) {
+    setMessage(root, String(e && e.message || e), 'error');
+  }
+}
+
+function renderProblems(root, problems) {
+  clear(root);
+  if (!problems.length) {
+    setMessage(root, '저장된 문제가 없습니다. 대화로 문제가 생성되면 여기 표시됩니다.');
+    return;
+  }
+  const sorted = [...problems].sort((a, b) => (b.lastConfirmedAt || '').localeCompare(a.lastConfirmedAt || ''));
+  for (const p of sorted) {
+    const classes = ['problem'];
+    if (p.id === activeId) classes.push('active');
+    if (p.id === selectedId) classes.push('selected');
+    const card = el('div',
+      {
+        class: classes.join(' '),
+        dataset: { id: p.id },
+        onClick: () => { selectedId = p.id; loadProblems(); },
+      },
+      el('div', { class: 'title' },
+        el('span', { class: 'dot ' + (p.status || 'active') }),
+        p.title || '(제목 없음)',
+      ),
+      el('div', { class: 'meta mono' }, (p.slug || '') + ' · ' + (p.status || '') + ' · ' + (p.lastConfirmedAt || '').slice(0, 16).replace('T', ' ')),
+    );
+    root.appendChild(card);
+  }
+}
+
+async function loadGraph(id) {
+  const root = document.getElementById('graph');
+  try {
+    const res = await fetch('/api/problems/' + encodeURIComponent(id) + '/graph');
+    if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + (await res.text()));
+    const data = await res.json();
+    renderGraph(root, data);
+  } catch (e) {
+    setMessage(root, String(e && e.message || e), 'error');
+  }
+}
+
+function renderGraph(root, data) {
+  clear(root);
+  const graph = data.graph;
+  const blocks = (graph && graph.blocks) || [];
+
+  root.appendChild(buildSummary(data, blocks.length));
+
+  if (!blocks.length) {
+    root.appendChild(el('div', { class: 'empty' }, '이 문제에 저장된 블록이 없습니다.'));
+    return;
+  }
+
+  const byType = {};
+  for (const b of blocks) (byType[b.type] ||= []).push(b);
+
+  for (const t of BLOCK_ORDER) {
+    const items = byType[t];
+    if (!items) continue;
+    items.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+    const group = el('div', { class: 'group' },
+      el('div', { class: 'group-label' }, t + ' · ' + items.length),
+    );
+    for (const b of items) group.appendChild(buildBlock(b, blocks));
+    root.appendChild(group);
+  }
+}
+
+function buildSummary(data, blockCount) {
+  const graph = data.graph || {};
+  const title = data.problemTitle || graph.problemId;
+  return el('div', { class: 'summary' },
+    el('span', { class: 'title' }, title),
+    ' ',
+    el('span', { class: 'tag' }, data.problemStatus || 'unknown'),
+    el('br'),
+    '블록 ', el('code', null, String(blockCount)),
+    ' · 델타 ', el('code', null, String(data.deltaCount ?? 0)),
+    ' · id ', el('code', null, graph.problemId || '-'),
+  );
+}
+
+function buildBlock(b, all) {
+  const byId = Object.create(null);
+  for (const x of all) byId[x.blockId] = x;
+
+  const header = el('div', { class: 'block-header' },
+    el('span', { class: 'block-type t-' + b.type }, b.type),
+    el('span', { class: 'block-label' }, b.label || '(no label)'),
+  );
+
+  if (b.lifecycle) header.appendChild(el('span', { class: 'tag lifecycle-' + b.lifecycle }, b.lifecycle));
+  if (b.voiCached !== undefined) header.appendChild(el('span', { class: 'tag' }, 'VOI ' + Number(b.voiCached).toFixed(2)));
+  if (b.severity !== undefined) header.appendChild(el('span', { class: 'tag' }, 'sev ' + b.severity));
+  if (b.detectorId) header.appendChild(el('span', { class: 'tag' }, String(b.detectorId)));
+  if (b.polarity) header.appendChild(el('span', { class: 'tag' }, b.polarity));
+  header.appendChild(el('span', { class: 'tag' }, 'c=' + b.confidence));
+
+  const blockClass = 'block' + (b.status === 'superseded' ? ' superseded' : '');
+  const node = el('div', { class: blockClass }, header);
+
+  const rels = (b.relations || []);
+  if (rels.length) {
+    const relWrap = el('div', { class: 'relations' });
+    for (const r of rels) {
+      const tgt = byId[r.targetBlockId];
+      const label = tgt ? String(tgt.label || '').slice(0, 60) : r.targetBlockId;
+      relWrap.appendChild(
+        el('span', { class: 'relation' },
+          el('span', { class: 'relation-kind' }, r.kind),
+          '→ ',
+          label,
+          ' ',
+          el('span', { class: 'tag' }, 'c=' + r.confidence),
+        )
+      );
+    }
+    node.appendChild(relWrap);
+  }
+
+  const metaText = b.blockId + ' · ' + String(b.createdAt || '').slice(0, 19).replace('T', ' ')
+    + (b.supersededBy ? ' · → ' + b.supersededBy : '');
+  node.appendChild(el('div', { class: 'block-meta mono' }, metaText));
+  return node;
+}
+
+loadProblems();
+setInterval(loadProblems, 3000);
+</script>
+</body>
+</html>

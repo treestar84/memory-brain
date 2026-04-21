@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, symlink, chmod, readlink } from "node:fs/promises";
+import { readFile, writeFile, mkdir, symlink, chmod, readlink, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { existsSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -20,9 +20,35 @@ const LAUNCHER = join(BIN_DIR, "claude-pai");
 const LOCAL_BIN = join(HOME, ".local", "bin");
 const LOCAL_BIN_LINK = join(LOCAL_BIN, "claude-pai");
 const HOOKS_DIR = resolve(PROJECT, "src/hooks");
+const SKILLS_SRC = resolve(PROJECT, "skills");
+const COMMANDS_DIR = join(BRAIN_HOME, "commands");
 
 export const BEGIN_MARKER = "<!-- PAI-MEMORY:BEGIN managed -->";
 export const END_MARKER = "<!-- PAI-MEMORY:END -->";
+
+export const COMMAND_MARKER_PREFIX = "<!-- CFGM-OS:COMMAND managed ";
+export const COMMAND_MARKER_SUFFIX = " -->";
+
+export function commandMarker(version: string): string {
+  return `${COMMAND_MARKER_PREFIX}v${version}${COMMAND_MARKER_SUFFIX}`;
+}
+
+export function isManagedCommand(content: string): boolean {
+  const firstLine = content.split("\n", 1)[0] ?? "";
+  return firstLine.startsWith(COMMAND_MARKER_PREFIX) && firstLine.endsWith(COMMAND_MARKER_SUFFIX);
+}
+
+export function skillToCommand(skillMd: string, version: string): string {
+  const fmMatch = skillMd.match(/^---\n([\s\S]*?)\n---\n?/);
+  const marker = commandMarker(version);
+  if (!fmMatch) return `${marker}\n${skillMd.trimStart()}`;
+  const fmBody = fmMatch[1] ?? "";
+  const body = skillMd.slice(fmMatch[0].length);
+  const descMatch = fmBody.match(/^description:\s*(.*)$/m);
+  const description = descMatch ? descMatch[1] : "";
+  const newFm = description ? `---\ndescription: ${description}\n---\n` : "";
+  return `${marker}\n${newFm}${body}`;
+}
 
 type HookCommand = { type: "command"; command: string };
 type HookEntry = { matcher: string; hooks: HookCommand[] };
@@ -67,6 +93,7 @@ async function loadSettings(): Promise<Record<string, any>> {
 function launcherScript(): string {
   return `#!/usr/bin/env bash
 export CLAUDE_CONFIG_DIR="${BRAIN_HOME}"
+export CFGM_HOME="${MEM_HOME}"
 exec claude "$@"
 `;
 }
@@ -385,6 +412,35 @@ async function scaffoldIdentity(): Promise<void> {
   if (!existsSync(indexPath)) await writeFile(indexPath, GOALS_INDEX_TEMPLATE);
 }
 
+async function scaffoldCommands(version: string): Promise<string[]> {
+  if (!existsSync(SKILLS_SRC)) return [];
+  await mkdir(COMMANDS_DIR, { recursive: true });
+  const entries = await readdir(SKILLS_SRC, { withFileTypes: true });
+  const written: string[] = [];
+  let skipped = 0;
+  for (const d of entries) {
+    if (!d.isDirectory()) continue;
+    const srcSkill = join(SKILLS_SRC, d.name, "SKILL.md");
+    if (!existsSync(srcSkill)) continue;
+    const target = join(COMMANDS_DIR, `${d.name}.md`);
+    if (existsSync(target)) {
+      const existing = await readFile(target, "utf-8");
+      if (!isManagedCommand(existing)) {
+        console.log(`[cfgm-brain] commands/${d.name}.md: 사용자 파일 감지 — 건드리지 않음`);
+        skipped++;
+        continue;
+      }
+    }
+    const skillMd = await readFile(srcSkill, "utf-8");
+    await writeFile(target, skillToCommand(skillMd, version));
+    written.push(target);
+  }
+  const parts = [`${written.length}개 등록`];
+  if (skipped > 0) parts.push(`${skipped}개 사용자 파일 스킵`);
+  console.log(`[cfgm-brain] commands: ${parts.join(", ")}`);
+  return written;
+}
+
 async function main() {
   await mkdir(BRAIN_HOME, { recursive: true });
   const cfgmVersion = await readCfgmVersion();
@@ -410,8 +466,8 @@ async function main() {
     await mkdir(join(BRAIN_HOME, "skills"), { recursive: true });
     await mkdir(BIN_DIR, { recursive: true });
     await mkdir(MEM_HOME, { recursive: true });
-    await mkdir(join(PROJECT, ".memory-brain", "state"), { recursive: true });
-    await mkdir(join(PROJECT, ".memory-brain", "ledger", "raw"), { recursive: true });
+    await mkdir(join(MEM_HOME, "state"), { recursive: true });
+    await mkdir(join(MEM_HOME, "ledger", "raw"), { recursive: true });
   });
 
   await runPhase("staging", progress, async () => {
@@ -437,6 +493,7 @@ async function main() {
     await ensureLocalBinSymlink();
 
     await scaffoldIdentity();
+    await scaffoldCommands(cfgmVersion);
     await mergeClaudeMdManagedBlock(cfgmVersion);
   });
 
@@ -454,6 +511,7 @@ async function main() {
       console.log(`  symlink:  ${LOCAL_BIN_LINK}`);
     }
     console.log(`  hooks:    ${HOOKS_DIR}`);
+    console.log(`  commands: ${COMMANDS_DIR}`);
     console.log(`  memory:   ${MEM_HOME}`);
     console.log(`  identity: ${IDENTITY_HOME}`);
     console.log(`  CLAUDE.md: ${CLAUDE_MD_PATH}`);

@@ -5,11 +5,11 @@ import { FsStorage } from "../src/core/storage/FsStorage";
 import { RealClock } from "../src/core/clock/Clock";
 import { OntologyModule } from "../src/core/ontology/OntologyModule";
 import { PromotionEngine } from "../src/core/ontology/PromotionEngine";
+import { resolveStorageRoot } from "../src/hooks/bootstrap";
 
-const PROJECT = process.env.CFGM_PROJECT || process.cwd();
 const USER_HOME = process.env.CFGM_USER_HOME || resolve(homedir(), ".memory-brain");
 
-const storage = new FsStorage(resolve(PROJECT, ".memory-brain"));
+const storage = new FsStorage(resolveStorageRoot());
 const userStorage = new FsStorage(USER_HOME);
 const clock = new RealClock();
 const ontologyModule = new OntologyModule(storage, clock);

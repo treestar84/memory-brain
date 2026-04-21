@@ -1,7 +1,7 @@
-import { readFile, writeFile, unlink, rm, readlink, rmdir } from "node:fs/promises";
+import { readFile, writeFile, unlink, rm, readlink, rmdir, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { existsSync, lstatSync } from "node:fs";
-import { BEGIN_MARKER, END_MARKER } from "./install-brain";
+import { BEGIN_MARKER, END_MARKER, isManagedCommand } from "./install-brain";
 
 const MARKER = "cfgm-os-brain";
 const HOME = process.env.HOME!;
@@ -14,6 +14,7 @@ const LOCAL_BIN_LINK = join(HOME, ".local", "bin", "claude-pai");
 const CLAUDE_MD_PATH = join(BRAIN_HOME, "CLAUDE.md");
 const MANIFEST_PATH = join(BRAIN_HOME, "install-manifest.json");
 const PROGRESS_PATH = join(BRAIN_HOME, "install-progress.json");
+const COMMANDS_DIR = join(BRAIN_HOME, "commands");
 
 async function cleanSettings() {
   if (!existsSync(SETTINGS_PATH)) return;
@@ -60,6 +61,32 @@ async function cleanLocalBinLink() {
 async function rmdirIfEmpty(p: string) {
   if (!existsSync(p)) return;
   try { await rmdir(p); } catch {} // fails silently if non-empty
+}
+
+async function cleanCommandsDir() {
+  if (!existsSync(COMMANDS_DIR)) return;
+  let removed = 0, kept = 0;
+  const entries = await readdir(COMMANDS_DIR);
+  for (const name of entries) {
+    if (!name.endsWith(".md")) continue;
+    const p = join(COMMANDS_DIR, name);
+    try {
+      const content = await readFile(p, "utf-8");
+      if (isManagedCommand(content)) {
+        await unlink(p);
+        removed++;
+      } else {
+        console.log(`[cfgm-brain] commands/${name}: 사용자 파일 — 건드리지 않음`);
+        kept++;
+      }
+    } catch {}
+  }
+  if (removed > 0) {
+    const parts = [`${removed}개 제거`];
+    if (kept > 0) parts.push(`${kept}개 사용자 파일 보존`);
+    console.log(`[cfgm-brain] commands: ${parts.join(", ")}`);
+  }
+  await rmdirIfEmpty(COMMANDS_DIR);
 }
 
 function countOccurrences(haystack: string, needle: string): number {
@@ -120,6 +147,7 @@ async function main() {
 
   await cleanSettings();
   await cleanClaudeMdManagedBlock();
+  await cleanCommandsDir();
   await unlinkIfExists(MANIFEST_PATH);
   await unlinkIfExists(PROGRESS_PATH);
   await unlinkIfExists(SKILL_LINK);

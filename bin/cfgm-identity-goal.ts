@@ -168,8 +168,8 @@ async function cmdDone(id: string): Promise<number> {
 }
 
 async function problemExists(problemId: string): Promise<boolean> {
-  const project = process.env.CFGM_PROJECT || process.cwd();
-  const statePath = join(project, ".memory-brain", "state", "active-problem.json");
+  const { resolveStorageRoot } = await import("../src/hooks/bootstrap");
+  const statePath = join(resolveStorageRoot(), "state", "active-problem.json");
   if (!existsSync(statePath)) return false;
   try {
     const state = JSON.parse(await readFile(statePath, "utf-8"));

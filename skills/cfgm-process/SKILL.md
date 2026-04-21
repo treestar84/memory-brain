@@ -9,6 +9,43 @@ description: 미처리 ObservationBundle을 Flow Block으로 합성하여 문제
 
 **핵심 원칙**: 의미 판단(type·label·confidence·relations)은 100% 당신(Claude 본체)이 담당한다. 코어 모듈은 저장·투영만 한다.
 
+## 합성 관점 — 이것이 무엇을 만드는가
+
+이 스킬의 출력은 단순 관찰 분류가 아니다. **"이 problem을 해결하기 위한 파이프라인/워크플로우"**로서 기능하는 인과 그래프를 세운다. 아래 세 가지를 의식하고 작업한다.
+
+### (1) 워크플로우 사슬로 보기
+
+블록은 독립된 점이 아니다. 이상적인 파이프라인은 다음 흐름으로 이어진다:
+
+```
+Problem → State / Context / Constraint → Cause / Hypothesis → Action → Evidence / Outcome
+                                                   ↓                          ↓
+                                                  Gap  ←──────  Rule  ←───────┘
+                                                   ↓
+                                                Question
+```
+
+번들을 하나 합성할 때마다 **"이 관측이 어느 고리에 붙는가"**를 자문한다. 관계(`causes`·`evidencedBy`·`followsFrom`·`mitigatedBy`·`validatedBy`)를 생략하지 않는다 — **관계 없는 블록은 그래프가 아니라 라벨 붙은 메모지**다.
+
+### (2) 기존 블록과의 연결을 먼저 시도
+
+번들의 `recentBlockIds`가 주어진 이유는, 새 독립 블록을 만들기 전에 **이미 있는 블록의 후속/확장/반박으로 엮을 수 있는지**를 먼저 보라는 뜻이다.
+- 같은 Action의 반복 실행 → 기존 Action에 `followsFrom`된 새 Evidence/Outcome일 가능성
+- 이전 Hypothesis에 대한 확인/부정 → 새 Evidence를 `validatedBy`로 연결
+- 이전 Gap을 해소하는 관찰 → 해당 Question을 `block-supersede`
+
+독립 블록은 정말 새 맥락(새 Trigger, 새 Constraint, 새 Problem-side 파생)일 때만 만든다.
+
+### (3) 용어 일관성 (ontology 감각)
+
+label에 쓰는 **도메인 용어·개체명·액션 동사는 같은 problem 안에서 일관**되어야 한다. 같은 대상을 가리키는데 어떤 블록은 "install hook", 다른 블록은 "훅 설치"라고 쓰면 후속 합성이 동일 개념을 중복 블록으로 만든다.
+
+- **합성 시작 전**: 해당 problem의 기존 블록을 훑어 자주 쓰이는 용어를 파악 (`bin/cfgm-inspect-graph.ts --problem <id>` 또는 `.memory-brain/problems/<problemId>/flow-delta.jsonl` 직접 Read)
+- **합성 중**: 동일 개체/행위는 **기존 블록의 label 문구를 그대로 재사용**하거나 최소 변형만. 새 용어를 도입해야 하면 의도적으로, 그 이유가 블록 구분에 기여할 때만.
+- 이 감각이 무너지면 블록이 쌓여도 검색·투영·cue card 생성이 흐려진다.
+
+이 세 가지가 지켜지지 않으면 **"흐름 있는 지식"이 아니라 "로그 덤프"**가 된다.
+
 ## 실행 절차
 
 ### 1. 미처리 번들 목록 조회

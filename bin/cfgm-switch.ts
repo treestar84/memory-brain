@@ -1,9 +1,9 @@
 import { FsStorage } from "../src/core/storage/FsStorage";
 import { RealClock } from "../src/core/clock/Clock";
 import { ActiveProblemStore } from "../src/core/binder/ActiveProblemStore";
+import { resolveStorageRoot } from "../src/hooks/bootstrap";
 
-const projectRoot = process.env.CFGM_PROJECT_ROOT || process.cwd();
-const storage = new FsStorage(`${projectRoot}/.memory-brain`);
+const storage = new FsStorage(resolveStorageRoot());
 const store = new ActiveProblemStore(storage, new RealClock());
 
 const [action] = process.argv.slice(2);

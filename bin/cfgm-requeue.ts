@@ -2,9 +2,9 @@ import { FsStorage } from "../src/core/storage/FsStorage";
 import { RealClock } from "../src/core/clock/Clock";
 import { PendingQueue } from "../src/core/ledger/PendingQueue";
 import type { PendingItem } from "../src/core/ledger/PendingQueue";
+import { resolveStorageRoot } from "../src/hooks/bootstrap";
 
-const projectRoot = process.env.CFGM_PROJECT_ROOT || process.cwd();
-const storage = new FsStorage(`${projectRoot}/.memory-brain`);
+const storage = new FsStorage(resolveStorageRoot());
 const clock = new RealClock();
 const queue = new PendingQueue(storage, clock);
 

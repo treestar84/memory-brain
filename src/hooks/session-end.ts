@@ -41,3 +41,10 @@ export async function handleSessionEnd(
   await deps.problemStore.updateLastConfirmed();
   return null;
 }
+
+if (import.meta.main) {
+  const { runHook } = await import("../adapters/claude-code/hook-runner");
+  const { buildDeps } = await import("./bootstrap");
+  const deps = buildDeps();
+  await runHook(async (event) => handleSessionEnd(event, deps));
+}
