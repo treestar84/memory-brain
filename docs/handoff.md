@@ -25,7 +25,7 @@
 | 5 | Compaction Survival | ✅ |
 | 6 | Governance (Lean) | ✅ |
 
-**총 테스트: 411 pass / 0 fail, typecheck clean**
+**총 테스트: 439 pass / 0 fail, typecheck clean** (Epic 0~6 baseline 434 + Epic 12a +5)
 
 ---
 

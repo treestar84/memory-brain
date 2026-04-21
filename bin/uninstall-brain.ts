@@ -12,6 +12,8 @@ const BIN_DIR = join(BRAIN_HOME, "bin");
 const LAUNCHER = join(BIN_DIR, "claude-pai");
 const LOCAL_BIN_LINK = join(HOME, ".local", "bin", "claude-pai");
 const CLAUDE_MD_PATH = join(BRAIN_HOME, "CLAUDE.md");
+const MANIFEST_PATH = join(BRAIN_HOME, "install-manifest.json");
+const PROGRESS_PATH = join(BRAIN_HOME, "install-progress.json");
 
 async function cleanSettings() {
   if (!existsSync(SETTINGS_PATH)) return;
@@ -118,6 +120,8 @@ async function main() {
 
   await cleanSettings();
   await cleanClaudeMdManagedBlock();
+  await unlinkIfExists(MANIFEST_PATH);
+  await unlinkIfExists(PROGRESS_PATH);
   await unlinkIfExists(SKILL_LINK);
   await unlinkIfExists(LAUNCHER);
   await cleanLocalBinLink();

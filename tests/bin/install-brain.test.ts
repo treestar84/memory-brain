@@ -239,6 +239,93 @@ describe("install-brain.ts", () => {
     expect(existsSync(brainHome)).toBe(false);
   });
 
+  test("T18: install-progress.json tracks phases; interrupted state triggers resume log", async () => {
+    runScript(INSTALL, env);
+    const progressPath = join(brainHome, "install-progress.json");
+    expect(existsSync(progressPath)).toBe(true);
+    const p = JSON.parse(await readFile(progressPath, "utf-8"));
+    expect(p.cfgmVersion).toMatch(/^\d+\.\d+\.\d+/);
+    for (const ph of ["preflight", "staging", "commit", "welcome"]) {
+      expect(p.phases[ph]).toBeDefined();
+      expect(p.phases[ph].startedAt).toBeTruthy();
+      expect(p.phases[ph].completedAt).toBeTruthy();
+    }
+    expect(p.completedAt).toBeTruthy();
+    expect(p.currentPhase).toBeUndefined();
+
+    // Simulate SIGKILL: staging started but never completed
+    const interrupted = {
+      cfgmVersion: p.cfgmVersion,
+      startedAt: new Date().toISOString(),
+      currentPhase: "staging",
+      phases: {
+        preflight: { startedAt: new Date().toISOString(), completedAt: new Date().toISOString() },
+        staging: { startedAt: new Date().toISOString() },
+      },
+    };
+    await writeFile(progressPath, JSON.stringify(interrupted, null, 2));
+
+    const proc = runScript(INSTALL, env);
+    expect(proc.exitCode).toBe(0);
+    const stdout = proc.stdout.toString();
+    expect(stdout).toContain("'staging' 단계에서 중단됨");
+    const final = JSON.parse(await readFile(progressPath, "utf-8"));
+    expect(final.completedAt).toBeTruthy();
+    expect(final.phases.staging.completedAt).toBeTruthy();
+  });
+
+  test("T17: managed block contains CFGM:VERSION; version bump triggers 'upgraded' migration", async () => {
+    const { mergeManagedBlock, managedBody, parseManagedVersion } = await import("../../bin/install-brain");
+    runScript(INSTALL, env);
+    const claudeMd = await readFile(join(brainHome, "CLAUDE.md"), "utf-8");
+    expect(claudeMd).toMatch(/<!-- CFGM:VERSION [\d.]+ -->/);
+
+    // Pure parser branch: upgrade from legacy (no version) → versioned
+    const legacy = "<!-- PAI-MEMORY:BEGIN managed -->\n@memory-brain/identity/telos.md\n<!-- PAI-MEMORY:END -->\n";
+    const upgraded = mergeManagedBlock(legacy, managedBody("0.2.0"));
+    expect(upgraded.action).toBe("upgraded");
+    expect(upgraded.fromVersion).toBeNull();
+    expect(upgraded.toVersion).toBe("0.2.0");
+    expect(parseManagedVersion(upgraded.result)).toBe("0.2.0");
+
+    // Same version replay stays 'replaced' (no upgrade label)
+    const sameVer = mergeManagedBlock(upgraded.result, managedBody("0.2.0"));
+    expect(sameVer.action).toBe("replaced");
+    expect(sameVer.fromVersion).toBe("0.2.0");
+    expect(sameVer.toVersion).toBe("0.2.0");
+
+    // Another version bump → upgraded again
+    const bumped = mergeManagedBlock(upgraded.result, managedBody("0.3.0"));
+    expect(bumped.action).toBe("upgraded");
+    expect(bumped.fromVersion).toBe("0.2.0");
+    expect(bumped.toVersion).toBe("0.3.0");
+  });
+
+  test("T16: install-manifest.json written with stable fields idempotent", async () => {
+    runScript(INSTALL, env);
+    const manifestPath = join(brainHome, "install-manifest.json");
+    expect(existsSync(manifestPath)).toBe(true);
+    const m1 = JSON.parse(await readFile(manifestPath, "utf-8"));
+    expect(typeof m1.cfgmVersion).toBe("string");
+    expect(m1.cfgmVersion).toMatch(/^\d+\.\d+\.\d+/);
+    expect(m1.brainHome).toBe(brainHome);
+    expect(Array.isArray(m1.files)).toBe(true);
+    expect(m1.files.length).toBeGreaterThan(0);
+    expect(Array.isArray(m1.hooksRegistered)).toBe(true);
+    expect(m1.hooksRegistered).toContain("Stop");
+    expect(m1.hooksRegistered).toContain("SessionStart");
+    expect(typeof m1.hashChecksums).toBe("object");
+    expect(m1.hashChecksums[join(brainHome, "CLAUDE.md")]).toMatch(/^[a-f0-9]{64}$/);
+    expect(typeof m1.installedAt).toBe("string");
+
+    // Second install: stable fields identical, installedAt may differ
+    runScript(INSTALL, env);
+    const m2 = JSON.parse(await readFile(manifestPath, "utf-8"));
+    const stable1 = { ...m1 }; delete stable1.installedAt;
+    const stable2 = { ...m2 }; delete stable2.installedAt;
+    expect(stable2).toEqual(stable1);
+  });
+
   test("T9: legacy and brain installs coexist (separate markers)", async () => {
     // Legacy install uses ~/.claude/settings.json
     await mkdir(join(fakeHome, ".claude"), { recursive: true });

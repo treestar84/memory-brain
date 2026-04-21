@@ -13,10 +13,19 @@ type HookEntry = { matcher: string; hooks: string[] };
 type HookType =
   | "SessionStart" | "UserPromptSubmit" | "PreToolUse" | "PostToolUse" | "Stop" | "PreCompact";
 
+const HOOK_FILES: Record<HookType, string> = {
+  SessionStart: "session-start",
+  UserPromptSubmit: "user-prompt-submit",
+  PreToolUse: "pre-tool-use",
+  PostToolUse: "post-tool-use",
+  Stop: "session-end",
+  PreCompact: "pre-compact",
+};
+
 function buildHookEntries(): Record<HookType, HookEntry> {
-  const entry = (type: string): HookEntry => ({
+  const entry = (type: HookType): HookEntry => ({
     matcher: MARKER,
-    hooks: [`bun run ${HOOKS_DIR}/${kebab(type)}.ts`],
+    hooks: [`bun run ${HOOKS_DIR}/${HOOK_FILES[type]}.ts`],
   });
   return {
     SessionStart: entry("SessionStart"),
@@ -28,10 +37,6 @@ function buildHookEntries(): Record<HookType, HookEntry> {
   };
 }
 
-function kebab(s: string): string {
-  return s.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
-}
-
 async function loadSettings(): Promise<Record<string, any>> {
   try {
     return JSON.parse(await readFile(SETTINGS_PATH, "utf-8"));
@@ -41,6 +46,11 @@ async function loadSettings(): Promise<Record<string, any>> {
 }
 
 async function main() {
+  console.warn(
+    "[cfgm-os] install.ts is deprecated. Use 'bun run bin/install-brain.ts' (isolated ~/.claude-brain profile). " +
+      "install.ts still writes hooks into the default ~/.claude profile for backward compatibility and will be removed in v0.3.",
+  );
+
   await mkdir(join(HOME, ".claude"), { recursive: true });
 
   const settings = await loadSettings();

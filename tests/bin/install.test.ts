@@ -100,4 +100,27 @@ describe("install.ts", () => {
     });
     expect(proc.exitCode).toBe(0);
   });
+
+  test("Stop hook points to session-end.ts (not stop.ts)", async () => {
+    Bun.spawnSync({
+      cmd: ["bun", "run", join(import.meta.dir, "../../bin/install.ts")],
+      env: { ...process.env, HOME: fakeHome, CFGM_PROJECT: fakeHome },
+    });
+    const settings = await readSettings(fakeHome);
+    const stopStr = JSON.stringify(settings.hooks.Stop);
+    expect(stopStr).toContain("session-end.ts");
+    expect(stopStr).not.toContain("/stop.ts");
+  });
+
+  test("install.ts emits deprecation warning on stderr", async () => {
+    const proc = Bun.spawnSync({
+      cmd: ["bun", "run", join(import.meta.dir, "../../bin/install.ts")],
+      env: { ...process.env, HOME: fakeHome, CFGM_PROJECT: fakeHome },
+      stderr: "pipe",
+    });
+    expect(proc.exitCode).toBe(0);
+    const stderr = new TextDecoder().decode(proc.stderr);
+    expect(stderr).toContain("deprecated");
+    expect(stderr).toContain("install-brain.ts");
+  });
 });

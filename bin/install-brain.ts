@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir, symlink, chmod, readlink } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { existsSync } from "node:fs";
+import { createHash } from "node:crypto";
 
 const MARKER = "cfgm-os-brain";
 const HOME = process.env.HOME!;
@@ -12,6 +13,8 @@ const MEM_HOME = join(BRAIN_HOME, "memory-brain");
 const IDENTITY_HOME = join(MEM_HOME, "identity");
 const GOALS_HOME = join(IDENTITY_HOME, "goals");
 const CLAUDE_MD_PATH = join(BRAIN_HOME, "CLAUDE.md");
+const MANIFEST_PATH = join(BRAIN_HOME, "install-manifest.json");
+const PROGRESS_PATH = join(BRAIN_HOME, "install-progress.json");
 const BIN_DIR = join(BRAIN_HOME, "bin");
 const LAUNCHER = join(BIN_DIR, "claude-pai");
 const LOCAL_BIN = join(HOME, ".local", "bin");
@@ -88,8 +91,12 @@ async function ensureLocalBinSymlink(): Promise<void> {
   await symlink(LAUNCHER, LOCAL_BIN_LINK);
 }
 
-export function managedBody(): string {
+export const VERSION_MARKER_PREFIX = "<!-- CFGM:VERSION ";
+export const VERSION_MARKER_SUFFIX = " -->";
+
+export function managedBody(cfgmVersion: string = "0.0.0"): string {
   return [
+    `${VERSION_MARKER_PREFIX}${cfgmVersion}${VERSION_MARKER_SUFFIX}`,
     "@memory-brain/identity/telos.md",
     "@memory-brain/identity/persona.md",
     "@memory-brain/identity/user.md",
@@ -99,8 +106,24 @@ export function managedBody(): string {
   ].join("\n");
 }
 
-export type MergeAction = "created" | "replaced" | "appended" | "skipped";
-export type MergeResult = { result: string; action: MergeAction; warn?: string };
+export function parseManagedVersion(body: string): string | null {
+  const start = body.indexOf(VERSION_MARKER_PREFIX);
+  if (start < 0) return null;
+  const from = start + VERSION_MARKER_PREFIX.length;
+  const end = body.indexOf(VERSION_MARKER_SUFFIX, from);
+  if (end < 0) return null;
+  const v = body.slice(from, end).trim();
+  return v.length > 0 ? v : null;
+}
+
+export type MergeAction = "created" | "replaced" | "appended" | "skipped" | "upgraded";
+export type MergeResult = {
+  result: string;
+  action: MergeAction;
+  warn?: string;
+  fromVersion?: string | null;
+  toVersion?: string | null;
+};
 
 export function mergeManagedBlock(
   existing: string,
@@ -116,13 +139,14 @@ export function mergeManagedBlock(
   }
 
   const block = `${begin}\n${body}\n${end}`;
+  const toVersion = parseManagedVersion(body);
 
   if (beginCount === 0) {
     if (existing.length === 0) {
-      return { result: `${block}\n`, action: "created" };
+      return { result: `${block}\n`, action: "created", toVersion };
     }
     const sep = existing.endsWith("\n") ? "\n" : "\n\n";
-    return { result: `${existing}${sep}${block}\n`, action: "appended" };
+    return { result: `${existing}${sep}${block}\n`, action: "appended", toVersion };
   }
 
   const beginIdx = existing.indexOf(begin);
@@ -130,9 +154,12 @@ export function mergeManagedBlock(
   if (beginIdx < 0 || endIdx < 0 || endIdx < beginIdx) {
     return { result: existing, action: "skipped", warn: "CLAUDE.md managed marker 위치 비정상" };
   }
+  const existingBody = existing.slice(beginIdx + begin.length, endIdx);
+  const fromVersion = parseManagedVersion(existingBody);
   const head = existing.slice(0, beginIdx);
   const tail = existing.slice(endIdx + end.length);
-  return { result: `${head}${block}${tail}`, action: "replaced" };
+  const action: MergeAction = fromVersion !== toVersion ? "upgraded" : "replaced";
+  return { result: `${head}${block}${tail}`, action, fromVersion, toVersion };
 }
 
 function countOccurrences(haystack: string, needle: string): number {
@@ -146,10 +173,10 @@ function countOccurrences(haystack: string, needle: string): number {
   return count;
 }
 
-async function mergeClaudeMdManagedBlock(): Promise<void> {
+async function mergeClaudeMdManagedBlock(cfgmVersion: string): Promise<void> {
   let existing = "";
   try { existing = await readFile(CLAUDE_MD_PATH, "utf-8"); } catch {}
-  const { result, action, warn } = mergeManagedBlock(existing, managedBody());
+  const { result, action, warn, fromVersion, toVersion } = mergeManagedBlock(existing, managedBody(cfgmVersion));
   if (action === "skipped") {
     console.error(`[cfgm-brain] CLAUDE.md 미변경: ${warn}`);
     return;
@@ -157,7 +184,11 @@ async function mergeClaudeMdManagedBlock(): Promise<void> {
   if (result !== existing) {
     await writeFile(CLAUDE_MD_PATH, result);
   }
-  console.log(`[cfgm-brain] CLAUDE.md managed block: ${action}`);
+  if (action === "upgraded") {
+    console.log(`[cfgm-brain] CLAUDE.md managed block: upgraded (${fromVersion ?? "legacy"} → ${toVersion ?? "?"})`);
+  } else {
+    console.log(`[cfgm-brain] CLAUDE.md managed block: ${action}`);
+  }
 }
 
 const IDENTITY_TEMPLATES: Record<string, string> = {
@@ -236,6 +267,113 @@ const GOALS_INDEX_TEMPLATE = `<!-- GOALS-INDEX:BEGIN auto-generated -->
 <!-- GOALS-INDEX:END -->
 `;
 
+export type InstallManifest = {
+  cfgmVersion: string;
+  brainHome: string;
+  hooksDir: string;
+  files: string[];
+  hooksRegistered: HookType[];
+  hashChecksums: Record<string, string>;
+  installedAt: string;
+};
+
+async function readCfgmVersion(): Promise<string> {
+  try {
+    const pkgPath = resolve(PROJECT, "package.json");
+    const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
+    return typeof pkg.version === "string" ? pkg.version : "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
+
+async function sha256OfFile(path: string): Promise<string | null> {
+  try {
+    const data = await readFile(path);
+    return createHash("sha256").update(data).digest("hex");
+  } catch {
+    return null;
+  }
+}
+
+export function normalizeManifestForCompare(m: InstallManifest): Omit<InstallManifest, "installedAt"> {
+  const { installedAt: _i, ...stable } = m;
+  return {
+    ...stable,
+    files: [...stable.files].sort(),
+    hooksRegistered: [...stable.hooksRegistered].sort() as HookType[],
+  };
+}
+
+async function writeInstallManifest(cfgmVersion: string): Promise<InstallManifest> {
+  const hooksRegistered: HookType[] = [
+    "SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "Stop", "PreCompact",
+  ];
+  const trackedFiles = [
+    SETTINGS_PATH,
+    CLAUDE_MD_PATH,
+    LAUNCHER,
+    join(IDENTITY_HOME, "telos.md"),
+    join(IDENTITY_HOME, "persona.md"),
+    join(IDENTITY_HOME, "user.md"),
+    join(IDENTITY_HOME, "tools.md"),
+    join(IDENTITY_HOME, "voice.md"),
+    join(GOALS_HOME, "_index.md"),
+  ];
+  const files: string[] = [];
+  const hashChecksums: Record<string, string> = {};
+  for (const p of trackedFiles) {
+    if (!existsSync(p)) continue;
+    files.push(p);
+    const h = await sha256OfFile(p);
+    if (h) hashChecksums[p] = h;
+  }
+  const manifest: InstallManifest = {
+    cfgmVersion,
+    brainHome: BRAIN_HOME,
+    hooksDir: HOOKS_DIR,
+    files: files.sort(),
+    hooksRegistered,
+    hashChecksums,
+    installedAt: new Date().toISOString(),
+  };
+  await writeFile(MANIFEST_PATH, JSON.stringify(manifest, null, 2) + "\n");
+  return manifest;
+}
+
+export type InstallPhase = "preflight" | "staging" | "commit" | "welcome";
+export type PhaseState = { startedAt: string; completedAt?: string };
+export type InstallProgress = {
+  cfgmVersion: string;
+  phases: Partial<Record<InstallPhase, PhaseState>>;
+  currentPhase?: InstallPhase;
+  startedAt: string;
+  completedAt?: string;
+};
+
+async function loadProgress(): Promise<InstallProgress | null> {
+  try { return JSON.parse(await readFile(PROGRESS_PATH, "utf-8")); }
+  catch { return null; }
+}
+
+async function saveProgress(p: InstallProgress): Promise<void> {
+  await writeFile(PROGRESS_PATH, JSON.stringify(p, null, 2) + "\n");
+}
+
+async function runPhase<T>(
+  phase: InstallPhase,
+  progress: InstallProgress,
+  fn: () => Promise<T>,
+): Promise<T> {
+  progress.currentPhase = phase;
+  progress.phases[phase] = { startedAt: new Date().toISOString() };
+  await saveProgress(progress);
+  const result = await fn();
+  progress.phases[phase] = { ...progress.phases[phase]!, completedAt: new Date().toISOString() };
+  await saveProgress(progress);
+  return result;
+}
+
 async function scaffoldIdentity(): Promise<void> {
   await mkdir(IDENTITY_HOME, { recursive: true });
   await mkdir(GOALS_HOME, { recursive: true });
@@ -249,51 +387,82 @@ async function scaffoldIdentity(): Promise<void> {
 
 async function main() {
   await mkdir(BRAIN_HOME, { recursive: true });
-  await mkdir(join(BRAIN_HOME, "skills"), { recursive: true });
-  await mkdir(BIN_DIR, { recursive: true });
-  await mkdir(MEM_HOME, { recursive: true });
-  await mkdir(join(PROJECT, ".memory-brain", "state"), { recursive: true });
-  await mkdir(join(PROJECT, ".memory-brain", "ledger", "raw"), { recursive: true });
+  const cfgmVersion = await readCfgmVersion();
 
-  const settings = await loadSettings();
-  if (!settings.hooks) settings.hooks = {};
-  const entries = buildHookEntries();
-  for (const [type, entry] of Object.entries(entries)) {
-    if (!settings.hooks[type]) settings.hooks[type] = [];
-    const arr: HookEntry[] = settings.hooks[type];
-    const idx = arr.findIndex((h) => h.matcher === MARKER);
-    if (idx >= 0) arr[idx] = entry;
-    else arr.push(entry);
-  }
-  await writeFile(SETTINGS_PATH, JSON.stringify(settings, null, 2));
-
-  const skillSrc = resolve(PROJECT, "skills");
-  if (existsSync(skillSrc) && !existsSync(SKILL_LINK)) {
-    try { await symlink(skillSrc, SKILL_LINK); } catch {}
+  const prior = await loadProgress();
+  if (prior && !prior.completedAt && prior.currentPhase) {
+    const last = prior.currentPhase;
+    const lastState = prior.phases[last];
+    if (lastState && !lastState.completedAt) {
+      console.log(`[cfgm-brain] 이전 설치가 '${last}' 단계에서 중단됨 (${lastState.startedAt}). 이어서 진행합니다.`);
+    }
   }
 
-  await writeFile(LAUNCHER, launcherScript());
-  await chmod(LAUNCHER, 0o755);
+  const progress: InstallProgress = prior ?? {
+    cfgmVersion,
+    phases: {},
+    startedAt: new Date().toISOString(),
+  };
+  progress.cfgmVersion = cfgmVersion;
+  progress.completedAt = undefined;
 
-  await ensureLocalBinSymlink();
+  await runPhase("preflight", progress, async () => {
+    await mkdir(join(BRAIN_HOME, "skills"), { recursive: true });
+    await mkdir(BIN_DIR, { recursive: true });
+    await mkdir(MEM_HOME, { recursive: true });
+    await mkdir(join(PROJECT, ".memory-brain", "state"), { recursive: true });
+    await mkdir(join(PROJECT, ".memory-brain", "ledger", "raw"), { recursive: true });
+  });
 
-  await scaffoldIdentity();
-  await mergeClaudeMdManagedBlock();
+  await runPhase("staging", progress, async () => {
+    const settings = await loadSettings();
+    if (!settings.hooks) settings.hooks = {};
+    const entries = buildHookEntries();
+    for (const [type, entry] of Object.entries(entries)) {
+      if (!settings.hooks[type]) settings.hooks[type] = [];
+      const arr: HookEntry[] = settings.hooks[type];
+      const idx = arr.findIndex((h) => h.matcher === MARKER);
+      if (idx >= 0) arr[idx] = entry;
+      else arr.push(entry);
+    }
+    await writeFile(SETTINGS_PATH, JSON.stringify(settings, null, 2));
 
-  if (!Bun.which("claude")) {
-    console.log(`[cfgm-brain] 경고: 'claude' 바이너리를 PATH에서 찾지 못함. claude-pai 실행 시 실패합니다.`);
-  }
+    const skillSrc = resolve(PROJECT, "skills");
+    if (existsSync(skillSrc) && !existsSync(SKILL_LINK)) {
+      try { await symlink(skillSrc, SKILL_LINK); } catch {}
+    }
 
-  console.log(`[cfgm-brain] installed at ${BRAIN_HOME}`);
-  console.log(`  launcher: ${LAUNCHER}`);
-  if (existsSync(LOCAL_BIN_LINK)) {
-    console.log(`  symlink:  ${LOCAL_BIN_LINK}`);
-  }
-  console.log(`  hooks:    ${HOOKS_DIR}`);
-  console.log(`  memory:   ${MEM_HOME}`);
-  console.log(`  identity: ${IDENTITY_HOME}`);
-  console.log(`  CLAUDE.md: ${CLAUDE_MD_PATH}`);
-  console.log(`\n사용법: claude-pai`);
+    await writeFile(LAUNCHER, launcherScript());
+    await chmod(LAUNCHER, 0o755);
+    await ensureLocalBinSymlink();
+
+    await scaffoldIdentity();
+    await mergeClaudeMdManagedBlock(cfgmVersion);
+  });
+
+  const manifest = await runPhase("commit", progress, async () => {
+    return writeInstallManifest(cfgmVersion);
+  });
+
+  await runPhase("welcome", progress, async () => {
+    if (!Bun.which("claude")) {
+      console.log(`[cfgm-brain] 경고: 'claude' 바이너리를 PATH에서 찾지 못함. claude-pai 실행 시 실패합니다.`);
+    }
+    console.log(`[cfgm-brain] installed at ${BRAIN_HOME} (v${manifest.cfgmVersion})`);
+    console.log(`  launcher: ${LAUNCHER}`);
+    if (existsSync(LOCAL_BIN_LINK)) {
+      console.log(`  symlink:  ${LOCAL_BIN_LINK}`);
+    }
+    console.log(`  hooks:    ${HOOKS_DIR}`);
+    console.log(`  memory:   ${MEM_HOME}`);
+    console.log(`  identity: ${IDENTITY_HOME}`);
+    console.log(`  CLAUDE.md: ${CLAUDE_MD_PATH}`);
+    console.log(`\n사용법: claude-pai`);
+  });
+
+  progress.completedAt = new Date().toISOString();
+  progress.currentPhase = undefined;
+  await saveProgress(progress);
 }
 
 if (import.meta.main) {
