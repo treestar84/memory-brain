@@ -167,6 +167,44 @@ describe("QuestionQueue", () => {
     expect(asked[0].questionBlockId).toBe("q1");
   });
 
+  test("resolveAsked: 미해결 asked에 resolution 추가 레코드 append", async () => {
+    await queue.appendAsked({
+      questionBlockId: "q1",
+      gapBlockId: "g1",
+      problemId: "p",
+      askedAtIso: "2026-04-18T10:00:00Z",
+      sessionId: "s",
+      promptTurnOrdinal: 1,
+    });
+    clock.advance(60_000);
+    const rec = await queue.resolveAsked("q1", "unknown");
+    expect(rec?.resolution).toBe("unknown");
+    expect(rec?.resolvedAtIso).toBe(clock.isoNow());
+    const asked = await queue.listAsked();
+    expect(asked).toHaveLength(2);
+    expect(asked[1].resolution).toBe("unknown");
+    expect(asked[1].gapBlockId).toBe("g1");
+  });
+
+  test("resolveAsked: 매칭되는 asked 없으면 null", async () => {
+    const rec = await queue.resolveAsked("nonexistent", "unknown");
+    expect(rec).toBeNull();
+  });
+
+  test("resolveAsked: 이미 resolved된 레코드는 스킵하고 다음 오픈 레코드 해소", async () => {
+    await queue.appendAsked({
+      questionBlockId: "q1",
+      gapBlockId: "g1",
+      problemId: "p",
+      askedAtIso: "2026-04-18T10:00:00Z",
+      sessionId: "s",
+      promptTurnOrdinal: 1,
+    });
+    await queue.resolveAsked("q1", "unknown");
+    const repeat = await queue.resolveAsked("q1", "answered");
+    expect(repeat).toBeNull();
+  });
+
   test("rebuild은 기존 pending 덮어씀", async () => {
     const gap = mkBlock({
       blockId: "g1",

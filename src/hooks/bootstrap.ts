@@ -18,6 +18,7 @@ import { FlowGraphStore } from "../core/flow/FlowGraphStore";
 import { ObservationNormalizer } from "../core/normalizer/ObservationNormalizer";
 import { Redactor } from "../core/security/Redactor";
 import { QuestionQueue } from "../core/gap/QuestionQueue";
+import { SettingsReader, defaultSettingsPath } from "../core/settings/SettingsReader";
 
 export function resolveStorageRoot(): string {
   if (process.env.CFGM_HOME) return process.env.CFGM_HOME;
@@ -45,6 +46,7 @@ export type BootstrappedDeps = {
   normalizer: ObservationNormalizer;
   redactor: Redactor;
   questionQueue: QuestionQueue;
+  settingsReader: SettingsReader;
 };
 
 export function buildDeps(root: string = resolveStorageRoot()): BootstrappedDeps {
@@ -66,10 +68,11 @@ export function buildDeps(root: string = resolveStorageRoot()): BootstrappedDeps
   const decayEngine = new StaleDecayEngine(flowStore, clock);
   const redactor = new Redactor(storage, clock);
   const normalizer = new ObservationNormalizer(redactor);
+  const settingsReader = new SettingsReader(defaultSettingsPath());
 
   return {
     storage, clock, problemStore, queue, ledger, expirer, bundler,
     injector, fallback, ontologyModule, resumeReader, resumeWriter,
-    decayEngine, flowStore, normalizer, redactor, questionQueue,
+    decayEngine, flowStore, normalizer, redactor, questionQueue, settingsReader,
   };
 }

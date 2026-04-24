@@ -343,3 +343,153 @@ describe("UserPromptSubmit hook — Epic 3 Question 주입", () => {
     expect(out).not.toContain("확인 질문");
   });
 });
+
+describe("UserPromptSubmit hook — PR-3 question policy (cooldown / day-cap / resolution)", () => {
+  let storage: MemoryStorage;
+  let clock: FakeClock;
+  let problemStore: ActiveProblemStore;
+  let queue: PendingQueue;
+  let ledger: RawLedger;
+  let bundler: ObservationBundler;
+  let questionQueue: QuestionQueue;
+  let tmpSettingsDir: string;
+
+  beforeEach(async () => {
+    const { mkdtempSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    storage = new MemoryStorage();
+    clock = new FakeClock(new Date("2026-04-18T10:00:00Z"));
+    problemStore = new ActiveProblemStore(storage, clock);
+    queue = new PendingQueue(storage, clock);
+    ledger = new RawLedger(storage, clock);
+    bundler = new ObservationBundler(storage, clock);
+    questionQueue = new QuestionQueue(storage, clock);
+    tmpSettingsDir = mkdtempSync(join(tmpdir(), "ups-policy-"));
+  });
+
+  const writeSettings = async (cooldownMinutes: number, dailyCap: number) => {
+    const { writeFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const path = join(tmpSettingsDir, "settings.json");
+    writeFileSync(path, JSON.stringify({ memoryBrain: { questionPolicy: { cooldownMinutes, dailyCap } } }));
+    const { SettingsReader } = await import("../../src/core/settings/SettingsReader");
+    return new SettingsReader(path);
+  };
+
+  const mkGap = (over: Partial<FlowBlock>): FlowBlock => ({
+    blockId: "g1", problemId: "p", type: "Gap", status: "confirmed",
+    label: "결손", confidence: 1, supportedBy: [], relations: [],
+    createdAt: "2026-04-18T10:00:00Z", lastConfirmedAt: null, staleAfter: null,
+    supersededBy: null, bundleId: "", detectorId: "semantic",
+    subject: { blockId: "s" }, severity: 0.5, voiCached: 0.5, ...over,
+  });
+  const mkQ = (over: Partial<FlowBlock>): FlowBlock => ({
+    blockId: "q1", problemId: "p", type: "Question", status: "confirmed",
+    label: "증거를 공유해줘", confidence: 1, supportedBy: [], relations: [],
+    createdAt: "2026-04-18T10:00:00Z", lastConfirmedAt: null, staleAfter: null,
+    supersededBy: null, bundleId: "", gapBlockId: "g1", lifecycle: "pending",
+    voiCached: 0.5, ...over,
+  });
+  const mkGraph = (problemId: string, blocks: FlowBlock[]): FlowGraph => ({
+    problemId, blocks,
+    cueCardMeta: { lastSyntheticAt: null, bodyHash: null, bodyBytes: 0, stale: false },
+  });
+  const evt = (): CanonicalEvent => ({
+    platform: "claude-code", stage: "prompt-submit", sessionId: "sess-p3",
+    cwd: "/p", timestampIso: clock.isoNow(),
+    payload: { stage: "prompt-submit", message: "continue" },
+    raw: {}, adapterVersion: "claude-code@1.0",
+  });
+
+  test("cooldown 미경과 → 동일 gap 재주입 차단", async () => {
+    const settingsReader = await writeSettings(60, 10);
+    const prob = await problemStore.create("bug", "bug");
+    await questionQueue.appendAsked({
+      questionBlockId: "q0", gapBlockId: "g1", problemId: prob.id,
+      askedAtIso: clock.isoNow(), sessionId: "prev", promptTurnOrdinal: 1,
+    });
+    await questionQueue.rebuild(mkGraph(prob.id, [
+      mkGap({ problemId: prob.id }),
+      mkQ({ blockId: "q2", problemId: prob.id }),
+    ]));
+    clock.advance(30 * 60_000);
+    const out = await handleUserPromptSubmit(evt(), {
+      storage, clock, problemStore, queue, ledger, bundler, questionQueue, settingsReader,
+    });
+    expect(out).not.toContain("확인 질문");
+  });
+
+  test("cooldown 경과 + resolution 없음 → 재주입 허용", async () => {
+    const settingsReader = await writeSettings(60, 10);
+    const prob = await problemStore.create("bug", "bug");
+    await questionQueue.appendAsked({
+      questionBlockId: "q0", gapBlockId: "g1", problemId: prob.id,
+      askedAtIso: clock.isoNow(), sessionId: "prev", promptTurnOrdinal: 1,
+    });
+    await questionQueue.rebuild(mkGraph(prob.id, [
+      mkGap({ problemId: prob.id }),
+      mkQ({ blockId: "q2", problemId: prob.id }),
+    ]));
+    clock.advance(61 * 60_000);
+    const out = await handleUserPromptSubmit(evt(), {
+      storage, clock, problemStore, queue, ledger, bundler, questionQueue, settingsReader,
+    });
+    expect(out).toContain("확인 질문");
+    expect((await questionQueue.listAsked()).length).toBe(2);
+  });
+
+  test("resolution=unknown 기록된 gap → cooldown 무관 영구 스킵", async () => {
+    const settingsReader = await writeSettings(1, 10);
+    const prob = await problemStore.create("bug", "bug");
+    await questionQueue.appendAsked({
+      questionBlockId: "q0", gapBlockId: "g1", problemId: prob.id,
+      askedAtIso: clock.isoNow(), sessionId: "prev", promptTurnOrdinal: 1,
+      resolution: "unknown", resolvedAtIso: clock.isoNow(),
+    });
+    await questionQueue.rebuild(mkGraph(prob.id, [
+      mkGap({ problemId: prob.id }),
+      mkQ({ blockId: "q2", problemId: prob.id }),
+    ]));
+    clock.advance(24 * 60 * 60_000);
+    const out = await handleUserPromptSubmit(evt(), {
+      storage, clock, problemStore, queue, ledger, bundler, questionQueue, settingsReader,
+    });
+    expect(out).not.toContain("확인 질문");
+  });
+
+  test("dailyCap 도달 → 새 주입 전체 차단", async () => {
+    const settingsReader = await writeSettings(60, 1);
+    const prob = await problemStore.create("bug", "bug");
+    await questionQueue.appendAsked({
+      questionBlockId: "qA", gapBlockId: "gA", problemId: prob.id,
+      askedAtIso: clock.isoNow(), sessionId: "prev", promptTurnOrdinal: 1,
+    });
+    await questionQueue.rebuild(mkGraph(prob.id, [
+      mkGap({ blockId: "gB", problemId: prob.id, subject: { blockId: "sB" } }),
+      mkQ({ blockId: "qB", problemId: prob.id, gapBlockId: "gB", label: "다른 질문" }),
+    ]));
+    const out = await handleUserPromptSubmit(evt(), {
+      storage, clock, problemStore, queue, ledger, bundler, questionQueue, settingsReader,
+    });
+    expect(out).not.toContain("확인 질문");
+  });
+
+  test("UTC 자정 경과 → dailyCap 리셋", async () => {
+    const settingsReader = await writeSettings(60, 1);
+    const prob = await problemStore.create("bug", "bug");
+    await questionQueue.appendAsked({
+      questionBlockId: "qA", gapBlockId: "gA", problemId: prob.id,
+      askedAtIso: clock.isoNow(), sessionId: "prev", promptTurnOrdinal: 1,
+    });
+    await questionQueue.rebuild(mkGraph(prob.id, [
+      mkGap({ blockId: "gB", problemId: prob.id, subject: { blockId: "sB" } }),
+      mkQ({ blockId: "qB", problemId: prob.id, gapBlockId: "gB", label: "다른 질문" }),
+    ]));
+    clock.set(new Date("2026-04-19T00:10:00Z"));
+    const out = await handleUserPromptSubmit(evt(), {
+      storage, clock, problemStore, queue, ledger, bundler, questionQueue, settingsReader,
+    });
+    expect(out).toContain("확인 질문");
+  });
+});

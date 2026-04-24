@@ -6,6 +6,8 @@ import type { PendingQueue } from "../core/ledger/PendingQueue";
 import type { RawLedger } from "../core/ledger/RawLedger";
 import type { ObservationBundler } from "../core/flow/ObservationBundler";
 import type { QuestionQueue } from "../core/gap/QuestionQueue";
+import type { AskedRecord } from "../core/gap/types";
+import type { SettingsReader } from "../core/settings/SettingsReader";
 import { FLOW_CONFIG } from "../core/flow/config";
 
 export type PromptSubmitDeps = {
@@ -16,6 +18,7 @@ export type PromptSubmitDeps = {
   ledger: RawLedger;
   bundler: ObservationBundler;
   questionQueue?: QuestionQueue;
+  settingsReader?: SettingsReader;
 };
 
 type CurrentTurnState = {
@@ -72,20 +75,44 @@ async function injectQuestion(
   activeProblemId: string,
   turnOrdinal: number,
 ): Promise<string | null> {
-  const { questionQueue, storage, clock } = deps;
+  const { questionQueue, storage, clock, settingsReader } = deps;
   if (!questionQueue) return null;
 
   const pending = await questionQueue.listPending();
   if (pending.length === 0) return null;
 
   const asked = await questionQueue.listAsked();
+  const policy = settingsReader
+    ? await settingsReader.getQuestionPolicy()
+    : {
+        cooldownMinutes: FLOW_CONFIG.QUESTION_POLICY.COOLDOWN_MINUTES,
+        dailyCap: FLOW_CONFIG.QUESTION_POLICY.DAILY_CAP,
+      };
+
+  const today = clock.isoDate();
+  const askedToday = asked.filter((a) => a.askedAtIso.slice(0, 10) === today).length;
+  if (askedToday >= policy.dailyCap) return null;
+
+  const latestByGap = new Map<string, AskedRecord>();
+  for (const a of asked) {
+    const prev = latestByGap.get(a.gapBlockId);
+    if (!prev || a.askedAtIso > prev.askedAtIso) latestByGap.set(a.gapBlockId, a);
+  }
+
   const askedQuestionIds = new Set(asked.map((a) => a.questionBlockId));
-  const askedGapIds = new Set(asked.map((a) => a.gapBlockId));
+  const nowMs = clock.now().getTime();
+  const cooldownMs = policy.cooldownMinutes * 60_000;
 
   for (const cand of pending) {
     if (cand.problemId !== activeProblemId) continue;
     if (askedQuestionIds.has(cand.questionBlockId)) continue;
-    if (askedGapIds.has(cand.gapBlockId)) continue;
+
+    const last = latestByGap.get(cand.gapBlockId);
+    if (last) {
+      if (last.resolution) continue;
+      const elapsed = nowMs - new Date(last.askedAtIso).getTime();
+      if (elapsed < cooldownMs) continue;
+    }
 
     const bytes = new TextEncoder().encode(cand.label).length;
     if (bytes > FLOW_CONFIG.QUESTION_LABEL_MAX_BYTES) {

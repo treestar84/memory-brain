@@ -5,6 +5,7 @@ import { FlowGraphStore } from "../src/core/flow/FlowGraphStore";
 import { FlowGraphValidator } from "../src/core/flow/FlowGraphValidator";
 import { FlowGraphProjector } from "../src/core/flow/FlowGraphProjector";
 import { ObservationBundler } from "../src/core/flow/ObservationBundler";
+import { QuestionQueue } from "../src/core/gap/QuestionQueue";
 import type { FlowDelta } from "../src/core/flow/types";
 import { resolveStorageRoot } from "../src/hooks/bootstrap";
 
@@ -14,6 +15,7 @@ const store = new FlowGraphStore(storage, clock);
 const validator = new FlowGraphValidator();
 const projector = new FlowGraphProjector();
 const bundler = new ObservationBundler(storage, clock);
+const questionQueue = new QuestionQueue(storage, clock);
 
 const args = process.argv.slice(2);
 const markProcessedIdx = args.indexOf("--mark-processed");
@@ -77,6 +79,7 @@ async function main() {
     const allDeltas = await store.readDeltas(pid);
     const graph = projector.project(pid, allDeltas);
     await store.writeSnapshot(pid, graph);
+    await questionQueue.rebuild(graph);
   }
 
   if (failed > 0) {

@@ -3,6 +3,7 @@ import type { Clock } from "../clock/Clock";
 import type { FlowGraph } from "../flow/types";
 import type {
   AskedRecord,
+  AskedResolution,
   CurrentGapsSnapshot,
   DetectorId,
   PendingQuestionRecord,
@@ -79,5 +80,21 @@ export class QuestionQueue {
 
   async listAsked(): Promise<AskedRecord[]> {
     return await this.storage.readJsonl<AskedRecord>(ASKED_PATH);
+  }
+
+  async resolveAsked(questionBlockId: string, resolution: AskedResolution): Promise<AskedRecord | null> {
+    const asked = await this.storage.readJsonl<AskedRecord>(ASKED_PATH);
+    const forQuestion = asked.filter((r) => r.questionBlockId === questionBlockId);
+    if (forQuestion.length === 0) return null;
+    if (forQuestion.some((r) => r.resolution)) return null;
+    const base = forQuestion[forQuestion.length - 1];
+    const rec: AskedRecord = {
+      ...base,
+      askedAtIso: this.clock.isoNow(),
+      resolution,
+      resolvedAtIso: this.clock.isoNow(),
+    };
+    await this.storage.appendJsonl(ASKED_PATH, rec);
+    return rec;
   }
 }

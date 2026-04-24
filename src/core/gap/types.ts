@@ -30,6 +30,8 @@ export type VoiFactors = {
 
 export type QuestionLifecycle = "pending" | "asked" | "answered" | "stale";
 
+export type AskedResolution = "answered" | "unknown" | "deferred";
+
 export type AskedRecord = {
   questionBlockId: string;
   gapBlockId: string;
@@ -37,6 +39,8 @@ export type AskedRecord = {
   askedAtIso: string;
   sessionId: string;
   promptTurnOrdinal: number;
+  resolution?: AskedResolution;
+  resolvedAtIso?: string;
 };
 
 export type CurrentGapsSnapshot = {
