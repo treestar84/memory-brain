@@ -407,7 +407,17 @@ describe("SessionStart hook — v1.5 identity 넛지", () => {
   let injector: CueCardInjector;
   let fallback: CueCardFallback;
 
-  const IDENTITY_FILES = ["telos.md", "persona.md", "user.md", "tools.md", "voice.md"];
+  const IDENTITY_FILES = [
+    "telos.md",
+    "persona.md",
+    "user.md",
+    "tools.md",
+    "voice.md",
+    "beliefs.md",
+    "models.md",
+    "strategies.md",
+    "ideas.md",
+  ];
 
   const evt = (): CanonicalEvent => ({
     platform: "claude-code", stage: "session-start", sessionId: "s-nudge",

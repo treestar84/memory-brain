@@ -24,8 +24,22 @@ description: 비어 있는 identity 파일(TELOS·Persona·User·Tools·Voice)�
 - `~/.claude-brain/memory-brain/identity/user.md`
 - `~/.claude-brain/memory-brain/identity/tools.md`
 - `~/.claude-brain/memory-brain/identity/voice.md`
+- `~/.claude-brain/memory-brain/identity/beliefs.md`
+- `~/.claude-brain/memory-brain/identity/models.md`
+- `~/.claude-brain/memory-brain/identity/strategies.md`
+- `~/.claude-brain/memory-brain/identity/ideas.md`
 
 goals는 이 스킬이 아니라 `/cfgm-identity` + CLI(`bin/cfgm-identity-goal.ts`)로 관리한다.
+
+PAI 원본 10개 TELOS 파일 대비 매핑:
+- MISSION → `telos.md`
+- GOALS → 별도 `goals/` (CLI 관리)
+- PROJECTS / CHALLENGES → `Problem` 엔티티 + FlowGraph (별도 파일 없음)
+- LEARNED / NARRATIVES → FlowGraph 블록 (`flow-delta.jsonl`)
+- BELIEFS → `beliefs.md`
+- MODELS → `models.md`
+- STRATEGIES → `strategies.md`
+- IDEAS → `ideas.md`
 
 ## 절차 (각 파일마다 반복)
 
@@ -60,7 +74,7 @@ goals는 이 스킬이 아니라 `/cfgm-identity` + CLI(`bin/cfgm-identity-goal.
 `Write` 도구로 해당 파일에 덮어쓰기. 완료 메시지 1줄로 보고.
 
 ### 7. 다음 파일
-순서: **telos → persona → user → tools → voice**. 모든 파일 처리 후 `/cfgm-identity show`로 총 크기 요약 권장.
+순서: **telos → persona → user → tools → voice → beliefs → models → strategies → ideas**. 모든 파일 처리 후 `/cfgm-identity show`로 총 크기 요약 권장.
 
 ## 파일별 질문 세트
 
@@ -172,6 +186,86 @@ goals는 이 스킬이 아니라 `/cfgm-identity` + CLI(`bin/cfgm-identity-goal.
 
 ## 피해야 할 표현
 {응답 4 또는 생략}
+```
+
+### beliefs.md — 신념과 원칙
+- 지금 의사결정에서 가장 자주 기준이 되는 원칙 하나를 꼽는다면?
+- 사회 통념과 달라도 지키고 있는 믿음이 있나요?
+- 어떤 선까지는 타협하지 않겠다고 스스로 정해놓은 게 있나요?
+- (옵션) 최근 흔들린 믿음이 있나요?
+
+초안 구조:
+```markdown
+# Beliefs
+
+## 핵심 가치
+{응답 1}
+
+## 사회 통념과 다른 믿음
+{응답 2 또는 생략}
+
+## 타협 불가능한 선
+{응답 3}
+
+## 최근 흔들린 믿음
+{응답 4 또는 생략}
+```
+
+### models.md — 멘탈 모델
+- 복잡한 문제를 분해할 때 가장 자주 꺼내는 프레임워크/법칙이 있나요?
+- 다른 사람에게 "이렇게 생각해보라"고 자주 권하는 비유가 있나요?
+- 경험에서 얻은 "거의 항상 맞는" 법칙 하나만 꼽는다면?
+
+초안 구조:
+```markdown
+# Models
+
+## 즐겨 쓰는 프레임워크
+{응답 1}
+
+## 유용한 비유
+{응답 2 또는 생략}
+
+## 경험적 법칙
+{응답 3}
+```
+
+### strategies.md — 반복 사용하는 접근법
+- 새 프로젝트를 시작할 때 첫 수로 무엇을 하나요?
+- 작업이 막혔을 때 거의 항상 시도하는 탈출구는?
+- 큰 결정 앞에서 사용하는 판단 기준이 있다면?
+
+초안 구조:
+```markdown
+# Strategies
+
+## 새 프로젝트 시작 시
+{응답 1}
+
+## 막혔을 때
+{응답 2}
+
+## 큰 결정 앞에서
+{응답 3 또는 생략}
+```
+
+### ideas.md — 진행 중인 아이디어
+- 지금 머릿속에서 잘 안 떨어지는 주제가 있나요?
+- 시간만 나면 해보고 싶은 것 하나?
+- 해결되면 좋겠다고 생각하는 문제 하나?
+
+초안 구조:
+```markdown
+# Ideas
+
+## 최근 꽂힌 주제
+{응답 1 또는 생략}
+
+## 언젠가 해보고 싶은 것
+{응답 2}
+
+## 해결하고 싶은 문제
+{응답 3}
 ```
 
 ## 금기

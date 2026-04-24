@@ -129,6 +129,10 @@ export function managedBody(cfgmVersion: string = "0.0.0"): string {
     "@memory-brain/identity/user.md",
     "@memory-brain/identity/tools.md",
     "@memory-brain/identity/voice.md",
+    "@memory-brain/identity/beliefs.md",
+    "@memory-brain/identity/models.md",
+    "@memory-brain/identity/strategies.md",
+    "@memory-brain/identity/ideas.md",
     "@memory-brain/identity/goals/_index.md",
   ].join("\n");
 }
@@ -285,6 +289,52 @@ const IDENTITY_TEMPLATES: Record<string, string> = {
 ## 언어 / 호칭
 <!-- 예: 한국어 기본. "저" 사용 금지. -->
 `,
+  "beliefs.md": `# Beliefs — 나의 신념과 원칙
+
+> 의사결정 기준이 되는 핵심 가치관. 구체 행동보다 높은 층위의 원칙.
+
+## 핵심 가치
+
+## 타협하지 않는 선
+
+## 최근 흔들린 믿음
+<!-- 예: 그동안 맞다고 믿어온 X가 요즘 의심스럽다. -->
+`,
+  "models.md": `# Models — 내가 세상을 이해하는 방식
+
+> 반복해서 꺼내 쓰는 프레임워크·비유·멘탈 모델.
+
+## 즐겨 쓰는 프레임워크
+<!-- 예: 파레토 법칙, OODA 루프, 시스템 1/2 사고 -->
+
+## 유용한 비유/메타포
+
+## 경험적으로 배운 법칙
+<!-- 예: "문서화되지 않은 결정은 3개월 뒤 사라진다" -->
+`,
+  "strategies.md": `# Strategies — 반복 사용하는 접근법
+
+> 특정 상황에서 선호하는 전략/플레이북.
+
+## 새 프로젝트 시작 시
+<!-- 예: 최소 기능 1개를 끝까지 돌린 뒤 확장 -->
+
+## 막혔을 때
+<!-- 예: 산책, 다른 사람에게 설명하기, 손으로 쓰기 -->
+
+## 큰 결정 앞에서
+<!-- 예: 5년 뒤 내가 후회할 쪽을 피한다 -->
+`,
+  "ideas.md": `# Ideas — 진행 중인 아이디어 저장소
+
+> 정리되지 않았지만 잃고 싶지 않은 생각들.
+
+## 언젠가 해보고 싶은 것
+
+## 해결하고 싶은 문제
+
+## 최근 꽂힌 주제
+`,
 };
 
 const GOALS_INDEX_TEMPLATE = `<!-- GOALS-INDEX:BEGIN auto-generated -->
@@ -345,6 +395,10 @@ async function writeInstallManifest(cfgmVersion: string): Promise<InstallManifes
     join(IDENTITY_HOME, "user.md"),
     join(IDENTITY_HOME, "tools.md"),
     join(IDENTITY_HOME, "voice.md"),
+    join(IDENTITY_HOME, "beliefs.md"),
+    join(IDENTITY_HOME, "models.md"),
+    join(IDENTITY_HOME, "strategies.md"),
+    join(IDENTITY_HOME, "ideas.md"),
     join(GOALS_HOME, "_index.md"),
   ];
   const files: string[] = [];

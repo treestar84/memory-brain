@@ -29,23 +29,43 @@ export type HookDeps = {
   decayEngine?: StaleDecayEngine;
 };
 
-const IDENTITY_FILES = ["telos.md", "persona.md", "user.md", "tools.md", "voice.md"] as const;
+const IDENTITY_FILES = [
+  "telos.md",
+  "persona.md",
+  "user.md",
+  "tools.md",
+  "voice.md",
+  "beliefs.md",
+  "models.md",
+  "strategies.md",
+  "ideas.md",
+] as const;
 const IDENTITY_LABELS: Record<(typeof IDENTITY_FILES)[number], string> = {
   "telos.md": "Telos",
   "persona.md": "Persona",
   "user.md": "User",
   "tools.md": "Tools",
   "voice.md": "Voice",
+  "beliefs.md": "Beliefs",
+  "models.md": "Models",
+  "strategies.md": "Strategies",
+  "ideas.md": "Ideas",
 };
 const IDENTITY_PER_FILE_BYTES = 320;
 const IDENTITY_TOTAL_BYTES = 1600;
 
-export function isIdentityEmpty(content: string | null): boolean {
-  if (!content) return true;
-  const stripped = content
+function stripTemplateChrome(content: string): string {
+  return content
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/^#+.*$/gm, "")
-    .replace(/\s+/g, "");
+    .replace(/^>.*$/gm, "")
+    .replace(/^\s*\d+\.\s*$/gm, "")
+    .replace(/^\s*[-*+]\s*$/gm, "");
+}
+
+export function isIdentityEmpty(content: string | null): boolean {
+  if (!content) return true;
+  const stripped = stripTemplateChrome(content).replace(/\s+/g, "");
   return stripped.length === 0;
 }
 
@@ -61,6 +81,9 @@ function firstMeaningfulParagraph(content: string): string {
       continue;
     }
     if (line.startsWith("#")) continue;
+    if (line.startsWith(">")) continue;
+    if (/^\d+\.\s*$/.test(line)) continue;
+    if (/^[-*+]\s*$/.test(line)) continue;
     picked.push(line);
   }
   return picked.join(" ").replace(/\s+/g, " ").trim();
