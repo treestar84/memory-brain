@@ -6,6 +6,8 @@ import { ActiveProblemStore } from "../../src/core/binder/ActiveProblemStore";
 import { RawLedger } from "../../src/core/ledger/RawLedger";
 import { PendingQueue } from "../../src/core/ledger/PendingQueue";
 import { ObservationBundler } from "../../src/core/flow/ObservationBundler";
+import { PromotionLedger } from "../../src/core/identity/PromotionLedger";
+import { CandidateDetector } from "../../src/core/identity/CandidateDetector";
 import type { CanonicalEvent } from "../../src/core/events/CanonicalEvent";
 
 function makeSessionEnd(): CanonicalEvent {
@@ -24,6 +26,8 @@ describe("SessionEnd hook", () => {
   let ledger: RawLedger;
   let queue: PendingQueue;
   let bundler: ObservationBundler;
+  let promotionLedger: PromotionLedger;
+  let candidateDetector: CandidateDetector;
 
   beforeEach(() => {
     storage = new MemoryStorage();
@@ -32,10 +36,12 @@ describe("SessionEnd hook", () => {
     ledger = new RawLedger(storage, clock);
     queue = new PendingQueue(storage, clock);
     bundler = new ObservationBundler(storage, clock);
+    promotionLedger = new PromotionLedger(storage, clock);
+    candidateDetector = new CandidateDetector(clock);
   });
 
   test("appends session-end to raw ledger", async () => {
-    await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler });
+    await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler, promotionLedger, candidateDetector });
     const records = await storage.readJsonl("ledger/raw/2026/04/17/session-sess-001.jsonl");
     expect(records.length).toBe(1);
   });
@@ -43,26 +49,26 @@ describe("SessionEnd hook", () => {
   test("updates lastConfirmedAt on active problem", async () => {
     await problemStore.create("test", "test");
     clock.advance(60_000);
-    await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler });
+    await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler, promotionLedger, candidateDetector });
     const active = await problemStore.getActive();
     expect(active?.lastConfirmedAt).toBe(clock.isoNow());
   });
 
   test("safe when no active problem", async () => {
-    const output = await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler });
+    const output = await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler, promotionLedger, candidateDetector });
     expect(output).toBeNull();
   });
 
   test("idempotent — calling twice is safe", async () => {
     await problemStore.create("test", "test");
-    await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler });
-    await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler });
+    await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler, promotionLedger, candidateDetector });
+    await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler, promotionLedger, candidateDetector });
     const records = await storage.readJsonl("ledger/raw/2026/04/17/session-sess-001.jsonl");
     expect(records.length).toBe(2);
   });
 
   test("returns null (no stdout output)", async () => {
-    const output = await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler });
+    const output = await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler, promotionLedger, candidateDetector });
     expect(output).toBeNull();
   });
 
@@ -72,7 +78,7 @@ describe("SessionEnd hook", () => {
     await bundler.openTurn("sess-001", active.id, 1);
     await queue.enqueue({ type: "tool:Bash", data: { exitCode: 0 } }, "sess-001");
 
-    await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler });
+    await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler, promotionLedger, candidateDetector });
 
     const unprocessed = await bundler.listUnprocessed();
     expect(unprocessed).toHaveLength(1);
@@ -82,7 +88,7 @@ describe("SessionEnd hook", () => {
   });
 
   test("no-op when no turn is open", async () => {
-    const out = await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler });
+    const out = await handleSessionEnd(makeSessionEnd(), { storage, clock, problemStore, ledger, queue, bundler, promotionLedger, candidateDetector });
     expect(out).toBeNull();
     const unprocessed = await bundler.listUnprocessed();
     expect(unprocessed).toHaveLength(0);

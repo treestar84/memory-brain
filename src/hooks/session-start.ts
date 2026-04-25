@@ -13,6 +13,9 @@ import type { OntologyModule } from "../core/ontology/OntologyModule";
 import type { ResumeSheetReader } from "../core/compaction/ResumeSheetReader";
 import type { ResumeSheet } from "../core/compaction/types";
 import type { StaleDecayEngine } from "../core/governance/StaleDecayEngine";
+import type { PromotionLedger } from "../core/identity/PromotionLedger";
+
+export const PROMOTION_NUDGE_THRESHOLD = 5;
 
 export type HookDeps = {
   storage: Storage;
@@ -27,6 +30,7 @@ export type HookDeps = {
   ontologyModule?: OntologyModule;
   resumeReader?: ResumeSheetReader;
   decayEngine?: StaleDecayEngine;
+  promotionLedger?: PromotionLedger;
 };
 
 const IDENTITY_FILES = [
@@ -250,6 +254,14 @@ export async function handleSessionStart(
   if (await shouldNudgeIdentity(deps.storage)) {
     lines.push("");
     lines.push("> 💡 identity 파일이 모두 비어 있습니다 — \"identity 인터뷰 시작해줘\"라고 말하면 3분 대화로 채워집니다. (스킬: cfgm-identity-bootstrap)");
+  }
+
+  if (deps.promotionLedger) {
+    const pendingPromotions = await deps.promotionLedger.list({ status: "pending" });
+    if (pendingPromotions.length >= PROMOTION_NUDGE_THRESHOLD) {
+      lines.push("");
+      lines.push(`> 🔔 promotion pending 후보 ${pendingPromotions.length}건 — \`bun run bin/cfgm-promote-list.ts\`로 확인 후 \`-accept\`/\`-reject\`. (PAI export는 후속 ADR)`);
+    }
   }
 
   return lines.join("\n");

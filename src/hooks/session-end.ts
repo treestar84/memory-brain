@@ -5,6 +5,8 @@ import type { ActiveProblemStore } from "../core/binder/ActiveProblemStore";
 import type { RawLedger } from "../core/ledger/RawLedger";
 import type { PendingQueue } from "../core/ledger/PendingQueue";
 import type { ObservationBundler } from "../core/flow/ObservationBundler";
+import type { PromotionLedger } from "../core/identity/PromotionLedger";
+import type { CandidateDetector } from "../core/identity/CandidateDetector";
 
 export type SessionEndDeps = {
   storage: Storage;
@@ -13,6 +15,8 @@ export type SessionEndDeps = {
   ledger: RawLedger;
   queue: PendingQueue;
   bundler: ObservationBundler;
+  promotionLedger?: PromotionLedger;
+  candidateDetector?: CandidateDetector;
 };
 
 type CurrentTurnState = {
@@ -35,7 +39,11 @@ export async function handleSessionEnd(
   if (state && state.sessionId && !state.closed) {
     const drained = await deps.queue.drainForSession(event.sessionId);
     const observations = drained.map((p) => ({ type: p.payload.type, data: p.payload.data }));
-    await deps.bundler.sealTurn(event.sessionId, observations, []);
+    const sealed = await deps.bundler.sealTurn(event.sessionId, observations, []);
+    if (sealed && deps.candidateDetector && deps.promotionLedger) {
+      const candidates = deps.candidateDetector.detect(sealed);
+      for (const c of candidates) await deps.promotionLedger.append(c);
+    }
   }
 
   await deps.problemStore.updateLastConfirmed();
