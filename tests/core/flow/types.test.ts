@@ -2,6 +2,7 @@ import { describe, test, expect } from "bun:test";
 import {
   isFlowBlock, isFlowDelta, isObservationBundle,
   isRelation, isFlowBlockType, isRelationKind,
+  isFlowBlockMetadata,
 } from "../../../src/core/flow/guards";
 
 describe("Flow type guards", () => {
@@ -51,6 +52,63 @@ describe("Flow type guards", () => {
     expect(isFlowDelta({ op: "cue-card-regen", timestampIso: "x",
       problemId: "p", bodyHash: "abc", bodyBytes: 100 })).toBe(true);
     expect(isFlowDelta({ op: "unknown" })).toBe(false);
+  });
+
+  describe("FlowBlockMetadata (PR-6)", () => {
+    const baseBlock = {
+      blockId: "blk_x", problemId: "p1", type: "Cause" as const,
+      status: "confirmed" as const, label: "test", confidence: 0.7,
+      supportedBy: [], relations: [], createdAt: "2026-04-26T00:00:00Z",
+      lastConfirmedAt: null, staleAfter: null, supersededBy: null, bundleId: "bnd_x",
+    };
+
+    test("metadata 미포함 블록은 통과", () => {
+      expect(isFlowBlock(baseBlock)).toBe(true);
+    });
+
+    test("metadata가 빈 객체면 통과", () => {
+      expect(isFlowBlock({ ...baseBlock, metadata: {} })).toBe(true);
+    });
+
+    test("reserved key (author/subject/source/confidenceLabel) 모두 string이면 통과", () => {
+      expect(isFlowBlock({
+        ...baseBlock,
+        metadata: { author: "claude", subject: "auth", source: "extractor-v1", confidenceLabel: "high" },
+      })).toBe(true);
+    });
+
+    test("확장 슬롯 임의 키 + string 값이면 통과", () => {
+      expect(isFlowBlock({ ...baseBlock, metadata: { foo: "bar", customX: "y" } })).toBe(true);
+    });
+
+    test("metadata 값에 number가 들어가면 거부", () => {
+      expect(isFlowBlock({ ...baseBlock, metadata: { x: 123 } })).toBe(false);
+    });
+
+    test("metadata 값에 boolean이 들어가면 거부", () => {
+      expect(isFlowBlock({ ...baseBlock, metadata: { x: true } })).toBe(false);
+    });
+
+    test("metadata가 array면 거부", () => {
+      expect(isFlowBlock({ ...baseBlock, metadata: ["a", "b"] })).toBe(false);
+    });
+
+    test("metadata가 null이면 거부", () => {
+      expect(isFlowBlock({ ...baseBlock, metadata: null })).toBe(false);
+    });
+
+    test("metadata 값에 undefined 허용 (key 자체는 키지만 값 없음)", () => {
+      expect(isFlowBlock({ ...baseBlock, metadata: { author: undefined, subject: "x" } })).toBe(true);
+    });
+
+    test("isFlowBlockMetadata 단독: 다양한 케이스", () => {
+      expect(isFlowBlockMetadata(undefined)).toBe(true);
+      expect(isFlowBlockMetadata({})).toBe(true);
+      expect(isFlowBlockMetadata({ author: "x" })).toBe(true);
+      expect(isFlowBlockMetadata(null)).toBe(false);
+      expect(isFlowBlockMetadata(["a"])).toBe(false);
+      expect(isFlowBlockMetadata({ x: 1 })).toBe(false);
+    });
   });
 
   test("isObservationBundle requires all fields", () => {

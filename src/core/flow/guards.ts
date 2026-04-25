@@ -1,7 +1,16 @@
 import {
   FLOW_BLOCK_TYPES, RELATION_KINDS,
-  type FlowBlock, type FlowDelta, type ObservationBundle, type Relation,
+  type FlowBlock, type FlowBlockMetadata, type FlowDelta, type ObservationBundle, type Relation,
 } from "./types";
+
+export function isFlowBlockMetadata(v: unknown): v is FlowBlockMetadata | undefined {
+  if (v === undefined) return true;
+  if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+  for (const val of Object.values(v as Record<string, unknown>)) {
+    if (val !== undefined && typeof val !== "string") return false;
+  }
+  return true;
+}
 
 export function isFlowBlockType(v: unknown): v is typeof FLOW_BLOCK_TYPES[number] {
   return typeof v === "string" && (FLOW_BLOCK_TYPES as readonly string[]).includes(v);
@@ -33,7 +42,8 @@ export function isFlowBlock(v: unknown): v is FlowBlock {
     && (b.lastConfirmedAt === null || typeof b.lastConfirmedAt === "string")
     && (b.staleAfter === null || typeof b.staleAfter === "string")
     && (b.supersededBy === null || typeof b.supersededBy === "string")
-    && typeof b.bundleId === "string";
+    && typeof b.bundleId === "string"
+    && isFlowBlockMetadata(b.metadata);
 }
 
 export function isFlowDelta(v: unknown): v is FlowDelta {

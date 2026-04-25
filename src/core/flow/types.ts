@@ -17,6 +17,16 @@ export type Relation = {
   confidence: number;
 };
 
+// PR-6: provenance/extractor 라벨링용 reserved key + 확장 슬롯.
+// confidenceLabel은 FlowBlock.confidence(number)와 의미 분리된 string 라벨.
+export type FlowBlockMetadata = {
+  author?: string;
+  subject?: string;
+  source?: string;
+  confidenceLabel?: string;
+  [key: string]: string | undefined;
+};
+
 export type FlowBlock = {
   blockId: string;
   problemId: string;
@@ -31,6 +41,7 @@ export type FlowBlock = {
   staleAfter: string | null;
   supersededBy: string | null;
   bundleId: string;
+  metadata?: FlowBlockMetadata;
 
   // Gap 전용 (type === "Gap")
   detectorId?: string;
