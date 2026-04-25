@@ -9,22 +9,25 @@ const CLI_ENV = (projectDir: string) => ({
   CFGM_PROJECT: projectDir,
 });
 
-const validBlock = (overrides: Record<string, unknown> = {}) => ({
-  blockId: "b1",
-  problemId: "p1",
-  type: "Cause",
-  status: "confirmed",
-  label: "test block",
-  confidence: 0.7,
-  supportedBy: [],
-  relations: [],
-  createdAt: "2026-04-18T00:00:00Z",
-  lastConfirmedAt: null,
-  staleAfter: null,
-  supersededBy: null,
-  bundleId: "bnd1",
-  ...overrides,
-});
+const validBlock = (overrides: Record<string, unknown> = {}) => {
+  const blockId = (overrides.blockId as string | undefined) ?? "b1";
+  return {
+    blockId,
+    problemId: "p1",
+    type: "Cause",
+    status: "confirmed",
+    label: `test block ${blockId}`,
+    confidence: 0.7,
+    supportedBy: [],
+    relations: [],
+    createdAt: "2026-04-18T00:00:00Z",
+    lastConfirmedAt: null,
+    staleAfter: null,
+    supersededBy: null,
+    bundleId: "bnd1",
+    ...overrides,
+  };
+};
 
 describe("bin/cfgm-list-bundles", () => {
   let projectDir: string;

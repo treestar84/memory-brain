@@ -8,6 +8,8 @@ import { ObservationBundler } from "../src/core/flow/ObservationBundler";
 import { QuestionQueue } from "../src/core/gap/QuestionQueue";
 import type { FlowDelta } from "../src/core/flow/types";
 import { resolveStorageRoot } from "../src/hooks/bootstrap";
+import { ContentHasher } from "../src/core/dedup/ContentHasher";
+import { DedupIndex } from "../src/core/dedup/DedupIndex";
 
 const storage = new FsStorage(resolveStorageRoot());
 const clock = new RealClock();
@@ -16,6 +18,9 @@ const validator = new FlowGraphValidator();
 const projector = new FlowGraphProjector();
 const bundler = new ObservationBundler(storage, clock);
 const questionQueue = new QuestionQueue(storage, clock);
+const hasher = new ContentHasher();
+const dedupIndex = new DedupIndex(store, storage, clock, hasher);
+const dedupEnabled = !process.env.CFGM_DEDUP_DISABLED;
 
 const args = process.argv.slice(2);
 const markProcessedIdx = args.indexOf("--mark-processed");
@@ -68,6 +73,20 @@ async function main() {
       console.error(`delta rejected: ${res.reason}`);
       failed++;
       continue;
+    }
+    if (dedupEnabled && d.op === "block-add") {
+      const { problemId, type, label, blockId } = d.block;
+      if (await dedupIndex.has(problemId, type, label)) {
+        await dedupIndex.logSkip({
+          problemId,
+          hash: hasher.hash(type, label),
+          attemptedBlockId: blockId,
+          type,
+          reason: "duplicate-type-label",
+        });
+        console.error(`delta skipped (dedup): ${type}:${label.slice(0, 24)} ${blockId}`);
+        continue;
+      }
     }
     const problemId = deltaProblemId(d);
     await store.appendDelta(problemId, d);
