@@ -15,17 +15,18 @@ interface RecordedAddMessages {
 function makeFakeClient(): {
   client: HonchoClient;
   records: RecordedAddMessages[];
-  representations: Map<string, string | null>;
+  representations: Map<string, string>;
 } {
   const records: RecordedAddMessages[] = [];
-  const representations = new Map<string, string | null>();
+  const representations = new Map<string, string>();
 
   const client: HonchoClient = {
     async peer(id: string): Promise<HonchoPeer> {
       return {
         message: (content, options) => ({ peerId: id, content, metadata: options?.metadata }),
         async representation(_opts) {
-          return representations.has(id) ? representations.get(id)! : null;
+          // SDK 동작 답습: representation 미생성 시 빈 문자열 반환.
+          return representations.get(id) ?? "";
         },
       };
     },

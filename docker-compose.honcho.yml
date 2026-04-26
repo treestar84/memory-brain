@@ -4,15 +4,18 @@
 # (MIT, ADR-020) 는 Honcho server 코드를 import/link 하지 않고 HTTP 만 호출.
 #
 # 사용법:
-#   docker compose -f docker-compose.honcho.yml up -d
-#   curl http://localhost:8000/health   # 서버 health 확인
+#   cp docs/.env.honcho.example .env.honcho   # 또는 직접 작성, .gitignore 자동 처리
+#   docker compose -f docker-compose.honcho.yml --env-file .env.honcho up -d
+#   curl http://localhost:8000/health         # 서버 health 확인
 #
 # 기본 포트: 8000 (Honcho server), 5433 (Postgres — 기본 5432 와 충돌 회피).
-# 환경변수: .env.honcho 파일에 API_KEY 설정 권장 (git ignored).
+# **모두 127.0.0.1 에 바인딩** — LAN 의 다른 호스트가 접근 불가 (Security review 권고).
+#
+# **PoC 단계**: image 는 `latest` tag 사용 — production 운영 시 명시적 버전 +
+# digest pin 의무 (예: `ghcr.io/plastic-labs/honcho:v2.x.y@sha256:<digest>`).
+# `${VAR:?...}` 구문은 .env.honcho 누락 시 compose 가 즉시 실패 (fail-closed).
 #
 # 자체호스팅 가이드: docs/honcho-self-host.md
-
-version: "3.9"
 
 services:
   honcho-db:
@@ -21,10 +24,10 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: honcho
-      POSTGRES_PASSWORD: ${HONCHO_DB_PASSWORD:-honcho_local_dev}
+      POSTGRES_PASSWORD: ${HONCHO_DB_PASSWORD:?set HONCHO_DB_PASSWORD in .env.honcho}
       POSTGRES_DB: honcho
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - honcho_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -41,12 +44,12 @@ services:
       honcho-db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://honcho:${HONCHO_DB_PASSWORD:-honcho_local_dev}@honcho-db:5432/honcho
+      DATABASE_URL: postgresql://honcho:${HONCHO_DB_PASSWORD:?set HONCHO_DB_PASSWORD in .env.honcho}@honcho-db:5432/honcho
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      HONCHO_AUTH_KEY: ${HONCHO_AUTH_KEY:-local-dev-key}
+      HONCHO_AUTH_KEY: ${HONCHO_AUTH_KEY:?set HONCHO_AUTH_KEY in .env.honcho}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

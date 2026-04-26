@@ -26,7 +26,7 @@ export class HonchoBridge {
 
   /**
    * peer 의 inferred representation 가져오기.
-   * Honcho 가 발화 누적으로부터 자동 생성한 사용자 모델 (string 또는 null).
+   * SDK 는 `Promise<string>` 반환 — 빈 문자열을 본 어댑터에서 null 로 매핑한다.
    * representation 미생성 상태면 null.
    */
   async getRepresentation(
@@ -34,6 +34,7 @@ export class HonchoBridge {
     options: { sessionId?: string; targetPeer?: string } = {},
   ): Promise<string | null> {
     const peer = await this.client.peer(peerId);
-    return peer.representation(options);
+    const result = await peer.representation(options);
+    return result === "" ? null : result;
   }
 }

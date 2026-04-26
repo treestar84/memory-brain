@@ -23,6 +23,8 @@ HONCHO_AUTH_KEY=your-local-auth-key
 
 ## 기동
 
+`.env.honcho` 의 `HONCHO_DB_PASSWORD` / `HONCHO_AUTH_KEY` 가 누락되면 compose 가 즉시 실패한다 (fail-closed 정책, Security review 권고 반영).
+
 ```bash
 docker compose -f docker-compose.honcho.yml --env-file .env.honcho up -d
 ```
