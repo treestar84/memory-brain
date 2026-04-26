@@ -21,7 +21,7 @@ bun run bin/cfgm-promote-list.ts --status superseded
 bun run bin/cfgm-promote-list.ts --json              # JSON 전체 덤프
 ```
 
-출력 컬럼: `candidateId(8자)  proposedTarget  proposedLabel  by=detectorId  createdAt`
+출력 컬럼: `candidateId  proposedTarget  proposedLabel  by=detectorId  createdAt`
 
 `--status`는 `pending|accepted|rejected|superseded` 중 하나. 미지정 시 `pending`.
 
@@ -31,7 +31,7 @@ bun run bin/cfgm-promote-list.ts --json              # JSON 전체 덤프
 bun run bin/cfgm-promote-accept.ts <candidateId> [--reason "..."] [--by user]
 ```
 
-- `<candidateId>`: full ID 또는 첫 8자 prefix(중복 시 거부됨).
+- `<candidateId>`: list 출력의 첫 컬럼 full ID. 정확 매치만 지원.
 - `--reason`: 선택. 결정 사유 메모.
 - `--by`: 선택. 결정자(기본 `"user"`).
 - accepted 후보의 PAI 9-file export는 본 PR 범위 밖(별도 ADR-011 후보).

@@ -23,6 +23,6 @@ if (json) {
   console.log(JSON.stringify(list, null, 2));
 } else {
   for (const c of list) {
-    console.log(`${c.candidateId.slice(0, 8)}  ${c.proposedTarget}  ${c.proposedLabel}  by=${c.detectedBy}  ${c.createdAt}`);
+    console.log(`${c.candidateId}  ${c.proposedTarget}  ${c.proposedLabel}  by=${c.detectedBy}  ${c.createdAt}`);
   }
 }
