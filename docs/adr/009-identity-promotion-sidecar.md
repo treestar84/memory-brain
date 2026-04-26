@@ -1,9 +1,9 @@
 # ADR-009: Bundle→Identity 승격 — sidecar 모델 + 명시 승인 정책
 
 **날짜**: 2026-04-26
-**상태**: 채택됨
+**상태**: 채택됨 (§결정 §3 amended by ADR-011)
 **관련 에픽**: PR-7 (Phase 3)
-**연관**: ADR-007, ADR-008 (트리거 T3), `docs/phase3-candidates.md` v2
+**연관**: ADR-007, ADR-008 (트리거 T3), `docs/phase3-candidates.md` v2, ADR-011 (UX amend)
 
 ---
 
@@ -13,7 +13,7 @@
 
 1. **저장 모델은 sidecar**. `identity/promoted-candidates.jsonl` (append-only). `FlowBlock`을 확장하지 않으며 `FlowBlockType`에 `Identity`를 추가하지 않는다.
 2. **후보 탐지는 rule-based**. LLM 합성을 본 PR에서 도입하지 않는다.
-3. **승인은 명시 명령**. session-end 자동 승격은 금지. nudge만 허용.
+3. **승인은 명시 명령**. session-end 자동 승격은 금지. nudge만 허용. *(ADR-011에 의해 amended: 단건 명시 명령 → "한 번에 모두 디스플레이 후 번호/ID별 명시 결정"으로 운영 형태 확장. 광범위 동의 거부 + session-end 자동 승격 금지는 유지.)*
 4. **상태 모델은 `pending → accepted / rejected / superseded`**.
 5. **신규 모듈로 분리**. 기존 `src/core/ontology/PromotionEngine.ts`를 확장하지 않는다.
 6. **accepted 후보는 PAI 9-file에 직접 쓰지 않는다**. 별도 export 흐름이 필요하면 후속 ADR로 분리한다.
