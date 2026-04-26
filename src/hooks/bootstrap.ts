@@ -21,6 +21,9 @@ import { QuestionQueue } from "../core/gap/QuestionQueue";
 import { SettingsReader, defaultSettingsPath } from "../core/settings/SettingsReader";
 import { PromotionLedger } from "../core/identity/PromotionLedger";
 import { CandidateDetector } from "../core/identity/CandidateDetector";
+import { ClaimStore } from "../core/claim/ClaimStore";
+import { FlowBlockToClaimCandidate } from "../core/claim/FlowBlockToClaimCandidate";
+import { FlowGraphProjector } from "../core/flow/FlowGraphProjector";
 
 export function resolveStorageRoot(): string {
   if (process.env.CFGM_HOME) return process.env.CFGM_HOME;
@@ -51,6 +54,9 @@ export type BootstrappedDeps = {
   settingsReader: SettingsReader;
   promotionLedger: PromotionLedger;
   candidateDetector: CandidateDetector;
+  claimStore: ClaimStore;
+  flowBlockToClaim: FlowBlockToClaimCandidate;
+  flowGraphProjector: FlowGraphProjector;
 };
 
 export function buildDeps(root: string = resolveStorageRoot()): BootstrappedDeps {
@@ -75,11 +81,15 @@ export function buildDeps(root: string = resolveStorageRoot()): BootstrappedDeps
   const settingsReader = new SettingsReader(defaultSettingsPath());
   const promotionLedger = new PromotionLedger(storage, clock);
   const candidateDetector = new CandidateDetector(clock);
+  const claimStore = new ClaimStore(storage, clock);
+  const flowBlockToClaim = new FlowBlockToClaimCandidate(clock);
+  const flowGraphProjector = new FlowGraphProjector();
 
   return {
     storage, clock, problemStore, queue, ledger, expirer, bundler,
     injector, fallback, ontologyModule, resumeReader, resumeWriter,
     decayEngine, flowStore, normalizer, redactor, questionQueue, settingsReader,
     promotionLedger, candidateDetector,
+    claimStore, flowBlockToClaim, flowGraphProjector,
   };
 }

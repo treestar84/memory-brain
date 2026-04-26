@@ -7,6 +7,10 @@ import type { PendingQueue } from "../core/ledger/PendingQueue";
 import type { ObservationBundler } from "../core/flow/ObservationBundler";
 import type { PromotionLedger } from "../core/identity/PromotionLedger";
 import type { CandidateDetector } from "../core/identity/CandidateDetector";
+import type { ClaimStore } from "../core/claim/ClaimStore";
+import type { FlowBlockToClaimCandidate } from "../core/claim/FlowBlockToClaimCandidate";
+import type { FlowGraphProjector } from "../core/flow/FlowGraphProjector";
+import type { FlowGraphStore } from "../core/flow/FlowGraphStore";
 
 export type SessionEndDeps = {
   storage: Storage;
@@ -17,6 +21,10 @@ export type SessionEndDeps = {
   bundler: ObservationBundler;
   promotionLedger?: PromotionLedger;
   candidateDetector?: CandidateDetector;
+  claimStore?: ClaimStore;
+  flowBlockToClaim?: FlowBlockToClaimCandidate;
+  flowGraphProjector?: FlowGraphProjector;
+  flowStore?: FlowGraphStore;
 };
 
 type CurrentTurnState = {
@@ -43,6 +51,15 @@ export async function handleSessionEnd(
     if (sealed && deps.candidateDetector && deps.promotionLedger) {
       const candidates = deps.candidateDetector.detect(sealed);
       for (const c of candidates) await deps.promotionLedger.append(c);
+    }
+    if (sealed && deps.claimStore && deps.flowBlockToClaim && deps.flowGraphProjector && deps.flowStore) {
+      const active = await deps.problemStore.getActive();
+      if (active) {
+        const deltas = await deps.flowStore.readDeltas(active.id);
+        const graph = deps.flowGraphProjector.project(active.id, deltas);
+        const claimCandidates = deps.flowBlockToClaim.detect(graph);
+        for (const c of claimCandidates) await deps.claimStore.append(c);
+      }
     }
   }
 
