@@ -260,7 +260,7 @@ export async function handleSessionStart(
     const pendingPromotions = await deps.promotionLedger.list({ status: "pending" });
     if (pendingPromotions.length >= PROMOTION_NUDGE_THRESHOLD) {
       lines.push("");
-      lines.push(`> 🔔 promotion pending 후보 ${pendingPromotions.length}건 — \`bun run bin/cfgm-promote-list.ts\`로 확인 후 \`-accept\`/\`-reject\`. (PAI export는 후속 ADR)`);
+      lines.push(`> 🔔 promotion pending 후보 ${pendingPromotions.length}건 — \`/cfgm-promote\`로 list/accept/reject.`);
     }
   }
 

@@ -71,6 +71,6 @@ describe("SessionStart → Promotion nudge", () => {
     const output = await handleSessionStart(makeSessionStart(), baseDeps());
     expect(output).toContain("promotion pending");
     expect(output).toContain("5건");
-    expect(output).toContain("cfgm-promote-list");
+    expect(output).toContain("/cfgm-promote");
   });
 });
