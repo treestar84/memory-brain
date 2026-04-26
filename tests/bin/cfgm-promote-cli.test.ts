@@ -125,4 +125,96 @@ describe("cfgm-promote CLI", () => {
     expect(arr[0].candidateId).toBe("c4");
     expect(arr[0].reason).toBe("오인 승인 회수");
   });
+
+  test("review: 빈 ledger → 후보 없음 메시지", () => {
+    const res = cli("cfgm-promote-review", projectDir, []);
+    expect(res.status).toBe(0);
+    expect(res.stdout).toContain("후보 없음");
+  });
+
+  test("review: 1건 → ID + target 헤더 + 결정 안내", async () => {
+    await seed(projectDir, [makeCandidate({ candidateId: "rev-1" })]);
+    const res = cli("cfgm-promote-review", projectDir, []);
+    expect(res.status).toBe(0);
+    expect(res.stdout).toContain("Promotion Review (pending 1건)");
+    expect(res.stdout).toContain("## tools (1건)");
+    expect(res.stdout).toContain("rev-1");
+    expect(res.stdout).toContain("광범위 동의");
+  });
+
+  test("review: 동일 target ≥ 3 → ⚠️ 위험 마커", async () => {
+    await seed(projectDir, [
+      makeCandidate({ candidateId: "g1" }),
+      makeCandidate({ candidateId: "g2" }),
+      makeCandidate({ candidateId: "g3" }),
+    ]);
+    const res = cli("cfgm-promote-review", projectDir, []);
+    expect(res.stdout).toContain("## tools (3건) ⚠️");
+  });
+
+  test("review --target → 필터링", async () => {
+    await seed(projectDir, [
+      makeCandidate({ candidateId: "t1", proposedTarget: "tools" }),
+      makeCandidate({ candidateId: "s1", proposedTarget: "strategies" }),
+    ]);
+    const res = cli("cfgm-promote-review", projectDir, ["--target", "tools"]);
+    expect(res.stdout).toContain("t1");
+    expect(res.stdout).not.toContain("s1");
+  });
+
+  test("review --json → 배열", async () => {
+    await seed(projectDir, [makeCandidate({ candidateId: "j1" })]);
+    const res = cli("cfgm-promote-review", projectDir, ["--json"]);
+    const arr = JSON.parse(res.stdout);
+    expect(arr).toHaveLength(1);
+    expect(arr[0].candidateId).toBe("j1");
+  });
+
+  test("batch: --accept + --reject 둘 다 비면 exit 1, usage", () => {
+    const res = cli("cfgm-promote-batch", projectDir, []);
+    expect(res.status).toBe(1);
+    expect(res.stderr).toContain("usage: cfgm-promote-batch");
+  });
+
+  test("batch: --accept 다수 → 모두 accepted", async () => {
+    await seed(projectDir, [
+      makeCandidate({ candidateId: "b1" }),
+      makeCandidate({ candidateId: "b2" }),
+    ]);
+    const res = cli("cfgm-promote-batch", projectDir, [
+      "--accept", "b1,b2", "--reason", "묶음 검토",
+    ]);
+    expect(res.status).toBe(0);
+    expect(res.stdout).toContain("처리됨: 2건");
+    expect(res.stdout).toContain("accepted: b1");
+    expect(res.stdout).toContain("accepted: b2");
+
+    const ls = cli("cfgm-promote-list", projectDir, ["--status", "accepted", "--json"]);
+    const arr = JSON.parse(ls.stdout);
+    expect(arr).toHaveLength(2);
+  });
+
+  test("batch: --accept + --reject 혼합 → 각각 처리", async () => {
+    await seed(projectDir, [
+      makeCandidate({ candidateId: "m1" }),
+      makeCandidate({ candidateId: "m2" }),
+    ]);
+    const res = cli("cfgm-promote-batch", projectDir, [
+      "--accept", "m1", "--reject", "m2", "--reason", "혼합",
+    ]);
+    expect(res.status).toBe(0);
+    expect(res.stdout).toContain("처리됨: 2건");
+  });
+
+  test("batch: 첫 실패 시 stop + 처리/실패 리포트", async () => {
+    await seed(projectDir, [makeCandidate({ candidateId: "ok1" })]);
+    const res = cli("cfgm-promote-batch", projectDir, [
+      "--accept", "ok1,nope-id",
+    ]);
+    expect(res.status).toBe(1);
+    expect(res.stdout).toContain("처리됨: 1건");
+    expect(res.stdout).toContain("accepted: ok1");
+    expect(res.stderr).toContain("실패: 1건");
+    expect(res.stderr).toContain("nope-id");
+  });
 });

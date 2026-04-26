@@ -1,68 +1,63 @@
 ---
 name: cfgm-promote
-description: Bundle→Identity 승격 후보(`identity/promoted-candidates.jsonl`)를 조회·수락·거절한다. PR-7 sidecar 모델의 사용자 결정 인터페이스.
+description: Bundle→Identity 승격 후보를 review로 일괄 디스플레이하고 사용자가 번호/ID별로 결정한 뒤 batch로 일괄 처리한다. ADR-011 워크플로우.
 ---
 
 # /cfgm-promote
 
-**호출**: "검토해줘" · "promote 봐줘" 같은 자연어 트리거를 우선한다. 슬래시 `/cfgm-promote`는 fallback. session-start nudge("promotion pending 후보 N건")를 본 직후 자연어 요청 시 Claude가 list → 후보별 의도 분석 → 사용자에게 일괄 디스플레이를 진행한다.
+**호출**: "검토해줘" · "promote 봐줘" 같은 자연어 트리거를 우선한다. 슬래시 `/cfgm-promote`는 fallback.
 
-**역할**: PR-7(`ADR-009`)이 도입한 Identity 승격 후보를 사용자가 검토하고 결정한다. 자동 쓰기는 금지(ADR-009 §결정 §3) — 모든 상태 전이는 명시 명령으로만.
+## 표준 흐름 (ADR-011)
 
-**저장 위치**: `identity/promoted-candidates.jsonl` (append-only, last-wins)
+session-start nudge("promotion pending 후보 N건", N ≥ 5)를 본 직후 Claude 본체가 다음을 자연 흐름으로 수행한다.
 
-## 동작 모드
+1. **review 호출** — `bun run bin/cfgm-promote-review.ts` 실행. target별 그룹·위험 마커(⚠️ 동일 target ≥ 3건)·결정 안내 표가 출력됨.
+2. **화면 구성** — review 출력을 사용자에게 보여주고, 각 후보의 의도(`proposedLabel`·`metrics`)를 1줄씩 평가 의견과 함께 정리한다. 예: "[1] tools/Bash 5회 — 일상 패턴이라 accept 권장 / [2] strategies/X — false positive 추정, reject 권장".
+3. **사용자 결정 수렴** — "이 결정으로 진행할까요? 번호/ID로 응답 부탁드립니다(예: `accept 1,3,5 reject 2,4`)" 형식으로 사용자에게 묻는다.
+4. **batch 호출** — 사용자 응답을 ID로 변환해 `bun run bin/cfgm-promote-batch.ts --accept ID,ID --reject ID,ID --reason "검토 완료"` 호출.
+5. **결과 보고** — batch 출력의 처리/실패 건수를 사용자에게 1줄로 보고. 부분 실패 시 실패 ID와 원인 명시.
 
-### 1) 후보 조회 — `list`
+## 거부 규칙 (ADR-011 §2 R2 완화)
 
-```bash
-bun run bin/cfgm-promote-list.ts                     # pending 기본
-bun run bin/cfgm-promote-list.ts --status accepted
-bun run bin/cfgm-promote-list.ts --status rejected
-bun run bin/cfgm-promote-list.ts --status superseded
-bun run bin/cfgm-promote-list.ts --json              # JSON 전체 덤프
-```
+- **광범위 동의 거부**: "다 좋아", "all accept", "y", "전부" 같은 응답은 처리하지 않는다. "번호/ID 명시 부탁드립니다"로 재요청.
+- **target별 분리 권장**: 동일 target에 ⚠️ 마커가 있으면 사용자에게 별도 확인을 받은 뒤 batch에 포함.
+- **position 결정 금지**: 후보 의도 평가는 Claude가 수행하지만, 최종 yes/no는 사용자만 결정. Claude가 사용자 의향 추정으로 batch를 자동 호출하지 않는다.
 
-출력 컬럼: `candidateId  proposedTarget  proposedLabel  by=detectorId  createdAt`
+## 동작 모드 (CLI 단건)
 
-`--status`는 `pending|accepted|rejected|superseded` 중 하나. 미지정 시 `pending`.
-
-### 2) 후보 수락 — `accept`
+### review — 묶음 디스플레이
 
 ```bash
-bun run bin/cfgm-promote-accept.ts <candidateId> [--reason "..."] [--by user]
+bun run bin/cfgm-promote-review.ts                   # pending 전체
+bun run bin/cfgm-promote-review.ts --target tools    # target 필터
+bun run bin/cfgm-promote-review.ts --limit 10        # 상위 N건
+bun run bin/cfgm-promote-review.ts --json            # JSON 덤프
 ```
 
-- `<candidateId>`: list 출력의 첫 컬럼 full ID. 정확 매치만 지원.
-- `--reason`: 선택. 결정 사유 메모.
-- `--by`: 선택. 결정자(기본 `"user"`).
-- accepted 후보의 PAI 9-file export는 본 PR 범위 밖(별도 ADR-011 후보).
-
-### 3) 후보 거절 — `reject`
+### batch — 일괄 처리
 
 ```bash
-bun run bin/cfgm-promote-reject.ts <candidateId> [--reason "..."] [--by user]
+bun run bin/cfgm-promote-batch.ts --accept ID,ID --reject ID,ID [--reason "..."] [--by user] [--force]
 ```
 
-인자 형식은 accept과 동일.
+- `--accept` 또는 `--reject` 중 최소 하나 필수.
+- 첫 실패 시 stop, 처리/실패 ID 리포트.
+- `--force --reason`은 이미 decided 후보의 번복.
 
-### 4) 결정 번복 — `--force --reason`
-
-이미 decided된 후보의 상태를 바꾸려면 `--force`와 `--reason`을 함께 줘야 한다.
+### list — 단건 조회 (fallback)
 
 ```bash
-bun run bin/cfgm-promote-accept.ts <candidateId> --force --reason "재평가 결과 유효"
+bun run bin/cfgm-promote-list.ts [--status pending|accepted|rejected|superseded] [--json]
 ```
 
-`--force`만 있고 `--reason`이 없으면 거부된다.
+### accept / reject — 단건 결정 (fallback)
 
-## 사용 흐름
+```bash
+bun run bin/cfgm-promote-accept.ts <candidateId> [--reason "..."] [--by user] [--force]
+bun run bin/cfgm-promote-reject.ts <candidateId> [--reason "..."] [--by user] [--force]
+```
 
-1. session-start nudge 메시지에서 "promotion pending 후보 N건"을 본다(N ≥ `PROMOTION_NUDGE_THRESHOLD = 5`).
-2. `/cfgm-promote list`로 pending 후보 일괄 조회.
-3. 각 후보를 `proposedTarget`(9개 PAI 파일 중 하나)와 `proposedLabel`로 검토.
-4. 의도가 맞으면 `/cfgm-promote accept <id>`, 아니면 `/cfgm-promote reject <id>`.
-5. 결정은 `identity/promoted-candidates.jsonl`에 새 라인으로 append. 기존 라인은 보존(audit trail).
+표준 흐름은 review → batch. 단건 CLI는 트러블슈팅·예외 처리용.
 
 ## 상태 모델
 
@@ -72,11 +67,12 @@ pending → accepted   (긍정 결정)
         → superseded (다른 후보로 대체)
 ```
 
-`accepted`/`rejected`/`superseded`는 `--force --reason` 없이는 다시 못 바꾼다.
+`--force --reason` 없이는 decided 후보 재변경 불가.
 
 ## 관련
 
-- ADR-009 (`docs/adr/009-identity-promotion-sidecar.md`)
+- ADR-009 (`docs/adr/009-identity-promotion-sidecar.md`) — sidecar 모델 (§3 amended by ADR-011)
+- ADR-011 (`docs/adr/011-workflow-auto-orchestration.md`) — 본 흐름의 정책 근거
 - `src/core/identity/PromotionLedger.ts`, `CandidateDetector.ts`
 - session-start nudge: `src/hooks/session-start.ts:259`
-- 운영 측정 표준: `docs/phase3-entry-snapshot-2026-04-26.md`
+- 운영 측정: `docs/phase3-entry-snapshot-2026-04-26.md`

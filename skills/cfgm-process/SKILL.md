@@ -5,7 +5,9 @@ description: 미처리 ObservationBundle을 Flow Block으로 합성하여 문제
 
 # /cfgm-process
 
-**호출**: "처리해줘" · "합성해줘" 같은 자연어 트리거를 우선한다. 슬래시 `/cfgm-process`는 명시 호출이 필요할 때의 fallback. session-start nudge("미처리 번들 N개")를 본 직후 사용자가 자연어로 요청하면 즉시 진행한다.
+**호출**: "처리해줘" · "합성해줘" 같은 자연어 트리거를 우선한다. 슬래시 `/cfgm-process`는 명시 호출이 필요할 때의 fallback.
+
+**자가 호출 (ADR-011 §1)**: session-start nudge에 "미처리 번들 ≥ 3" 또는 "대기 분석 ≥ 3"이 보이면 사용자 명시 입력 없이도 Claude 본체가 본 스킬을 자가 호출해 합성을 진행한다(자가 호출 임계값 = 3, `src/core/flow/config.ts`의 `PENDING_WARN_THRESHOLD`와 정합). 1~2건만 표시될 때는 사용자 자연어 요청을 기다린다 — 매 session-start 자가 호출 비용 회피.
 
 **역할**: ObservationBundle을 읽고, 의미 있는 Flow Block으로 합성하여 `flow-delta.jsonl`에 커밋. 번들에는 관측의 전문이 보존돼 있으므로 **절단된 요약이 아닌 전체 맥락**을 기반으로 판단한다.
 
