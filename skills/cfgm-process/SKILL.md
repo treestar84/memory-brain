@@ -5,6 +5,8 @@ description: 미처리 ObservationBundle을 Flow Block으로 합성하여 문제
 
 # /cfgm-process
 
+**호출**: "처리해줘" · "합성해줘" 같은 자연어 트리거를 우선한다. 슬래시 `/cfgm-process`는 명시 호출이 필요할 때의 fallback. session-start nudge("미처리 번들 N개")를 본 직후 사용자가 자연어로 요청하면 즉시 진행한다.
+
 **역할**: ObservationBundle을 읽고, 의미 있는 Flow Block으로 합성하여 `flow-delta.jsonl`에 커밋. 번들에는 관측의 전문이 보존돼 있으므로 **절단된 요약이 아닌 전체 맥락**을 기반으로 판단한다.
 
 **핵심 원칙**: 의미 판단(type·label·confidence·relations)은 100% 당신(Claude 본체)이 담당한다. 코어 모듈은 저장·투영만 한다.

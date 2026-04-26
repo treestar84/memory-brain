@@ -243,12 +243,12 @@ export async function handleSessionStart(
 
     if (unprocessedBundles.length >= FLOW_CONFIG.PENDING_WARN_THRESHOLD) {
       lines.push("");
-      lines.push(`> 미처리 번들 ${unprocessedBundles.length}개 · \`/cfgm-process\` 권장`);
+      lines.push(`> 미처리 번들 ${unprocessedBundles.length}개 — "처리해줘"라고 말하면 합성합니다 (또는 \`/cfgm-process\`).`);
     }
   }
 
   if (pendingCount > 0) {
-    lines.push(`**대기 분석:** ${pendingCount}건 → \`/cfgm-process\`로 처리`);
+    lines.push(`**대기 분석:** ${pendingCount}건 → "처리해줘"라고 말하면 됩니다.`);
   }
 
   if (await shouldNudgeIdentity(deps.storage)) {
@@ -260,7 +260,7 @@ export async function handleSessionStart(
     const pendingPromotions = await deps.promotionLedger.list({ status: "pending" });
     if (pendingPromotions.length >= PROMOTION_NUDGE_THRESHOLD) {
       lines.push("");
-      lines.push(`> 🔔 promotion pending 후보 ${pendingPromotions.length}건 — \`/cfgm-promote\`로 list/accept/reject.`);
+      lines.push(`> 🔔 promotion pending 후보 ${pendingPromotions.length}건 — "검토해줘"라고 말하거나 \`/cfgm-promote\` 호출.`);
     }
   }
 

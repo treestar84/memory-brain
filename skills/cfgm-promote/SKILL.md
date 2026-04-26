@@ -5,6 +5,8 @@ description: Bundle→Identity 승격 후보(`identity/promoted-candidates.jsonl
 
 # /cfgm-promote
 
+**호출**: "검토해줘" · "promote 봐줘" 같은 자연어 트리거를 우선한다. 슬래시 `/cfgm-promote`는 fallback. session-start nudge("promotion pending 후보 N건")를 본 직후 자연어 요청 시 Claude가 list → 후보별 의도 분석 → 사용자에게 일괄 디스플레이를 진행한다.
+
 **역할**: PR-7(`ADR-009`)이 도입한 Identity 승격 후보를 사용자가 검토하고 결정한다. 자동 쓰기는 금지(ADR-009 §결정 §3) — 모든 상태 전이는 명시 명령으로만.
 
 **저장 위치**: `identity/promoted-candidates.jsonl` (append-only, last-wins)
