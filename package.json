@@ -1,6 +1,7 @@
 {
   "name": "cfgm-os",
   "version": "0.1.0",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "test": "bun test",
