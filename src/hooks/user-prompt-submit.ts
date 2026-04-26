@@ -57,7 +57,7 @@ export async function handleUserPromptSubmit(
   const pendingCount = await deps.queue.count();
   if (pendingCount > 0) {
     const peek = await deps.queue.peek();
-    lines.push(`**대기 분석:** ${pendingCount}건`);
+    lines.push(`**대기 분석:** ${pendingCount}건 → "처리해줘"라고 말하면 됩니다.`);
     if (peek) {
       lines.push(`최우선: \`${peek.payload.type}\``);
     }
@@ -134,7 +134,7 @@ async function injectQuestion(
       promptTurnOrdinal: turnOrdinal,
     });
 
-    return `\n## 🧠 memory-brain — 확인 질문\n> ${cand.label}\n\n(답변은 다음 /cfgm-process에 반영됩니다)`;
+    return `\n## 🧠 memory-brain — 확인 질문\n> ${cand.label}\n\n(답변은 다음 "처리해줘" 시점에 반영됩니다)`;
   }
   return null;
 }

@@ -39,7 +39,7 @@ export class CueCardFallback {
     const body = [
       "",
       "## 합성 대기 중",
-      `이 문제에 ${bundles.length}개의 ObservationBundle이 미처리 상태입니다. \`/cfgm-process\` 실행 시 Flow Block으로 합성됩니다.`,
+      `이 문제에 ${bundles.length}개의 ObservationBundle이 미처리 상태입니다. "처리해줘"라고 말하면 Flow Block으로 합성됩니다 (또는 \`/cfgm-process\`).`,
       "",
       "## 활동 지표",
       fileLines ? "터치한 파일:" : "터치한 파일 없음",
