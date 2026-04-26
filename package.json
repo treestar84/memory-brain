@@ -16,6 +16,7 @@
     "@types/bun": "latest"
   },
   "dependencies": {
+    "@honcho-ai/sdk": "^2.1.1",
     "yaml": "^2.8.3"
   }
 }

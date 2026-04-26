@@ -1,0 +1,59 @@
+# Honcho self-host (PR-V3.1, ADR-019)
+#
+# AGPL-3.0 격리: Honcho server 는 별도 container 로 실행. memory-brain 본체
+# (MIT, ADR-020) 는 Honcho server 코드를 import/link 하지 않고 HTTP 만 호출.
+#
+# 사용법:
+#   docker compose -f docker-compose.honcho.yml up -d
+#   curl http://localhost:8000/health   # 서버 health 확인
+#
+# 기본 포트: 8000 (Honcho server), 5433 (Postgres — 기본 5432 와 충돌 회피).
+# 환경변수: .env.honcho 파일에 API_KEY 설정 권장 (git ignored).
+#
+# 자체호스팅 가이드: docs/honcho-self-host.md
+
+version: "3.9"
+
+services:
+  honcho-db:
+    image: pgvector/pgvector:pg16
+    container_name: memory-brain-honcho-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: honcho
+      POSTGRES_PASSWORD: ${HONCHO_DB_PASSWORD:-honcho_local_dev}
+      POSTGRES_DB: honcho
+    ports:
+      - "5433:5432"
+    volumes:
+      - honcho_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U honcho -d honcho"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  honcho:
+    image: ghcr.io/plastic-labs/honcho:latest
+    container_name: memory-brain-honcho
+    restart: unless-stopped
+    depends_on:
+      honcho-db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://honcho:${HONCHO_DB_PASSWORD:-honcho_local_dev}@honcho-db:5432/honcho
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      HONCHO_AUTH_KEY: ${HONCHO_AUTH_KEY:-local-dev-key}
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  honcho_db_data:
+    name: memory-brain-honcho-db-data
