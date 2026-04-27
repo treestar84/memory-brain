@@ -8,6 +8,7 @@ import type { ObservationBundler } from "../core/flow/ObservationBundler";
 import type { QuestionQueue } from "../core/gap/QuestionQueue";
 import type { AskedRecord } from "../core/gap/types";
 import type { SettingsReader } from "../core/settings/SettingsReader";
+import type { Router } from "../core/router/Router";
 import { FLOW_CONFIG } from "../core/flow/config";
 
 export type PromptSubmitDeps = {
@@ -19,6 +20,7 @@ export type PromptSubmitDeps = {
   bundler: ObservationBundler;
   questionQueue?: QuestionQueue;
   settingsReader?: SettingsReader;
+  router?: Router;
 };
 
 type CurrentTurnState = {
@@ -53,6 +55,14 @@ export async function handleUserPromptSubmit(
   if (!active) return null;
 
   const lines: string[] = [`### 🧠 memory-brain`, `**문제:** ${active.title}`];
+
+  if (deps.router) {
+    const message = (event.payload as { message?: string } | undefined)?.message;
+    if (typeof message === "string" && message.trim().length > 0) {
+      const decision = deps.router.decide(message);
+      lines.push(`**${decision.summary}**`);
+    }
+  }
 
   const pendingCount = await deps.queue.count();
   if (pendingCount > 0) {

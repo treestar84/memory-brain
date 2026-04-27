@@ -25,6 +25,7 @@ import { ClaimStore } from "../core/claim/ClaimStore";
 import { FlowBlockToClaimCandidate } from "../core/claim/FlowBlockToClaimCandidate";
 import { FlowGraphProjector } from "../core/flow/FlowGraphProjector";
 import { PersonaStore } from "../core/persona/PersonaStore";
+import { Router } from "../core/router/Router";
 
 export function resolveStorageRoot(): string {
   if (process.env.CFGM_HOME) return process.env.CFGM_HOME;
@@ -59,6 +60,7 @@ export type BootstrappedDeps = {
   flowBlockToClaim: FlowBlockToClaimCandidate;
   flowGraphProjector: FlowGraphProjector;
   personaStore: PersonaStore;
+  router: Router;
 };
 
 export function buildDeps(root: string = resolveStorageRoot()): BootstrappedDeps {
@@ -87,6 +89,7 @@ export function buildDeps(root: string = resolveStorageRoot()): BootstrappedDeps
   const flowBlockToClaim = new FlowBlockToClaimCandidate(clock);
   const flowGraphProjector = new FlowGraphProjector();
   const personaStore = new PersonaStore(storage, clock);
+  const router = new Router();
 
   return {
     storage, clock, problemStore, queue, ledger, expirer, bundler,
@@ -94,6 +97,6 @@ export function buildDeps(root: string = resolveStorageRoot()): BootstrappedDeps
     decayEngine, flowStore, normalizer, redactor, questionQueue, settingsReader,
     promotionLedger, candidateDetector,
     claimStore, flowBlockToClaim, flowGraphProjector,
-    personaStore,
+    personaStore, router,
   };
 }
