@@ -14,6 +14,7 @@ import type { ResumeSheetReader } from "../core/compaction/ResumeSheetReader";
 import type { ResumeSheet } from "../core/compaction/types";
 import type { StaleDecayEngine } from "../core/governance/StaleDecayEngine";
 import type { PromotionLedger } from "../core/identity/PromotionLedger";
+import type { PersonaStore } from "../core/persona/PersonaStore";
 
 export const PROMOTION_NUDGE_THRESHOLD = 5;
 
@@ -31,6 +32,7 @@ export type HookDeps = {
   resumeReader?: ResumeSheetReader;
   decayEngine?: StaleDecayEngine;
   promotionLedger?: PromotionLedger;
+  personaStore?: PersonaStore;
 };
 
 const IDENTITY_FILES = [
@@ -131,6 +133,36 @@ export async function buildIdentityDigest(storage: Storage): Promise<string[]> {
   return ["### 🪞 identity", ...rows];
 }
 
+const PERSONA_REPRESENTATION_PER_PEER_BYTES = 200;
+const PERSONA_REPRESENTATION_TOTAL_BYTES = 800;
+
+/**
+ * PR-V3.8 — PersonaStore representations 를 session-start digest 에 추가.
+ * 9-file identity (정적 정체성) 와 별개로 inferred representation (동적 모델)
+ * 을 가시화. confidence/evidence 표기는 후속 PR.
+ */
+export async function buildPersonaRepresentationDigest(
+  personaStore: PersonaStore,
+): Promise<string[]> {
+  const peers = await personaStore.listPeers();
+  if (peers.length === 0) return [];
+  const enc = new TextEncoder();
+  const rows: string[] = [];
+  let totalBytes = 0;
+  for (const peer of peers) {
+    const rep = await personaStore.getRepresentation(peer.peerId);
+    if (!rep) continue;
+    const clipped = clipToBytes(rep.text, PERSONA_REPRESENTATION_PER_PEER_BYTES);
+    const row = `- **${peer.peerId}** (${peer.kind}): ${clipped}`;
+    const rowBytes = enc.encode(row).byteLength;
+    if (totalBytes + rowBytes > PERSONA_REPRESENTATION_TOTAL_BYTES) break;
+    rows.push(row);
+    totalBytes += rowBytes;
+  }
+  if (rows.length === 0) return [];
+  return ["### 🧬 persona representations", ...rows];
+}
+
 function formatResumeSheet(sheet: ResumeSheet, currentProblemId: string | null): string[] {
   const lines: string[] = [];
   lines.push("### 🔁 이전 세션 재개");
@@ -195,6 +227,18 @@ export async function handleSessionStart(
   if (identityDigest.length > 0) {
     lines.push("");
     lines.push(...identityDigest);
+  }
+
+  if (deps.personaStore) {
+    try {
+      const personaDigest = await buildPersonaRepresentationDigest(deps.personaStore);
+      if (personaDigest.length > 0) {
+        lines.push("");
+        lines.push(...personaDigest);
+      }
+    } catch (e) {
+      console.error("[session-start] persona digest failed:", e);
+    }
   }
 
   if (deps.resumeReader) {
