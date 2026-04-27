@@ -21,6 +21,15 @@ export class ClaimProjector {
       `- **createdAt**: ${c.createdAt}`,
       `- **decidedAt**: ${c.decidedAt ?? "—"}`,
       `- **decidedBy**: ${c.decidedBy ?? "—"}`,
+    ];
+
+    // Graphiti supersede 모델 (PR-V3.5)
+    if (c.validFrom) lines.push(`- **validFrom**: ${c.validFrom}`);
+    if (c.validTo) lines.push(`- **validTo**: ${c.validTo}`);
+    if (c.invalidAt) lines.push(`- **invalidAt**: ${c.invalidAt}`);
+    if (c.supersededBy) lines.push(`- **supersededBy**: ${c.supersededBy}`);
+
+    lines.push(
       ``,
       `## text`,
       ``,
@@ -29,7 +38,8 @@ export class ClaimProjector {
       `## evidence`,
       ``,
       ...c.evidence.map((e) => `- ${e.source}${e.quote ? ` — "${e.quote}"` : ""}`),
-    ];
+    );
+
     if (c.reason) {
       lines.push("", `## reason`, ``, c.reason);
     }
