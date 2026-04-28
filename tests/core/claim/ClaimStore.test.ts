@@ -119,4 +119,51 @@ describe("ClaimStore", () => {
     );
     await expect(store.invalidate("iv", "second")).rejects.toThrow("already invalidated");
   });
+
+  // PR-A1.1 — decide
+
+  test("decide accept → status accepted + decidedAt + decidedBy + validFrom 자동 설정", async () => {
+    await store.append(makeCandidate({ candidateId: "d1", status: "pending" }));
+    const updated = await store.decide("d1", "accepted", { decidedBy: "claude" });
+
+    expect(updated.status).toBe("accepted");
+    expect(updated.decidedBy).toBe("claude");
+    expect(updated.decidedAt).toBeTruthy();
+    expect(updated.validFrom).toBeTruthy();
+
+    const persisted = await store.getById("d1");
+    expect(persisted!.status).toBe("accepted");
+  });
+
+  test("decide reject → status rejected, validFrom 미설정", async () => {
+    await store.append(makeCandidate({ candidateId: "d2", status: "pending" }));
+    const updated = await store.decide("d2", "rejected", { reason: "noisy" });
+    expect(updated.status).toBe("rejected");
+    expect(updated.reason).toBe("noisy");
+    expect(updated.validFrom).toBeUndefined();
+  });
+
+  test("decide — 미존재 → 에러", async () => {
+    await expect(store.decide("nope", "accepted")).rejects.toThrow("not found");
+  });
+
+  test("decide — 이미 decided + force 없음 → 에러", async () => {
+    await store.append(makeCandidate({ candidateId: "d3", status: "accepted" }));
+    await expect(store.decide("d3", "rejected")).rejects.toThrow("이미 결정됨");
+  });
+
+  test("decide --force 만 있고 --reason 없음 → 에러", async () => {
+    await store.append(makeCandidate({ candidateId: "d4", status: "accepted" }));
+    await expect(store.decide("d4", "rejected", { force: true })).rejects.toThrow("--reason 필수");
+  });
+
+  test("decide --force --reason 으로 reversal → 정상", async () => {
+    await store.append(makeCandidate({ candidateId: "d5", status: "accepted" }));
+    const reversed = await store.decide("d5", "rejected", {
+      force: true,
+      reason: "오인 승인 회수",
+    });
+    expect(reversed.status).toBe("rejected");
+    expect(reversed.reason).toBe("오인 승인 회수");
+  });
 });

@@ -63,6 +63,37 @@ export class ClaimStore {
   }
 
   /**
+   * claim 결정 — pending → accepted/rejected (PR-A1.1, PromotionLedger.decide 패턴 답습).
+   * accept 시점에 validFrom = now 자동 설정 (Graphiti supersede 모델 정합).
+   * 이미 decided 된 후보의 재결정은 --force --reason 필수.
+   */
+  async decide(
+    candidateId: string,
+    status: "accepted" | "rejected",
+    opts: { reason?: string; decidedBy?: string; force?: boolean } = {},
+  ): Promise<ClaimCandidate> {
+    const base = await this.getById(candidateId);
+    if (!base) throw new Error(`claim not found: ${candidateId}`);
+    if (base.status !== "pending" && !opts.force) {
+      throw new Error(`이미 결정됨 (${base.status}). 재결정하려면 --force --reason 사용`);
+    }
+    if (opts.force && !opts.reason) {
+      throw new Error("--force 사용 시 --reason 필수");
+    }
+    const now = this.clock.isoNow();
+    const updated: ClaimCandidate = {
+      ...base,
+      status,
+      decidedAt: now,
+      decidedBy: opts.decidedBy ?? "user",
+      reason: opts.reason ?? null,
+      validFrom: status === "accepted" ? (base.validFrom ?? now) : base.validFrom,
+    };
+    await this.append(updated);
+    return updated;
+  }
+
+  /**
    * claim 을 invalid 로 표시 — 유효했으나 후속 검증으로 무효 판명.
    * status 는 그대로 두고 invalidAt + reason 만 갱신 (rejected 와 의미 다름).
    * rejected 는 "처음부터 거부", invalidAt 은 "한때 유효했으나 무효 판명".
