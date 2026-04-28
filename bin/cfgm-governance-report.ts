@@ -11,6 +11,7 @@ import { ContradictionsDetector } from "../src/core/governance/reports/Contradic
 import { LowConfidenceDetector } from "../src/core/governance/reports/LowConfidenceDetector";
 import { ReviewQueueDetector } from "../src/core/governance/reports/ReviewQueueDetector";
 import { resolveStorageRoot } from "../src/hooks/bootstrap";
+import { AutoTrigger } from "../src/core/auto-trigger/AutoTrigger";
 import type { GovernanceDetector, GovernanceInput } from "../src/core/governance/reports/types";
 
 /**
@@ -57,6 +58,9 @@ for (const d of detectors) {
   const path = await writer.write(report);
   summary.push({ id: d.id, findings: report.findings.length, path });
 }
+
+const autoTrigger = new AutoTrigger(storage, clock);
+await autoTrigger.markRun("governance");
 
 if (json) {
   console.log(JSON.stringify({ summary }, null, 2));

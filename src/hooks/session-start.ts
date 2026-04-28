@@ -15,6 +15,7 @@ import type { ResumeSheet } from "../core/compaction/types";
 import type { StaleDecayEngine } from "../core/governance/StaleDecayEngine";
 import type { PromotionLedger } from "../core/identity/PromotionLedger";
 import type { PersonaStore } from "../core/persona/PersonaStore";
+import type { AutoTrigger } from "../core/auto-trigger/AutoTrigger";
 
 export const PROMOTION_NUDGE_THRESHOLD = 5;
 
@@ -33,6 +34,7 @@ export type HookDeps = {
   decayEngine?: StaleDecayEngine;
   promotionLedger?: PromotionLedger;
   personaStore?: PersonaStore;
+  autoTrigger?: AutoTrigger;
 };
 
 const IDENTITY_FILES = [
@@ -305,6 +307,19 @@ export async function handleSessionStart(
     if (pendingPromotions.length >= PROMOTION_NUDGE_THRESHOLD) {
       lines.push("");
       lines.push(`> 🔔 promotion pending 후보 ${pendingPromotions.length}건 — "검토해줘"라고 말하거나 \`/cfgm-promote\` 호출.`);
+    }
+  }
+
+  if (deps.autoTrigger) {
+    try {
+      const nudges = await deps.autoTrigger.getNudges();
+      if (nudges.length > 0) {
+        lines.push("");
+        lines.push("### 🔔 24시간 미실행 갱신 권장");
+        for (const n of nudges) lines.push(`- ${n}`);
+      }
+    } catch (e) {
+      console.error("[session-start] auto-trigger nudge failed:", e);
     }
   }
 

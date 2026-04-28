@@ -8,6 +8,7 @@ import { Indexer } from "../src/core/search/Indexer";
 import { FsStorage } from "../src/core/storage/FsStorage";
 import { RealClock } from "../src/core/clock/Clock";
 import { resolveStorageRoot } from "../src/hooks/bootstrap";
+import { AutoTrigger } from "../src/core/auto-trigger/AutoTrigger";
 
 /**
  * cfgm-rebuild-index — markdown source 에서 SQLite FTS 인덱스 재생성 (PR-V3.6).
@@ -41,6 +42,9 @@ const indexer = new Indexer(wikiReader, claimStore, searchIndex);
 
 const result = await indexer.rebuild();
 searchIndex.close();
+
+const autoTrigger = new AutoTrigger(storage, clock);
+await autoTrigger.markRun("search-index");
 
 if (json) {
   console.log(JSON.stringify({ indexPath, ...result }, null, 2));
