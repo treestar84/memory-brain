@@ -16,6 +16,7 @@ import type { StaleDecayEngine } from "../core/governance/StaleDecayEngine";
 import type { PromotionLedger } from "../core/identity/PromotionLedger";
 import type { PersonaStore } from "../core/persona/PersonaStore";
 import type { AutoTrigger } from "../core/auto-trigger/AutoTrigger";
+import type { SessionStartBudget } from "../core/context-budget/SessionStartBudget";
 
 export const PROMOTION_NUDGE_THRESHOLD = 5;
 
@@ -35,6 +36,7 @@ export type HookDeps = {
   promotionLedger?: PromotionLedger;
   personaStore?: PersonaStore;
   autoTrigger?: AutoTrigger;
+  sessionStartBudget?: SessionStartBudget;
 };
 
 const IDENTITY_FILES = [
@@ -321,6 +323,13 @@ export async function handleSessionStart(
     } catch (e) {
       console.error("[session-start] auto-trigger nudge failed:", e);
     }
+  }
+
+  // PR-V3.10 — byte budget 강제. 한도 초과 시 끝에서부터 줄 단위 drop.
+  // 비전 §11.1 + 사용자 지적사항 (2026-04-29) 답습.
+  if (deps.sessionStartBudget) {
+    const enforced = deps.sessionStartBudget.enforce(lines);
+    return enforced.lines.join("\n");
   }
 
   return lines.join("\n");

@@ -33,4 +33,42 @@ describe("Router (facade)", () => {
     expect(d.summary).toMatch(/route:\s*\[/);
     expect(d.summary).toContain("→ lanes:");
   });
+
+  // PR-V3.10 — RouterMappings 통합
+
+  test("decide — PR keyword → mapping.files 에 memory/current.md 포함", () => {
+    const d = r.decide("PR-V3.10 진행");
+    expect(d.mapping).toBeDefined();
+    expect(d.mapping!.files).toContain("memory/current.md");
+    expect(d.mapping!.files).toContain("memory/projects/memory-brain.md");
+  });
+
+  test("decide — ADR keyword → mapping.files 에 동적 path 포함", () => {
+    const d = r.decide("ADR-018 게이트");
+    expect(d.mapping!.files).toContain("docs/adr/018-*.md");
+  });
+
+  test("decide — vision keyword → memory_system_improvement_prompt.md 노출", () => {
+    const d = r.decide("비전 §16 답습");
+    expect(d.mapping!.files).toContain("memory_system_improvement_prompt.md");
+  });
+
+  test("decide — mapping 없음 → mapping undefined, summary 에 'files' 없음", () => {
+    const d = r.decide("ok");
+    expect(d.mapping).toBeUndefined();
+    expect(d.summary).not.toContain("→ files:");
+  });
+
+  test("summary — files ≥ 1 시 '→ files: ...' 추가", () => {
+    const d = r.decide("PR-V3.10");
+    expect(d.summary).toContain("→ files:");
+    expect(d.summary).toContain("memory/current.md");
+  });
+
+  test("summary — files > 5 시 '+N' 표시", () => {
+    const d = r.decide("PR-V3.10 OSS Honcho ADR-12 vision");
+    if (d.mapping && d.mapping.files.length > 5) {
+      expect(d.summary).toMatch(/\(\+\d+\)/);
+    }
+  });
 });

@@ -55,6 +55,11 @@ export interface BudgetCheckResult {
 export interface RouteDecision {
   classification: ClassificationResult;
   selection: LaneSelectionResult;
+  /** RouterMappings 결과 — keyword/symbol → 정확한 file paths (PR-V3.10) */
+  mapping?: {
+    files: string[];
+    matchedRules: string[];
+  };
   /** 1쪽 요약 — UserPromptSubmit stdout context 용 */
   summary: string;
 }

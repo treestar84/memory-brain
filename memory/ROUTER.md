@@ -92,3 +92,25 @@
 - `memory/SCHEMA.md` — 디렉토리 트리 전체 설명
 - 비전 §5.2 / §6.1 / §6.2 / §6.3 / §6.4
 - ADR-018 §1 (게이트), ADR-021 (PersonaStore — persona lane)
+
+---
+
+## Keyword → Lane → File Mapping (PR-V3.10, **실행 가능**)
+
+본 표는 `src/core/router/RouterMappings.ts` 의 `ROUTER_MAPPINGS` 와 sync. 코드가 truth-source, 본 markdown 은 사람 view. `Router.decide(text)` 가 RouterMappings.resolve 호출 → mapping.files 반환 → user-prompt-submit summary 에 노출.
+
+| Pattern (regex) | Lanes | Files |
+|---|---|---|
+| `\bPR-?V?\d+(?:\.\d+)?\|phase\s*\w+` | current, project | [`memory/current.md`](./current.md), [`memory/projects/memory-brain.md`](./projects/memory-brain.md) |
+| `\bADR-?\d+` | decision | `docs/adr/<padded>-*.md` (동적) |
+| `\b(vision\|비전)\b` | concept | [`memory_system_improvement_prompt.md`](../memory_system_improvement_prompt.md), [`memory/SCHEMA.md`](./SCHEMA.md) |
+| `\b(OSS\|오픈소스\|Honcho\|OpenClaw\|Graphiti)\b` | decision, research | [`memory/decisions/oss-incorporation.md`](./decisions/oss-incorporation.md), [`docs/adr/019-oss-incorporation.md`](../docs/adr/019-oss-incorporation.md), [`docs/adr/021-honcho-pattern-only.md`](../docs/adr/021-honcho-pattern-only.md) |
+| `\b(claim\|evidence\|supersede)\b` | decision, concept | [`memory/decisions/oss-incorporation.md`](./decisions/oss-incorporation.md), [`docs/adr/012-claim-evidence-sidecar.md`](../docs/adr/012-claim-evidence-sidecar.md), `src/core/claim/ClaimStore.ts` |
+| `\b(persona\|representation\|9-?file\|PAI)\b` | persona | [`memory/profile/README.md`](./profile/README.md), `src/core/persona/PersonaStore.ts` |
+| `\b(7-?layer\|bootloader\|router)\b` | concept | [`memory/SCHEMA.md`](./SCHEMA.md), [`memory/concepts/memory-routing.md`](./concepts/memory-routing.md), [`CLAUDE.md`](../CLAUDE.md), [`MEMORY.md`](../MEMORY.md) |
+| `\b(governance\|report\|lint\|duplicate\|stale\|contradiction)\b` | governance | `src/core/governance/reports/types.ts`, [`docs/adr/018-phase-entry-gate-meta.md`](../docs/adr/018-phase-entry-gate-meta.md) |
+| `\b(index\|search\|sqlite\|FTS)\b` | concept, code | `src/core/search/SearchIndex.ts`, `bin/cfgm-rebuild-index.ts` |
+| `\b(learning\|loop\|auto-?trigger)\b` | concept, code | `src/core/auto-trigger/AutoTrigger.ts` |
+| `\b(bun\|bunfig\|bun:sqlite)\b` | code | [`CLAUDE.md`](../CLAUDE.md), [`package.json`](../package.json) |
+
+본 매핑은 **실제 file path** 사용 (`@filename` 자동 인용 형태 X). markdown link 는 사람 클릭용. 코드 호출 시 단순 path 문자열로 활용 — `Bun.file(path)` / `Read(path)` / 기타.

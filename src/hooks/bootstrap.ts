@@ -27,6 +27,7 @@ import { FlowGraphProjector } from "../core/flow/FlowGraphProjector";
 import { PersonaStore } from "../core/persona/PersonaStore";
 import { Router } from "../core/router/Router";
 import { AutoTrigger } from "../core/auto-trigger/AutoTrigger";
+import { SessionStartBudget } from "../core/context-budget/SessionStartBudget";
 
 export function resolveStorageRoot(): string {
   if (process.env.CFGM_HOME) return process.env.CFGM_HOME;
@@ -63,6 +64,7 @@ export type BootstrappedDeps = {
   personaStore: PersonaStore;
   router: Router;
   autoTrigger: AutoTrigger;
+  sessionStartBudget: SessionStartBudget;
 };
 
 export function buildDeps(root: string = resolveStorageRoot()): BootstrappedDeps {
@@ -93,6 +95,7 @@ export function buildDeps(root: string = resolveStorageRoot()): BootstrappedDeps
   const personaStore = new PersonaStore(storage, clock);
   const router = new Router();
   const autoTrigger = new AutoTrigger(storage, clock);
+  const sessionStartBudget = new SessionStartBudget();
 
   return {
     storage, clock, problemStore, queue, ledger, expirer, bundler,
@@ -100,6 +103,6 @@ export function buildDeps(root: string = resolveStorageRoot()): BootstrappedDeps
     decayEngine, flowStore, normalizer, redactor, questionQueue, settingsReader,
     promotionLedger, candidateDetector,
     claimStore, flowBlockToClaim, flowGraphProjector,
-    personaStore, router, autoTrigger,
+    personaStore, router, autoTrigger, sessionStartBudget,
   };
 }
