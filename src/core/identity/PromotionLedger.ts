@@ -1,11 +1,16 @@
 import type { Storage } from "../storage/Storage";
 import type { Clock } from "../clock/Clock";
+import type { LearningLedger } from "../learning/LearningLedger";
 import type { PromotedCandidate, PromotionStatus } from "./types";
 
 const LEDGER_PATH = "identity/promoted-candidates.jsonl";
 
 export class PromotionLedger {
-  constructor(private readonly storage: Storage, private readonly clock: Clock) {}
+  constructor(
+    private readonly storage: Storage,
+    private readonly clock: Clock,
+    private readonly learningLedger?: LearningLedger,
+  ) {}
 
   async append(candidate: PromotedCandidate): Promise<void> {
     await this.storage.appendJsonl(LEDGER_PATH, candidate);
@@ -50,6 +55,16 @@ export class PromotionLedger {
       reason: opts.reason ?? null,
     };
     await this.append(updated);
+    if (this.learningLedger) {
+      await this.learningLedger.recordDecision({
+        ledger: "promotion",
+        candidateId: updated.candidateId,
+        detectorId: updated.detectedBy,
+        decision: status,
+        decidedBy: updated.decidedBy,
+        reason: updated.reason,
+      });
+    }
     return updated;
   }
 }

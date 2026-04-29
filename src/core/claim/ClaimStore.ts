@@ -1,5 +1,6 @@
 import type { Storage } from "../storage/Storage";
 import type { Clock } from "../clock/Clock";
+import type { LearningLedger } from "../learning/LearningLedger";
 import type { ClaimCandidate, ClaimStatus } from "./types";
 
 const LEDGER_PATH = "claims/ledger.jsonl";
@@ -9,9 +10,15 @@ const LEDGER_PATH = "claims/ledger.jsonl";
  *
  * append-only ledger + last-wins reduce. supersede / invalidate 는 명시
  * 메서드로 시점 시간(validFrom/validTo/invalidAt) 자동 설정.
+ *
+ * PR-V3.11 — learningLedger 주입 시 decide / supersede / invalidate 자동 기록.
  */
 export class ClaimStore {
-  constructor(private readonly storage: Storage, private readonly clock: Clock) {}
+  constructor(
+    private readonly storage: Storage,
+    private readonly clock: Clock,
+    private readonly learningLedger?: LearningLedger,
+  ) {}
 
   async append(candidate: ClaimCandidate): Promise<void> {
     await this.storage.appendJsonl(LEDGER_PATH, candidate);
@@ -60,6 +67,14 @@ export class ClaimStore {
       invalidAt: next.invalidAt ?? null,
     };
     await this.append(newWithValidFrom);
+    if (this.learningLedger) {
+      await this.learningLedger.recordSupersede({
+        ledger: "claim",
+        prevId: prev.candidateId,
+        newId: next.candidateId,
+        detectorId: prev.detectedBy,
+      });
+    }
   }
 
   /**
@@ -90,6 +105,16 @@ export class ClaimStore {
       validFrom: status === "accepted" ? (base.validFrom ?? now) : base.validFrom,
     };
     await this.append(updated);
+    if (this.learningLedger) {
+      await this.learningLedger.recordDecision({
+        ledger: "claim",
+        candidateId: updated.candidateId,
+        detectorId: updated.detectedBy,
+        decision: status,
+        decidedBy: updated.decidedBy,
+        reason: updated.reason,
+      });
+    }
     return updated;
   }
 
@@ -111,5 +136,13 @@ export class ClaimStore {
       reason: reason,
     };
     await this.append(updated);
+    if (this.learningLedger) {
+      await this.learningLedger.recordInvalidate({
+        ledger: "claim",
+        candidateId: claim.candidateId,
+        detectorId: claim.detectedBy,
+        reason,
+      });
+    }
   }
 }

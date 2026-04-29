@@ -28,6 +28,8 @@ import { PersonaStore } from "../core/persona/PersonaStore";
 import { Router } from "../core/router/Router";
 import { AutoTrigger } from "../core/auto-trigger/AutoTrigger";
 import { SessionStartBudget } from "../core/context-budget/SessionStartBudget";
+import { LearningLedger } from "../core/learning/LearningLedger";
+import { DetectorWeight } from "../core/learning/DetectorWeight";
 
 export function resolveStorageRoot(): string {
   if (process.env.CFGM_HOME) return process.env.CFGM_HOME;
@@ -65,6 +67,8 @@ export type BootstrappedDeps = {
   router: Router;
   autoTrigger: AutoTrigger;
   sessionStartBudget: SessionStartBudget;
+  learningLedger: LearningLedger;
+  detectorWeight: DetectorWeight;
 };
 
 export function buildDeps(root: string = resolveStorageRoot()): BootstrappedDeps {
@@ -87,9 +91,11 @@ export function buildDeps(root: string = resolveStorageRoot()): BootstrappedDeps
   const redactor = new Redactor(storage, clock);
   const normalizer = new ObservationNormalizer(redactor);
   const settingsReader = new SettingsReader(defaultSettingsPath());
-  const promotionLedger = new PromotionLedger(storage, clock);
+  const learningLedger = new LearningLedger(storage, clock);
+  const detectorWeight = new DetectorWeight(learningLedger);
+  const promotionLedger = new PromotionLedger(storage, clock, learningLedger);
   const candidateDetector = new CandidateDetector(clock);
-  const claimStore = new ClaimStore(storage, clock);
+  const claimStore = new ClaimStore(storage, clock, learningLedger);
   const flowBlockToClaim = new FlowBlockToClaimCandidate(clock);
   const flowGraphProjector = new FlowGraphProjector();
   const personaStore = new PersonaStore(storage, clock);
@@ -104,5 +110,6 @@ export function buildDeps(root: string = resolveStorageRoot()): BootstrappedDeps
     promotionLedger, candidateDetector,
     claimStore, flowBlockToClaim, flowGraphProjector,
     personaStore, router, autoTrigger, sessionStartBudget,
+    learningLedger, detectorWeight,
   };
 }
