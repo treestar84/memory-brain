@@ -1,5 +1,6 @@
 import type { ClaimCandidate } from "../../claim/types";
 import type { WikiPage } from "../../wiki/types";
+import type { SSLDocument } from "../../ontology/ssl";
 
 /**
  * Governance Layer 도메인 타입 (PR-V3.7, vision §10).
@@ -27,6 +28,8 @@ export interface DetectorReport {
 export interface GovernanceInput {
   claims: ClaimCandidate[];
   wikiPages: WikiPage[];
+  /** SSL skill documents (PR-V3.15). Optional — pre-existing detectors ignore. */
+  skills?: SSLDocument[];
   /** ISO timestamp — 검증 기준 시점 */
   now: string;
 }

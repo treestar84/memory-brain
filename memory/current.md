@@ -65,3 +65,11 @@
 - 테스트 8/8 통과, 회귀 0건 (전체 723/723 pass)
 - Indexer 통합: `SSLReader` 신설 + `Indexer` 가 `memory/concepts/_ssl/*.json` 스캔 (sslReader 옵셔널, back-compat)
 - 다음: PR-V3.13 (LLM normalizer, paper §3.3) 또는 PR-V3.15 (risk gate, §4.2)
+
+## PR-V3.15 (2026-05-05) — SSL risk gate (governance detector)
+
+- `src/core/governance/reports/SSLRiskDetector.ts` — rule-based SSL risk classifier
+- `GovernanceInput.skills?: SSLDocument[]` 추가 (back-compat)
+- 규칙: CREDENTIALS scope=critical, WRITE×NETWORK=warning, WRITE in non-ACT scene=warning, 3+ resource scopes=info
+- 테스트 8/8 통과
+- 다음: PR-V3.13 (LLM normalizer, paper §3.3) 또는 PR-V3.16 (risk classifier ML, paper §4.2 Table 3)
