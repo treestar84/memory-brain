@@ -39,5 +39,27 @@ export interface ClaimSearchOpts {
 export interface RebuildResult {
   wikiCount: number;
   claimCount: number;
+  skillCount?: number;
   durationMs: number;
+}
+
+/**
+ * SSL Skill discovery hit (PR-V3.14, paper arXiv 2604.24026 §4.1).
+ *
+ * Rich-field weighted retrieval — Scheduling fields (intent_signature,
+ * triggers, skill_name) carry highest weight, Structural (scene names +
+ * summaries) middle, Logical (actions + resource scopes + descriptions)
+ * support. Paper reports MRR 0.573 → 0.707 with this weighting.
+ */
+export interface SkillSearchHit {
+  skillSlug: string;
+  skillName: string;
+  sourcePath: string;
+  /** FTS5 BM25 score (negative; lower = more relevant) */
+  rank: number;
+  intentSignature: string;
+}
+
+export interface SkillSearchOpts {
+  limit?: number;
 }

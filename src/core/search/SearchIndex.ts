@@ -1,14 +1,17 @@
 import { Database } from "bun:sqlite";
 import type { WikiPage } from "../wiki/types";
 import type { ClaimCandidate } from "../claim/types";
+import type { SSLDocument } from "../ontology/ssl";
 import type {
   WikiSearchHit,
   ClaimSearchHit,
   WikiSearchOpts,
   ClaimSearchOpts,
+  SkillSearchHit,
+  SkillSearchOpts,
 } from "./types";
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 const SCHEMA_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS meta (
@@ -32,7 +35,26 @@ const SCHEMA_STATEMENTS = [
     status,
     tokenize='unicode61'
   )`,
+  // SSL skill discovery table (PR-V3.14). 3 ranked text columns map to the
+  // paper's Scheduling / Structural / Logical layers; bm25 weights are
+  // applied at query time so skill discovery prioritises intent signals.
+  `CREATE VIRTUAL TABLE IF NOT EXISTS ssl_skills USING fts5(
+    skill_slug UNINDEXED,
+    skill_name UNINDEXED,
+    source_path UNINDEXED,
+    intent_signature UNINDEXED,
+    scheduling_text,
+    structural_text,
+    logical_text,
+    tokenize='unicode61'
+  )`,
 ];
+
+// Paper §4.1: rich SSL fields > raw text. Scheduling carries highest weight
+// (matches user intent), Structural middle (phase awareness), Logical low
+// (concrete action/resource hints). Numbers are weights for bm25(); higher
+// weight = larger contribution to the (negative) score.
+const SSL_BM25_WEIGHTS = [3.0, 1.5, 1.0] as const;
 
 /**
  * bun:sqlite + FTS5 기반 derived search index (PR-V3.6).
@@ -57,10 +79,11 @@ export class SearchIndex {
     this.setMeta("schema_version", String(SCHEMA_VERSION));
   }
 
-  rebuild(opts: { wikiPages: WikiPage[]; claims: ClaimCandidate[] }): void {
+  rebuild(opts: { wikiPages: WikiPage[]; claims: ClaimCandidate[]; skills?: SSLDocument[] }): void {
     const tx = this.db.transaction(() => {
       this.db.run("DELETE FROM wiki_pages");
       this.db.run("DELETE FROM claims");
+      this.db.run("DELETE FROM ssl_skills");
 
       const wikiInsert = this.db.prepare(
         "INSERT INTO wiki_pages (page_id, page_path, type, status, body, tags) VALUES (?, ?, ?, ?, ?, ?)",
@@ -90,11 +113,58 @@ export class SearchIndex {
         );
       }
 
+      const skills = opts.skills ?? [];
+      const skillInsert = this.db.prepare(
+        "INSERT INTO ssl_skills (skill_slug, skill_name, source_path, intent_signature, scheduling_text, structural_text, logical_text) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      );
+      for (const s of skills) {
+        const flat = flattenSSL(s);
+        skillInsert.run(
+          flat.slug,
+          s.scheduling.skillName,
+          s.sourceSkillPath,
+          s.scheduling.intentSignature,
+          flat.scheduling,
+          flat.structural,
+          flat.logical,
+        );
+      }
+
       this.setMeta("rebuilt_at", new Date().toISOString());
       this.setMeta("wiki_count", String(opts.wikiPages.length));
       this.setMeta("claim_count", String(opts.claims.length));
+      this.setMeta("skill_count", String(skills.length));
     });
     tx();
+  }
+
+  searchSkills(query: string, opts: SkillSearchOpts = {}): SkillSearchHit[] {
+    const limit = opts.limit ?? 20;
+    const [w1, w2, w3] = SSL_BM25_WEIGHTS;
+    const ftsQuery = toLooseFtsQuery(query);
+    if (!ftsQuery) return [];
+    const sql = `
+      SELECT skill_slug, skill_name, source_path, intent_signature,
+             bm25(ssl_skills, 0, 0, 0, 0, ${w1}, ${w2}, ${w3}) AS score
+      FROM ssl_skills
+      WHERE ssl_skills MATCH ?
+      ORDER BY score
+      LIMIT ?
+    `;
+    const rows = this.db.query(sql).all(ftsQuery, limit) as Array<{
+      skill_slug: string;
+      skill_name: string;
+      source_path: string;
+      intent_signature: string;
+      score: number;
+    }>;
+    return rows.map((r) => ({
+      skillSlug: r.skill_slug,
+      skillName: r.skill_name,
+      sourcePath: r.source_path,
+      rank: r.score,
+      intentSignature: r.intent_signature,
+    }));
   }
 
   searchWiki(query: string, opts: WikiSearchOpts = {}): WikiSearchHit[] {
@@ -191,4 +261,40 @@ export class SearchIndex {
   close(): void {
     this.db.close();
   }
+}
+
+// FTS5 unicode61 doesn't stem — wrap each user token in a prefix-match `*`
+// and OR them together so 'failure' matches 'failures', 'doc' matches
+// 'documentation', etc. Skill discovery must be morphology-tolerant.
+function toLooseFtsQuery(raw: string): string {
+  const tokens = raw
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((t) => t.length > 0);
+  if (tokens.length === 0) return "";
+  return tokens.map((t) => `${t}*`).join(" OR ");
+}
+
+function flattenSSL(doc: SSLDocument): {
+  slug: string;
+  scheduling: string;
+  structural: string;
+  logical: string;
+} {
+  const slug = doc.scheduling.id.split("#")[0];
+  const scheduling = [
+    doc.scheduling.skillName,
+    doc.scheduling.intentSignature,
+    ...doc.scheduling.triggerPatterns,
+    ...doc.scheduling.preconditions,
+    doc.scheduling.ioContract.inputsRaw,
+    doc.scheduling.ioContract.outputsRaw,
+  ].filter(Boolean).join(" ");
+  const structural = doc.structural
+    .map((s) => `${s.scene} ${s.summary}`)
+    .join(" ");
+  const logical = doc.logical
+    .map((l) => `${l.action} ${l.resources.join(" ")} ${l.description}`)
+    .join(" ");
+  return { slug, scheduling, structural, logical };
 }

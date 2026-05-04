@@ -46,3 +46,22 @@
 - vision evolution Phase A1·A1.1 진행 중 (plan v3, 2026-04-27)
 - 본 파일은 PR-V3.2 머지 직후 상태
 - 다음 갱신은 PR-V3.3 시작 시점
+
+## PR-V3.12 (2026-05-05) — KG-Brain 본체 schema 채택
+
+- arXiv 2604.24026 SSL(Scheduling–Structural–Logical) 표현을 본체 schema로 채택
+- `src/core/ontology/ssl.ts` — closed vocabulary (Scene/Action/ResourceScope) + validateSSL
+- `src/core/normalizer/SkillNormalizer.ts` — heuristic md→SSL 1차 (LLM normalizer는 PR-V3.13)
+- 결정: SKILL.md = source-of-truth, SSL JSON = derived/rebuildable
+- 테스트 7/7 통과, coverage 95%
+- 관련: `memory/decisions/ssl-kg-brain.md`, `memory/concepts/ssl-skill-representation.md`
+
+## PR-V3.14 (2026-05-05) — SSL skill discovery (rich-field weighted retrieval)
+
+- 논문 §4.1 rich-field weighted retrieval을 `SearchIndex.searchSkills`로 구현
+- `ssl_skills` FTS5 테이블 추가 (Scheduling/Structural/Logical 3 컬럼) + bm25 가중치 (3.0/1.5/1.0)
+- 쿼리 prefix-match (`failure*`)로 morphology 관용도 확보 — FTS5 unicode61 stemming 부재 보정
+- schema_version 1→2 (back-compat: `skills` 옵션 미지정 시 ssl_skills 비어 있음)
+- 테스트 8/8 통과, 회귀 0건 (전체 723/723 pass)
+- Indexer 통합: `SSLReader` 신설 + `Indexer` 가 `memory/concepts/_ssl/*.json` 스캔 (sslReader 옵셔널, back-compat)
+- 다음: PR-V3.13 (LLM normalizer, paper §3.3) 또는 PR-V3.15 (risk gate, §4.2)
