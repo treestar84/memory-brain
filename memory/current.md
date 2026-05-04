@@ -73,3 +73,10 @@
 - 규칙: CREDENTIALS scope=critical, WRITE×NETWORK=warning, WRITE in non-ACT scene=warning, 3+ resource scopes=info
 - 테스트 8/8 통과
 - 다음: PR-V3.13 (LLM normalizer, paper §3.3) 또는 PR-V3.16 (risk classifier ML, paper §4.2 Table 3)
+
+## PR-V3.12-CLI (2026-05-05) — cfgm-ssl-normalize + rebuild-index 통합
+
+- `bin/cfgm-ssl-normalize.ts` — `.claude/skills/**` → `memory/concepts/_ssl/<slug>.json`. SHA256 stale 비교로 변경분만 재생성. `--force`/`--input`/`--output`/`--json` 지원
+- `bin/cfgm-rebuild-index.ts` — SSLReader 주입. 단일 명령으로 wiki+claim+SSL 모두 인덱싱
+- 테스트 4/4 (CLI), 회귀 0건 (전체 739/739)
+- end-to-end working slice 완성: `cfgm-ssl-normalize` → `cfgm-rebuild-index` → `searchSkills(query)`

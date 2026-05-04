@@ -5,6 +5,7 @@ import { WikiReader } from "../src/core/wiki/WikiReader";
 import { ClaimStore } from "../src/core/claim/ClaimStore";
 import { SearchIndex } from "../src/core/search/SearchIndex";
 import { Indexer } from "../src/core/search/Indexer";
+import { SSLReader } from "../src/core/search/SSLReader";
 import { FsStorage } from "../src/core/storage/FsStorage";
 import { RealClock } from "../src/core/clock/Clock";
 import { resolveStorageRoot } from "../src/hooks/bootstrap";
@@ -34,11 +35,12 @@ const indexPath = resolve(indexDir, "search.sqlite");
 await mkdir(indexDir, { recursive: true });
 
 const wikiReader = new WikiReader(memoryDir);
+const sslReader = new SSLReader(memoryDir);
 const storage = new FsStorage(storageRoot);
 const clock = new RealClock();
 const claimStore = new ClaimStore(storage, clock);
 const searchIndex = new SearchIndex(indexPath);
-const indexer = new Indexer(wikiReader, claimStore, searchIndex);
+const indexer = new Indexer(wikiReader, claimStore, searchIndex, sslReader);
 
 const result = await indexer.rebuild();
 searchIndex.close();
@@ -52,5 +54,6 @@ if (json) {
   console.log(`✓ rebuilt search index at ${indexPath}`);
   console.log(`  wiki pages: ${result.wikiCount}`);
   console.log(`  claims:     ${result.claimCount}`);
+  console.log(`  ssl skills: ${result.skillCount ?? 0}`);
   console.log(`  duration:   ${result.durationMs}ms`);
 }
