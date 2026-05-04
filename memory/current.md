@@ -92,3 +92,14 @@
 - ControlFlowFeature 신규 enum (branching/loop/scheduled_retry/network_access/credential_access/long_running/stateful)
 - heuristic normalizer가 dependencies/controlFlowFeatures/expectedInputs/Outputs 까지 자동 채움 (LLM normalizer가 메울 hole은 warnings[])
 - 테스트 740/740 pass
+
+## PR-V3.13 (2026-05-05) — LLM SkillNormalizer (paper §3.3 source-grounded NL2JSON)
+
+- `src/core/normalizer/LLMSkillNormalizer.ts` — heuristic 1차 + LLM 보강 파이프라인
+- 기본 모델: claude-opus-4-7 / adaptive thinking / system prompt cache_control(ephemeral)
+- closed vocabulary를 system에 내장 → LLM이 enum 외 값 못 만들도록 가이드 + validateSSL gate로 후검증
+- 실패 graceful fallback: API down / non-JSON / schema 위반 → heuristic 결과 + warnings에 사유 명시
+- `bin/cfgm-ssl-normalize.ts --llm [--model …]` 플래그 — `ANTHROPIC_API_KEY` 없으면 자동 heuristic
+- 의존성 추가: `@anthropic-ai/sdk@0.93.0`, `zod@4.4.3`
+- 테스트 7/7 pass (mock client, 실 API 호출 없음). 회귀 0건 (전체 747/747)
+- 다음 후보: PR-V3.16 (ML risk classifier), 실 API 시범 호출, prompt 튜닝

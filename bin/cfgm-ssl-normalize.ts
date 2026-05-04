@@ -3,6 +3,7 @@ import { Glob } from "bun";
 import { resolve, relative } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { SkillNormalizer } from "../src/core/normalizer/SkillNormalizer";
+import { LLMSkillNormalizer, createAnthropicClient } from "../src/core/normalizer/LLMSkillNormalizer";
 
 /**
  * cfgm-ssl-normalize — SKILL.md → SSL JSON 변환기 (PR-V3.12 CLI, V3.14 우호).
@@ -23,6 +24,8 @@ interface ParsedArgs {
   output: string;
   force: boolean;
   json: boolean;
+  llm: boolean;
+  model: string;
 }
 
 function parseArgs(argv: string[]): ParsedArgs {
@@ -33,6 +36,8 @@ function parseArgs(argv: string[]): ParsedArgs {
     output: resolve(repoRoot, "memory/concepts/_ssl"),
     force: false,
     json: false,
+    llm: false,
+    model: "claude-opus-4-7",
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -40,6 +45,8 @@ function parseArgs(argv: string[]): ParsedArgs {
     if (a === "--output" && argv[i + 1]) { out.output = resolve(repoRoot, argv[++i]); continue; }
     if (a === "--force") { out.force = true; continue; }
     if (a === "--json") { out.json = true; continue; }
+    if (a === "--llm") { out.llm = true; continue; }
+    if (a === "--model" && argv[i + 1]) { out.model = argv[++i]; continue; }
   }
   return out;
 }
@@ -64,7 +71,17 @@ async function sha256(text: string): Promise<string> {
 const args = parseArgs(process.argv.slice(2));
 await mkdir(args.output, { recursive: true });
 
-const normalizer = new SkillNormalizer();
+const heuristic = new SkillNormalizer();
+const llmActive = args.llm && !!process.env.ANTHROPIC_API_KEY;
+const llm = llmActive
+  ? new LLMSkillNormalizer({
+      llmClient: createAnthropicClient({ apiKey: process.env.ANTHROPIC_API_KEY, model: args.model }),
+      gracefulFallback: true,
+    })
+  : null;
+if (args.llm && !llmActive && !args.json) {
+  console.warn("⚠ --llm requested but ANTHROPIC_API_KEY missing — falling back to heuristic.");
+}
 const glob = new Glob("**/*.md");
 const stats = { scanned: 0, generated: 0, skipped: 0, warnings: 0 };
 const generatedAt = new Date().toISOString();
@@ -88,21 +105,22 @@ for await (const rel of glob.scan({ cwd: args.input })) {
     } catch { /* corrupt → regenerate */ }
   }
 
-  const doc = normalizer.normalize({
+  const normalizeInput = {
     skillPath: relative(process.cwd(), fullPath),
     source,
     sourceSha256: sha,
     generatedAt,
-  });
+  };
+  const doc = llm ? await llm.normalize(normalizeInput) : heuristic.normalize(normalizeInput);
   stats.warnings += doc.warnings.length;
   await Bun.write(outPath, JSON.stringify(doc, null, 2));
   stats.generated++;
 }
 
 if (args.json) {
-  console.log(JSON.stringify({ inputDir: args.input, outputDir: args.output, ...stats }, null, 2));
+  console.log(JSON.stringify({ inputDir: args.input, outputDir: args.output, mode: llmActive ? "llm" : "heuristic", ...stats }, null, 2));
 } else {
   console.log(`SSL normalize — input ${args.input}`);
   console.log(`             → output ${args.output}`);
-  console.log(`scanned=${stats.scanned} generated=${stats.generated} skipped=${stats.skipped} warnings=${stats.warnings}`);
+  console.log(`mode=${llmActive ? "llm" : "heuristic"} scanned=${stats.scanned} generated=${stats.generated} skipped=${stats.skipped} warnings=${stats.warnings}`);
 }
