@@ -110,4 +110,44 @@ some prose without recognizable headings.
     const doc = normalizer.normalize(makeInput(src));
     expect(doc.warnings.some((w: string) => /no scenes/.test(w))).toBe(true);
   });
+
+  test("v0.2.0 풍부화 schema (PR-V3.12.1) — 신규 필드가 채워진다", () => {
+    const src = `---
+name: rich-skill
+description: Collect URLs. Use when the user wants fresh URLs. Use when the user runs retry.
+---
+## Inputs
+- \`keyword\`
+- \`language\`
+
+## Outputs
+- \`urls\`
+
+## Acquire
+Use Bash to fetch from \`search_api\` over HTTP. Retry with backoff on failure.
+
+## Act
+Use Write to persist to \`supabase\` and schedule via \`qstash\`.
+`;
+    const doc = normalizer.normalize(makeInput(src));
+    expect(doc.sslVersion).toBe("0.2.0");
+
+    // Scheduling
+    expect(doc.scheduling.intentSignatures.length).toBeGreaterThan(0);
+    expect(doc.scheduling.skillGoal.length).toBeGreaterThan(0);
+    expect(doc.scheduling.expectedInputs).toContain("keyword");
+    expect(doc.scheduling.expectedOutputs).toContain("urls");
+    expect(doc.scheduling.dependencies).toContain("search_api");
+    expect(doc.scheduling.dependencies).toContain("supabase");
+    expect(doc.scheduling.controlFlowFeatures).toContain("network_access");
+    expect(doc.scheduling.controlFlowFeatures).toContain("scheduled_retry");
+
+    // Structural — sceneGoal 존재
+    expect(doc.structural.every((s: { sceneGoal: string }) => s.sceneGoal.length > 0)).toBe(true);
+
+    // Logical — effects 배열 + resourceTarget 존재
+    expect(doc.logical.length).toBeGreaterThan(0);
+    expect(doc.logical.every((l: { effects: string[] }) => Array.isArray(l.effects))).toBe(true);
+    expect(doc.logical.some((l: { resourceTarget?: string }) => typeof l.resourceTarget === "string")).toBe(true);
+  });
 });

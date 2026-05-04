@@ -80,3 +80,15 @@
 - `bin/cfgm-rebuild-index.ts` — SSLReader 주입. 단일 명령으로 wiki+claim+SSL 모두 인덱싱
 - 테스트 4/4 (CLI), 회귀 0건 (전체 739/739)
 - end-to-end working slice 완성: `cfgm-ssl-normalize` → `cfgm-rebuild-index` → `searchSkills(query)`
+
+## PR-V3.12.1 (2026-05-05) — SSL schema 풍부화 (사용자 example 정렬)
+
+- SSL_VERSION 0.1.0 → 0.2.0 (호환 깨짐, 기존 _ssl/*.json 없음 — 안전)
+- Scheduling 신규 필드: `skillGoal`, `intentSignatures[]`, `expectedInputs[]`, `expectedOutputs[]`, `dependencies[]`, `controlFlowFeatures[]`
+- Structural 신규: `sceneGoal` (능동 목표 표현)
+- Logical 신규: `resourceTarget?`, `effects[]` (post-condition slot)
+- ACTIONS 확장: `+SCHEDULE`, `+TRANSFORM`
+- RESOURCE_SCOPES 확장: `+DATABASE`, `+QUEUE`
+- ControlFlowFeature 신규 enum (branching/loop/scheduled_retry/network_access/credential_access/long_running/stateful)
+- heuristic normalizer가 dependencies/controlFlowFeatures/expectedInputs/Outputs 까지 자동 채움 (LLM normalizer가 메울 hole은 warnings[])
+- 테스트 740/740 pass

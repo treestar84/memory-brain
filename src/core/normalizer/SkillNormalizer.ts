@@ -2,6 +2,7 @@ import { parse as parseYaml } from "yaml";
 import {
   SSL_VERSION,
   type Action,
+  type ControlFlowFeature,
   type LogicalNode,
   type ResourceScope,
   type Scene,
@@ -73,16 +74,25 @@ export class SkillNormalizer {
     const skillName = String(fm.data.name ?? slug);
     const description = String(fm.data.description ?? "");
 
+    const intentSignatures = this.splitIntentSignatures(description);
     const scheduling: SchedulingNode = {
       id: `${slug}#scheduling`,
       skillName,
-      intentSignature: description.split(/\.\s|。\s|\n/, 1)[0]?.trim() ?? "",
+      skillGoal: intentSignatures[0] ?? "",
+      intentSignature: intentSignatures[0] ?? "",
+      intentSignatures,
       triggerPatterns: this.extractTriggers(description + "\n" + body),
+      expectedInputs: this.extractListedSection(body, /inputs?/i),
+      expectedOutputs: this.extractListedSection(body, /outputs?/i),
+      dependencies: this.extractDependencies(body),
+      controlFlowFeatures: this.detectControlFlowFeatures(body),
       ioContract: { inputsRaw: "", outputsRaw: "" },
       preconditions: [],
     };
     if (!scheduling.intentSignature) warnings.push("scheduling.intentSignature empty (LLM fill needed)");
     if (scheduling.triggerPatterns.length === 0) warnings.push("scheduling.triggerPatterns empty (LLM fill needed)");
+    if (scheduling.expectedInputs.length === 0) warnings.push("scheduling.expectedInputs empty (LLM fill needed)");
+    if (scheduling.expectedOutputs.length === 0) warnings.push("scheduling.expectedOutputs empty (LLM fill needed)");
 
     const sections = this.splitSections(body);
     const structural: StructuralNode[] = [];
@@ -106,6 +116,8 @@ export class SkillNormalizer {
           action,
           description: `${tool} (heuristic from §"${sec.heading}")`,
           resources,
+          resourceTarget: tool,
+          effects: [],
           evidenceClaimIds: [],
         });
         containsLogicalIds.push(lid);
@@ -114,6 +126,7 @@ export class SkillNormalizer {
       structural.push({
         id: sid,
         scene,
+        sceneGoal: sec.heading,
         summary: sec.heading,
         containsLogicalIds,
         transitionsTo: [],
@@ -188,6 +201,57 @@ export class SkillNormalizer {
       if (patterns.some((p) => p.test(heading))) return scene;
     }
     return null;
+  }
+
+  private splitIntentSignatures(description: string): string[] {
+    const out: string[] = [];
+    for (const piece of description.split(/(?:\.\s|。\s|;\s|—\s|—|\n)/)) {
+      const trimmed = piece.trim().replace(/[.;]+$/, "");
+      if (trimmed.length === 0 || trimmed.length > 200) continue;
+      out.push(trimmed);
+    }
+    return out.slice(0, 5); // cap to avoid noise
+  }
+
+  private extractListedSection(body: string, headingRe: RegExp): string[] {
+    // Match section like "## Inputs" or "**Inputs:**" then collect bullet items
+    const lines = body.split("\n");
+    const out: string[] = [];
+    let inSection = false;
+    for (const line of lines) {
+      const heading = line.match(/^#{2,4}\s+(.+?)\s*$/) ?? line.match(/^\*\*(.+?):\*\*/);
+      if (heading) {
+        inSection = headingRe.test(heading[1]);
+        continue;
+      }
+      if (!inSection) continue;
+      const bullet = line.match(/^\s*[-*]\s+`?(\w+)`?/);
+      if (bullet) out.push(bullet[1]);
+    }
+    return out;
+  }
+
+  private extractDependencies(body: string): string[] {
+    // Capture backtick-quoted identifiers and `Use ... <Tool>` mentions
+    const out = new Set<string>();
+    for (const m of body.matchAll(/`([a-zA-Z_][\w-]{2,40})`/g)) {
+      const v = m[1];
+      if (/^(true|false|null|undefined)$/i.test(v)) continue;
+      out.add(v);
+    }
+    return [...out].slice(0, 20);
+  }
+
+  private detectControlFlowFeatures(body: string): ControlFlowFeature[] {
+    const feats = new Set<ControlFlowFeature>();
+    if (/\b(if|else|when|switch|branch|either)\b/i.test(body)) feats.add("branching");
+    if (/\b(for each|loop|iterate|while|until)\b/i.test(body)) feats.add("loop");
+    if (/\b(retry|backoff|schedule|cron)\b/i.test(body)) feats.add("scheduled_retry");
+    if (/\b(http|fetch|request|api|url|curl|webhook)\b/i.test(body)) feats.add("network_access");
+    if (/\b(token|secret|credential|auth|api[_ -]?key)\b/i.test(body)) feats.add("credential_access");
+    if (/\b(long.?running|background|daemon)\b/i.test(body)) feats.add("long_running");
+    if (/\b(state|persist|store|database|sqlite)\b/i.test(body)) feats.add("stateful");
+    return [...feats];
   }
 
   private slugFromPath(p: string): string {
