@@ -154,10 +154,10 @@
 ## 다음 세션 시작점 (Bootstrap)
 
 ### 즉시 가능한 다음 단계
-1. **시드 9 효과 측정**: `bun run bin/cfgm-ssl-enqueue.ts --force` → PAI 재처리 → `cfgm-ssl-stats` 로 87.2% → ~96%+ 검증
-2. **V3.18 ExecutionBindingNode** 검토 — SSL 그래프 실행 가능 KG 화 (큰 결정, 사용자 합의)
-3. **plan v3 미완**: V3.5 (claim ledger 이관 `.memory-brain/claims/` → `memory/claims/`), V3.16 (ML risk classifier)
-4. **운영 품질**: README quickstart 보강, CONTRIBUTING.md, CHANGELOG.md, CI 설정 (RULES 위반 자동 감지)
+1. ~~**시드 9 효과 측정**~~ ✅ **완료 (2026-05-06, 623ef92)** — 87.2% → **96%** (120/125), 785/785 pass
+2. **운영 품질 최소셋**: README quickstart 보강 + CHANGELOG 시작 (CONTRIBUTING/CI 는 외부 사용자 유입 후)
+3. **plan v3 미완**: V3.5 (claim ledger 이관 `.memory-brain/claims/` → `memory/claims/`)
+4. **V3.18 ExecutionBindingNode** 검토 — SSL 그래프 실행 가능 KG 화 (큰 결정, 사용자 합의 필요)
 
 ### 사용자 확정 정체성 / 정책
 - `docs/RULES.md` 5 원칙 (MCP X / 구독 auth / OMC X / production / 분리 PAI 세션)
