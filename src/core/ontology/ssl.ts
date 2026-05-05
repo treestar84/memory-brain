@@ -101,6 +101,13 @@ export type LogicalNode = {
   action: Action;
   description: string;
   resources: ResourceScope[];
+  /**
+   * Optional reference to a canonical action pattern (PR-V3.17a).
+   * 본 필드가 있으면 validateSSL 가 canonical store 의 정의와 action/resources
+   * 일치를 강제한다. 같은 패턴은 항상 같은 ref ID 로 표현되어 결정성을 보장.
+   * store 미주입 시에도 schema 통과 — back-compat.
+   */
+  actionRef?: string;
   /** Specific target identifier (e.g. 'search_api', 'keyword_results' table) */
   resourceTarget?: string;
   /** Post-conditions / observable side-effects (paper 'effects[]') */
@@ -130,8 +137,13 @@ export function isAction(v: string): v is Action { return ACTION_SET.has(v); }
 export function isResourceScope(v: string): v is ResourceScope { return RESOURCE_SET.has(v); }
 export function isControlFlowFeature(v: string): v is ControlFlowFeature { return CFF_SET.has(v); }
 
+/** Optional canonical action lookup. Provided to validateSSL when available. */
+export type CanonicalActionLookup = {
+  resolve(ref: string): { action: Action; resources: ResourceScope[] } | null;
+};
+
 // Hard validation — paper §4 'hard checks' 대응
-export function validateSSL(doc: SSLDocument): string[] {
+export function validateSSL(doc: SSLDocument, opts?: { canonicalActions?: CanonicalActionLookup }): string[] {
   const errors: string[] = [];
 
   if (doc.sslVersion !== SSL_VERSION) {
@@ -158,6 +170,28 @@ export function validateSSL(doc: SSLDocument): string[] {
     if (!isAction(l.action)) errors.push(`logical ${l.id}: invalid action '${l.action}'`);
     for (const r of l.resources) {
       if (!isResourceScope(r)) errors.push(`logical ${l.id}: invalid resource '${r}'`);
+    }
+    // PR-V3.17a — actionRef 검증.
+    if (l.actionRef !== undefined) {
+      if (!opts?.canonicalActions) {
+        // store 없으면 검증 skip — back-compat (graceful)
+        continue;
+      }
+      const def = opts.canonicalActions.resolve(l.actionRef);
+      if (!def) {
+        errors.push(`logical ${l.id}: actionRef '${l.actionRef}' not found in canonical store`);
+        continue;
+      }
+      if (def.action !== l.action) {
+        errors.push(`logical ${l.id}: actionRef '${l.actionRef}' resolves to action '${def.action}' but logical declares '${l.action}'`);
+      }
+      const aSet = new Set(l.resources);
+      const bSet = new Set(def.resources);
+      const missing = [...bSet].filter((r) => !aSet.has(r));
+      const extra = [...aSet].filter((r) => !bSet.has(r));
+      if (missing.length > 0 || extra.length > 0) {
+        errors.push(`logical ${l.id}: actionRef '${l.actionRef}' resources mismatch (missing: [${missing.join(",")}], extra: [${extra.join(",")}])`);
+      }
     }
   }
   return errors;

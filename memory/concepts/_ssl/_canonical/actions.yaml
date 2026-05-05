@@ -1,0 +1,65 @@
+# Canonical Action Store — 확장 가능한 action 패턴 사전
+#
+# 사용법: SSL Logical 노드의 actionRef 필드가 본 파일의 키를 참조한다.
+#   { "id": "skill#l:1", "actionRef": "READ_LOCAL_FILE",
+#     "resourceTarget": "_bmad/core/config.yaml",
+#     "effects": ["config_loaded"], ... }
+#
+# 검증 규칙 (validateSSL):
+#   - actionRef 가 있으면 ref 의 action/resources 가 logical 의 action/resources 와 일치 강제
+#   - actionRef 없으면 inline action/resources 그대로 사용 (back-compat)
+#   - 본 파일에 없는 ref ID 사용 시 schema error
+#
+# 확장 (코드 PR 없이 가능):
+#   - items 섹션에 새 항목 추가
+#   - 사용자 프로젝트 별 도메인 어휘는 extensions 섹션에
+#   - 본 파일은 git 추적, 변경 내역 자체가 audit log
+#
+# 시드 출처: 11 BMAD skill 분석 (memory/_pending/normalize/_spec/canonical-proposal-v1.md)
+# logical 노드 125개 중 117개 (94%) 가 본 7 시드로 표현 가능.
+
+storeVersion: "1.0.0"
+description: "Canonical action patterns — domain-neutral, extensible without code change."
+
+items:
+  INFER_FROM_MEMORY:
+    action: INFER
+    resources: [MEMORY]
+    description: "Reason / classify / decide based on in-process state. No I/O."
+
+  EMIT_TO_MEMORY:
+    action: EMIT
+    resources: [MEMORY]
+    description: "Produce signal / event / message / user prompt into MEMORY."
+
+  BRANCH_ON_MEMORY:
+    action: BRANCH
+    resources: [MEMORY]
+    description: "Conditional path selection based on in-process state."
+
+  TRANSFORM_IN_MEMORY:
+    action: TRANSFORM
+    resources: [MEMORY]
+    description: "Map / reshape data without external I/O."
+
+  READ_LOCAL_FILE:
+    action: READ
+    resources: [LOCAL_FS]
+    description: "Read a file from local filesystem."
+
+  WRITE_LOCAL_FILE:
+    action: WRITE
+    resources: [LOCAL_FS]
+    description: "Persist data to a local file."
+
+  CALL_LOCAL_SCRIPT:
+    action: CALL_TOOL
+    resources: [LOCAL_FS]
+    description: "Invoke a local script / executable / binary."
+
+# 사용자 프로젝트 별 확장 영역 — 본 영역은 코드 PR 없이 추가 가능.
+# 도메인 어휘 (특정 플러그인의 식별자 등) 는 본 영역에만, items 에 X.
+extensions: {}
+
+# 운영 중 dedup detector (PR-V3.17c) 가 inline 패턴 N≥3 회 등장 시
+# canonical-candidates.md 보고서 생성. 사람 검토 후 본 파일에 등록.
