@@ -30,6 +30,12 @@ export interface GovernanceInput {
   wikiPages: WikiPage[];
   /** SSL skill documents (PR-V3.15). Optional — pre-existing detectors ignore. */
   skills?: SSLDocument[];
+  /**
+   * Set of "<ACTION>/<RES1,RES2,...sorted>" signatures already covered by
+   * the canonical store (PR-V3.17c). 호출자가 미리 store 로드 후 넘기면
+   * CanonicalCandidatesDetector 가 이미 등록된 패턴은 skip.
+   */
+  knownCanonicalSignatures?: Set<string>;
   /** ISO timestamp — 검증 기준 시점 */
   now: string;
 }
