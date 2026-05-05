@@ -1,5 +1,5 @@
 {
-  "sslVersion": "0.2.0",
+  "sslVersion": "0.3.0",
   "sourceSkillPath": ".claude/skills/bmad-help/SKILL.md",
   "sourceSha256": "cd7096b2ff55b2b87e12d6b9c4c9ea13dfca78c49299a09327c97107f9531da8",
   "generatedAt": "2026-05-05T00:47:10.012Z",
@@ -274,5 +274,9 @@
       "evidenceClaimIds": []
     }
   ],
-  "warnings": []
+  "warnings": [],
+  "decisions": [],
+  "interactions": [],
+  "evidence": [],
+  "protocols": []
 }

@@ -1,5 +1,4 @@
 {
-  "$schema-comment": "Claude Code settings for memory-brain PAI session. 본 파일은 .claude-pai/ 프로파일 안에서만 활성화된다. 사용자 메인 .claude/settings.json 에 영향 없음.",
   "hooks": {
     "SessionStart": [
       {
@@ -23,5 +22,7 @@
         ]
       }
     ]
-  }
+  },
+  "theme": "dark",
+  "$schema-comment": "Claude Code settings for memory-brain PAI session. 본 파일은 .claude-pai/ 프로파일 안에서만 활성화된다. 사용자 메인 .claude/settings.json 에 영향 없음."
 }

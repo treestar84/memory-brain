@@ -1,5 +1,5 @@
 {
-  "sslVersion": "0.2.0",
+  "sslVersion": "0.3.0",
   "sourceSkillPath": ".claude/skills/bmad-review-edge-case-hunter/SKILL.md",
   "sourceSha256": "f49ed9976f46b4cefa1fc8b4f0a495f16089905e6a7bbf4ce73b8f05c9ae3ee6",
   "generatedAt": "2026-05-05T00:47:10.012Z",
@@ -204,5 +204,9 @@
       "evidenceClaimIds": []
     }
   ],
-  "warnings": []
+  "warnings": [],
+  "decisions": [],
+  "interactions": [],
+  "evidence": [],
+  "protocols": []
 }

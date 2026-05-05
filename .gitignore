@@ -20,6 +20,12 @@ coverage/
 .omx/
 _bmad/
 
+# .claude-pai/ — PAI 세션 프로파일. CLAUDE.md / settings.json 만 추적,
+# Claude Code 가 자동 생성하는 cache/file-history/projects/... 모두 ignore
+.claude-pai/*
+!.claude-pai/CLAUDE.md
+!.claude-pai/settings.json
+
 # OS junk
 .DS_Store
 Thumbs.db

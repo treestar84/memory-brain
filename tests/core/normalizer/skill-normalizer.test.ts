@@ -156,7 +156,7 @@ Use Bash to fetch from \`search_api\` over HTTP. Retry with backoff on failure.
 Use Write to persist to \`supabase\` and schedule via \`qstash\`.
 `;
     const doc = normalizer.normalize(makeInput(src));
-    expect(doc.sslVersion).toBe("0.2.0");
+    expect(doc.sslVersion).toBe(SSL_VERSION);
 
     // Scheduling
     expect(doc.scheduling.intentSignatures.length).toBeGreaterThan(0);

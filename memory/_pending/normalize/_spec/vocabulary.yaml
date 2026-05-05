@@ -9,7 +9,7 @@
 #
 # docs/RULES.md 원칙 4: vendor-agnostic — 도메인 별 어휘 추가가 코드 PR 없이 가능해야 함.
 
-sslVersion: "0.2.0"
+sslVersion: "0.3.0"
 
 # ─── L2 Structural — Scene (skill 의 phase 종류) ──────────────────────────
 scenes:
@@ -80,6 +80,19 @@ controlFlowFeatures:
     definition: "Multi-minute or unbounded duration"
   - name: stateful
     definition: "Persists state across runs"
+
+# v0.3.0 — InteractionNode 가 사용자에게 기대하는 응답의 종류
+expectedResponseTypes:
+  - name: free-text
+    definition: "Free-form natural language input"
+  - name: yes-no
+    definition: "Boolean confirmation"
+  - name: selection
+    definition: "Pick one from provided options[]"
+  - name: structured
+    definition: "Typed object / form fill"
+  - name: none
+    definition: "No response expected (one-way emit)"
 
 # ─── 사용자 프로젝트별 확장 (코드 수정 없이 enum 추가 영역) ────────────
 # 현재는 빈 stub. 다음 PR (V3.16.3) 에서 validateSSL 이 본 섹션을 로드해

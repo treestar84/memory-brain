@@ -1,6 +1,7 @@
 ---
 job_id: norm-2026-05-05-bmad-shard-doc
-status: pending
+status: done
+done_at: 2026-05-05T00:56:00.000Z
 source_path: .claude/skills/bmad-shard-doc/SKILL.md
 source_sha256: 3a1538536514725fd4f31aded280ee56b9645fc61d114fd94aacb3ac52304e52
 heuristic_path: memory/_pending/normalize/jobs/bmad-shard-doc.heuristic.json
