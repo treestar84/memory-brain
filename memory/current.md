@@ -93,13 +93,20 @@
 - heuristic normalizer가 dependencies/controlFlowFeatures/expectedInputs/Outputs 까지 자동 채움 (LLM normalizer가 메울 hole은 warnings[])
 - 테스트 740/740 pass
 
-## PR-V3.13 (2026-05-05) — LLM SkillNormalizer (paper §3.3 source-grounded NL2JSON)
+## PR-V3.13 revert (2026-05-05) — `docs/RULES.md` 원칙 위반으로 회수
 
-- `src/core/normalizer/LLMSkillNormalizer.ts` — heuristic 1차 + LLM 보강 파이프라인
-- 기본 모델: claude-opus-4-7 / adaptive thinking / system prompt cache_control(ephemeral)
-- closed vocabulary를 system에 내장 → LLM이 enum 외 값 못 만들도록 가이드 + validateSSL gate로 후검증
-- 실패 graceful fallback: API down / non-JSON / schema 위반 → heuristic 결과 + warnings에 사유 명시
-- `bin/cfgm-ssl-normalize.ts --llm [--model …]` 플래그 — `ANTHROPIC_API_KEY` 없으면 자동 heuristic
-- 의존성 추가: `@anthropic-ai/sdk@0.93.0`, `zod@4.4.3`
-- 테스트 7/7 pass (mock client, 실 API 호출 없음). 회귀 0건 (전체 747/747)
-- 다음 후보: PR-V3.16 (ML risk classifier), 실 API 시범 호출, prompt 튜닝
+- 회수 commit `ccb026f`. 사유: 원칙 1·2 위반.
+  - 원칙 2 위반: `@anthropic-ai/sdk` default 흐름 직접 호출 + `ANTHROPIC_API_KEY` 요구 → 사용자 비용 추가 발생.
+  - 원칙 4 위반: vendor lock-in (claude-opus-4-7 하드코딩) — production OSS 부적합.
+- 제거: `src/core/normalizer/LLMSkillNormalizer.ts`, 테스트, `--llm`/`--model` CLI 플래그.
+- 의존성 제거: `@anthropic-ai/sdk`, `zod`.
+- LLM normalize 의 올바른 패턴은 PR-V3.13-rev2 — file-based pending queue + host CLI 의 LLM 위임.
+
+## PR-V3.13-rev2 (2026-05-05) — File-based pending normalize queue (host-delegated)
+
+- `memory/_pending/normalize/_spec/{ssl-schema,prompt}.md` — host LLM 이 read tool 로 읽을 명세
+- `memory/_pending/normalize/jobs/<slug>.job.md` — 1 작업 = 1 파일 (frontmatter status: pending|in_progress|done|failed)
+- `bin/cfgm-ssl-enqueue.ts` — heuristic 1차 + warnings 있는 skill 을 job 으로 enqueue
+- `bin/cfgm-ssl-validate.ts` — 1 job 결과 검증 (validateSSL gate)
+- `bin/cfgm-ssl-status.ts` — pending/done 통계
+- 호출 진입점 0 — 파일과 자연어만으로 vendor-agnostic. host LLM 이 자기 inference 채널로 처리.

@@ -16,8 +16,6 @@
     "@types/bun": "latest"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.93.0",
-    "yaml": "^2.8.3",
-    "zod": "^4.4.3"
+    "yaml": "^2.8.3"
   }
 }
