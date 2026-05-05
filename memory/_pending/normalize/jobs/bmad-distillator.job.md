@@ -1,13 +1,12 @@
 ---
 job_id: norm-2026-05-05-bmad-distillator
-status: done
+status: pending
 source_path: .claude/skills/bmad-distillator/SKILL.md
 source_sha256: 756ee0706ff6b8a3d5726b465e81ba244e4eaeba21b7de0d2390473acebb5ddc
 heuristic_path: memory/_pending/normalize/jobs/bmad-distillator.heuristic.json
 output_path: memory/concepts/_ssl/bmad-distillator.json
-enqueued_at: 2026-05-05T00:47:10.012Z
+enqueued_at: 2026-05-05T14:51:31.743Z
 warnings_count: 1
-done_at: 2026-05-05T00:50:00.000Z
 ---
 
 # Normalize job — `bmad-distillator`

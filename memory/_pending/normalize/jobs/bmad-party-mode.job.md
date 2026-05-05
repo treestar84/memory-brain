@@ -1,12 +1,11 @@
 ---
 job_id: norm-2026-05-05-bmad-party-mode
-status: done
-done_at: 2026-05-05T00:52:00.000Z
+status: pending
 source_path: .claude/skills/bmad-party-mode/SKILL.md
 source_sha256: 0e24fb777af648d3f093b6f8932a4b91a9fe1b459439b661fcb7879ac50e2ac0
 heuristic_path: memory/_pending/normalize/jobs/bmad-party-mode.heuristic.json
 output_path: memory/concepts/_ssl/bmad-party-mode.json
-enqueued_at: 2026-05-05T00:47:10.012Z
+enqueued_at: 2026-05-05T14:51:31.743Z
 warnings_count: 4
 ---
 

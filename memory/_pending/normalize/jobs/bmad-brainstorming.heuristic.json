@@ -1,11 +1,11 @@
 {
-  "sslVersion": "0.2.0",
+  "sslVersion": "0.3.0",
   "sourceSkillPath": ".claude/skills/bmad-brainstorming/SKILL.md",
   "sourceSha256": "f4a2c22b40ed34cdbd3282dd6161a3b869902f3bc75b58e181fc9faf78eedd9d",
-  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedAt": "2026-05-05T14:51:31.743Z",
   "generatedBy": "heuristic",
   "scheduling": {
-    "id": "skill#scheduling",
+    "id": "bmad-brainstorming#scheduling",
     "skillName": "bmad-brainstorming",
     "skillGoal": "Facilitate interactive brainstorming sessions using diverse creative techniques and ideation methods",
     "intentSignature": "Facilitate interactive brainstorming sessions using diverse creative techniques and ideation methods",

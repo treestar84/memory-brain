@@ -1,12 +1,11 @@
 ---
 job_id: norm-2026-05-05-bmad-brainstorming
-status: done
-done_at: 2026-05-05T00:51:00.000Z
+status: pending
 source_path: .claude/skills/bmad-brainstorming/SKILL.md
 source_sha256: f4a2c22b40ed34cdbd3282dd6161a3b869902f3bc75b58e181fc9faf78eedd9d
 heuristic_path: memory/_pending/normalize/jobs/bmad-brainstorming.heuristic.json
 output_path: memory/concepts/_ssl/bmad-brainstorming.json
-enqueued_at: 2026-05-05T00:47:10.012Z
+enqueued_at: 2026-05-05T14:51:31.743Z
 warnings_count: 4
 ---
 

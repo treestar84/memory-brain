@@ -1,11 +1,11 @@
 {
-  "sslVersion": "0.2.0",
+  "sslVersion": "0.3.0",
   "sourceSkillPath": ".claude/skills/bmad-index-docs/SKILL.md",
   "sourceSha256": "a855d7060414e73ca4fe8e1a3e1cc4d0f2ce394846e52340bdf5a1317e0d234a",
-  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedAt": "2026-05-05T14:51:31.743Z",
   "generatedBy": "heuristic",
   "scheduling": {
-    "id": "skill#scheduling",
+    "id": "bmad-index-docs#scheduling",
     "skillName": "bmad-index-docs",
     "skillGoal": "Generates or updates an index.md to reference all docs in the folder",
     "intentSignature": "Generates or updates an index.md to reference all docs in the folder",

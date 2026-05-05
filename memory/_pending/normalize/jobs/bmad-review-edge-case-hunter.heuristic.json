@@ -1,11 +1,11 @@
 {
-  "sslVersion": "0.2.0",
+  "sslVersion": "0.3.0",
   "sourceSkillPath": ".claude/skills/bmad-review-edge-case-hunter/SKILL.md",
   "sourceSha256": "f49ed9976f46b4cefa1fc8b4f0a495f16089905e6a7bbf4ce73b8f05c9ae3ee6",
-  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedAt": "2026-05-05T14:51:31.743Z",
   "generatedBy": "heuristic",
   "scheduling": {
-    "id": "skill#scheduling",
+    "id": "bmad-review-edge-case-hunter#scheduling",
     "skillName": "bmad-review-edge-case-hunter",
     "skillGoal": "Walk every branching path and boundary condition in content, report only unhandled edge cases",
     "intentSignature": "Walk every branching path and boundary condition in content, report only unhandled edge cases",
@@ -34,7 +34,7 @@
   },
   "structural": [
     {
-      "id": "skill#scene:VERIFY:1",
+      "id": "bmad-review-edge-case-hunter#scene:VERIFY:1",
       "scene": "VERIFY",
       "sceneGoal": "Step 3: Validate Completeness",
       "summary": "Step 3: Validate Completeness",

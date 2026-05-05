@@ -1,11 +1,11 @@
 {
-  "sslVersion": "0.2.0",
+  "sslVersion": "0.3.0",
   "sourceSkillPath": ".claude/skills/bmad-editorial-review-structure/SKILL.md",
   "sourceSha256": "164444359d74f695a84faf7ea558d0eef39c75561e6b26669f97a165c6f75538",
-  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedAt": "2026-05-05T14:51:31.743Z",
   "generatedBy": "heuristic",
   "scheduling": {
-    "id": "skill#scheduling",
+    "id": "bmad-editorial-review-structure#scheduling",
     "skillName": "bmad-editorial-review-structure",
     "skillGoal": "Structural editor that proposes cuts, reorganization, and simplification while preserving comprehension",
     "intentSignature": "Structural editor that proposes cuts, reorganization, and simplification while preserving comprehension",
@@ -45,27 +45,27 @@
   },
   "structural": [
     {
-      "id": "skill#scene:REASON:1",
+      "id": "bmad-editorial-review-structure#scene:REASON:1",
       "scene": "REASON",
       "sceneGoal": "Explanation (Conceptual)",
       "summary": "Explanation (Conceptual)",
       "containsLogicalIds": [],
       "transitionsTo": [
-        "skill#scene:PREPARE:2"
+        "bmad-editorial-review-structure#scene:PREPARE:2"
       ]
     },
     {
-      "id": "skill#scene:PREPARE:2",
+      "id": "bmad-editorial-review-structure#scene:PREPARE:2",
       "scene": "PREPARE",
       "sceneGoal": "Prompt/Task Definition (Functional)",
       "summary": "Prompt/Task Definition (Functional)",
       "containsLogicalIds": [],
       "transitionsTo": [
-        "skill#scene:ACQUIRE:3"
+        "bmad-editorial-review-structure#scene:ACQUIRE:3"
       ]
     },
     {
-      "id": "skill#scene:ACQUIRE:3",
+      "id": "bmad-editorial-review-structure#scene:ACQUIRE:3",
       "scene": "ACQUIRE",
       "sceneGoal": "Step 1: Validate Input",
       "summary": "Step 1: Validate Input",

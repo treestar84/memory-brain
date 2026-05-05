@@ -1,11 +1,11 @@
 {
-  "sslVersion": "0.2.0",
+  "sslVersion": "0.3.0",
   "sourceSkillPath": ".claude/skills/bmad-party-mode/SKILL.md",
   "sourceSha256": "0e24fb777af648d3f093b6f8932a4b91a9fe1b459439b661fcb7879ac50e2ac0",
-  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedAt": "2026-05-05T14:51:31.743Z",
   "generatedBy": "heuristic",
   "scheduling": {
-    "id": "skill#scheduling",
+    "id": "bmad-party-mode#scheduling",
     "skillName": "bmad-party-mode",
     "skillGoal": "Orchestrates group discussions between installed BMAD agents, enabling natural multi-agent conversations where each agent is a real subagent with independent thinking",
     "intentSignature": "Orchestrates group discussions between installed BMAD agents, enabling natural multi-agent conversations where each agent is a real subagent with independent thinking",

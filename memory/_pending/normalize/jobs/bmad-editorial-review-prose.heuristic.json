@@ -1,11 +1,11 @@
 {
-  "sslVersion": "0.2.0",
+  "sslVersion": "0.3.0",
   "sourceSkillPath": ".claude/skills/bmad-editorial-review-prose/SKILL.md",
   "sourceSha256": "b3687fe80567378627bc2a0c5034ae8d65dfeedcf2b6c90da077f4feca462d0c",
-  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedAt": "2026-05-05T14:51:31.743Z",
   "generatedBy": "heuristic",
   "scheduling": {
-    "id": "skill#scheduling",
+    "id": "bmad-editorial-review-prose#scheduling",
     "skillName": "bmad-editorial-review-prose",
     "skillGoal": "Clinical copy-editor that reviews text for communication issues",
     "intentSignature": "Clinical copy-editor that reviews text for communication issues",
@@ -44,17 +44,17 @@
   },
   "structural": [
     {
-      "id": "skill#scene:ACQUIRE:1",
+      "id": "bmad-editorial-review-prose#scene:ACQUIRE:1",
       "scene": "ACQUIRE",
       "sceneGoal": "Step 1: Validate Input",
       "summary": "Step 1: Validate Input",
       "containsLogicalIds": [],
       "transitionsTo": [
-        "skill#scene:REASON:2"
+        "bmad-editorial-review-prose#scene:REASON:2"
       ]
     },
     {
-      "id": "skill#scene:REASON:2",
+      "id": "bmad-editorial-review-prose#scene:REASON:2",
       "scene": "REASON",
       "sceneGoal": "Step 2: Analyze Style",
       "summary": "Step 2: Analyze Style",

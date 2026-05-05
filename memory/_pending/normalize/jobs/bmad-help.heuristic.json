@@ -1,11 +1,11 @@
 {
-  "sslVersion": "0.2.0",
+  "sslVersion": "0.3.0",
   "sourceSkillPath": ".claude/skills/bmad-help/SKILL.md",
   "sourceSha256": "cd7096b2ff55b2b87e12d6b9c4c9ea13dfca78c49299a09327c97107f9531da8",
-  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedAt": "2026-05-05T14:51:31.743Z",
   "generatedBy": "heuristic",
   "scheduling": {
-    "id": "skill#scheduling",
+    "id": "bmad-help#scheduling",
     "skillName": "bmad-help",
     "skillGoal": "Analyzes current state and user query to answer BMad questions or recommend the next skill(s) to use",
     "intentSignature": "Analyzes current state and user query to answer BMad questions or recommend the next skill(s) to use",

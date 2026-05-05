@@ -1,11 +1,11 @@
 {
-  "sslVersion": "0.2.0",
+  "sslVersion": "0.3.0",
   "sourceSkillPath": ".claude/skills/bmad-distillator/SKILL.md",
   "sourceSha256": "756ee0706ff6b8a3d5726b465e81ba244e4eaeba21b7de0d2390473acebb5ddc",
-  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedAt": "2026-05-05T14:51:31.743Z",
   "generatedBy": "heuristic",
   "scheduling": {
-    "id": "skill#scheduling",
+    "id": "bmad-distillator#scheduling",
     "skillName": "bmad-distillator",
     "skillGoal": "Lossless LLM-optimized compression of source documents",
     "intentSignature": "Lossless LLM-optimized compression of source documents",
@@ -48,39 +48,39 @@
   },
   "structural": [
     {
-      "id": "skill#scene:REASON:1",
+      "id": "bmad-distillator#scene:REASON:1",
       "scene": "REASON",
       "sceneGoal": "Stage 1: Analyze",
       "summary": "Stage 1: Analyze",
       "containsLogicalIds": [],
       "transitionsTo": [
-        "skill#scene:VERIFY:2"
+        "bmad-distillator#scene:VERIFY:2"
       ]
     },
     {
-      "id": "skill#scene:VERIFY:2",
+      "id": "bmad-distillator#scene:VERIFY:2",
       "scene": "VERIFY",
       "sceneGoal": "Stage 3: Verify & Output",
       "summary": "Stage 3: Verify & Output",
       "containsLogicalIds": [],
       "transitionsTo": [
-        "skill#scene:VERIFY:3"
+        "bmad-distillator#scene:VERIFY:3"
       ]
     },
     {
-      "id": "skill#scene:VERIFY:3",
+      "id": "bmad-distillator#scene:VERIFY:3",
       "scene": "VERIFY",
       "sceneGoal": "Stage 4: Round-Trip Validation (--validate only)",
       "summary": "Stage 4: Round-Trip Validation (--validate only)",
       "containsLogicalIds": [
-        "skill#logical:1"
+        "bmad-distillator#logical:1"
       ],
       "transitionsTo": []
     }
   ],
   "logical": [
     {
-      "id": "skill#logical:1",
+      "id": "bmad-distillator#logical:1",
       "action": "READ",
       "description": "Read (heuristic from §\"Stage 4: Round-Trip Validation (--validate only)\")",
       "resources": [

@@ -1,12 +1,11 @@
 ---
 job_id: norm-2026-05-05-bmad-advanced-elicitation
-status: done
-done_at: 2026-05-05T00:57:00.000Z
+status: pending
 source_path: .claude/skills/bmad-advanced-elicitation/SKILL.md
 source_sha256: 1a7396d28ba7524588d44e5eac9b6a41372a0bf8d9e1c4c469728493abd5e12f
 heuristic_path: memory/_pending/normalize/jobs/bmad-advanced-elicitation.heuristic.json
 output_path: memory/concepts/_ssl/bmad-advanced-elicitation.json
-enqueued_at: 2026-05-05T00:47:10.012Z
+enqueued_at: 2026-05-05T14:51:31.743Z
 warnings_count: 4
 ---
 

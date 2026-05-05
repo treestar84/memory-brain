@@ -1,12 +1,11 @@
 ---
 job_id: norm-2026-05-05-bmad-index-docs
-status: done
-done_at: 2026-05-05T00:58:00.000Z
+status: pending
 source_path: .claude/skills/bmad-index-docs/SKILL.md
 source_sha256: a855d7060414e73ca4fe8e1a3e1cc4d0f2ce394846e52340bdf5a1317e0d234a
 heuristic_path: memory/_pending/normalize/jobs/bmad-index-docs.heuristic.json
 output_path: memory/concepts/_ssl/bmad-index-docs.json
-enqueued_at: 2026-05-05T00:47:10.012Z
+enqueued_at: 2026-05-05T14:51:31.743Z
 warnings_count: 5
 ---
 

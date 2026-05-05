@@ -1,12 +1,11 @@
 ---
 job_id: norm-2026-05-05-bmad-review-adversarial-general
-status: done
-done_at: 2026-05-05T00:54:00.000Z
+status: pending
 source_path: .claude/skills/bmad-review-adversarial-general/SKILL.md
 source_sha256: 7bffc39e6dba4d9123648c5d4d79e17c3c5b1efbd927c3fe0026c2dbb8d99cff
 heuristic_path: memory/_pending/normalize/jobs/bmad-review-adversarial-general.heuristic.json
 output_path: memory/concepts/_ssl/bmad-review-adversarial-general.json
-enqueued_at: 2026-05-05T00:47:10.012Z
+enqueued_at: 2026-05-05T14:51:31.743Z
 warnings_count: 4
 ---
 
