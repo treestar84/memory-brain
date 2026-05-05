@@ -1,0 +1,54 @@
+{
+  "sslVersion": "0.2.0",
+  "sourceSkillPath": ".claude/skills/bmad-help/SKILL.md",
+  "sourceSha256": "cd7096b2ff55b2b87e12d6b9c4c9ea13dfca78c49299a09327c97107f9531da8",
+  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedBy": "heuristic",
+  "scheduling": {
+    "id": "skill#scheduling",
+    "skillName": "bmad-help",
+    "skillGoal": "Analyzes current state and user query to answer BMad questions or recommend the next skill(s) to use",
+    "intentSignature": "Analyzes current state and user query to answer BMad questions or recommend the next skill(s) to use",
+    "intentSignatures": [
+      "Analyzes current state and user query to answer BMad questions or recommend the next skill(s) to use",
+      "Use when user asks for help, bmad help, what to do next, or what to start with in BMad"
+    ],
+    "triggerPatterns": [
+      "user asks for help, bmad help, what to do next, or what to start with in BMad"
+    ],
+    "expectedInputs": [],
+    "expectedOutputs": [],
+    "dependencies": [
+      "output-location",
+      "communication_language",
+      "project_knowledge",
+      "outputs",
+      "_meta",
+      "skill",
+      "anytime",
+      "after",
+      "before",
+      "skill-name",
+      "bmad-create-prd"
+    ],
+    "controlFlowFeatures": [
+      "branching",
+      "loop",
+      "network_access",
+      "stateful"
+    ],
+    "ioContract": {
+      "inputsRaw": "",
+      "outputsRaw": ""
+    },
+    "preconditions": []
+  },
+  "structural": [],
+  "logical": [],
+  "warnings": [
+    "scheduling.expectedInputs empty (LLM fill needed)",
+    "scheduling.expectedOutputs empty (LLM fill needed)",
+    "no scenes inferred from headings (LLM fill needed)",
+    "no actions inferred from body (LLM fill needed)"
+  ]
+}

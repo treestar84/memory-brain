@@ -1,0 +1,51 @@
+{
+  "sslVersion": "0.2.0",
+  "sourceSkillPath": ".claude/skills/bmad-review-edge-case-hunter/SKILL.md",
+  "sourceSha256": "f49ed9976f46b4cefa1fc8b4f0a495f16089905e6a7bbf4ce73b8f05c9ae3ee6",
+  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedBy": "heuristic",
+  "scheduling": {
+    "id": "skill#scheduling",
+    "skillName": "bmad-review-edge-case-hunter",
+    "skillGoal": "Walk every branching path and boundary condition in content, report only unhandled edge cases",
+    "intentSignature": "Walk every branching path and boundary condition in content, report only unhandled edge cases",
+    "intentSignatures": [
+      "Walk every branching path and boundary condition in content, report only unhandled edge cases",
+      "Orthogonal to adversarial review - method-driven not attitude-driven",
+      "Use when you need exhaustive edge-case analysis of code, specs, or diffs"
+    ],
+    "triggerPatterns": [
+      "you need exhaustive edge-case analysis of code, specs, or diffs"
+    ],
+    "expectedInputs": [],
+    "expectedOutputs": [],
+    "dependencies": [
+      "also_consider"
+    ],
+    "controlFlowFeatures": [
+      "branching",
+      "loop"
+    ],
+    "ioContract": {
+      "inputsRaw": "",
+      "outputsRaw": ""
+    },
+    "preconditions": []
+  },
+  "structural": [
+    {
+      "id": "skill#scene:VERIFY:1",
+      "scene": "VERIFY",
+      "sceneGoal": "Step 3: Validate Completeness",
+      "summary": "Step 3: Validate Completeness",
+      "containsLogicalIds": [],
+      "transitionsTo": []
+    }
+  ],
+  "logical": [],
+  "warnings": [
+    "scheduling.expectedInputs empty (LLM fill needed)",
+    "scheduling.expectedOutputs empty (LLM fill needed)",
+    "no actions inferred from body (LLM fill needed)"
+  ]
+}

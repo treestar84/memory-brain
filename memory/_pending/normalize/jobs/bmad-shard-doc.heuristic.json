@@ -1,0 +1,62 @@
+{
+  "sslVersion": "0.2.0",
+  "sourceSkillPath": ".claude/skills/bmad-shard-doc/SKILL.md",
+  "sourceSha256": "3a1538536514725fd4f31aded280ee56b9645fc61d114fd94aacb3ac52304e52",
+  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedBy": "heuristic",
+  "scheduling": {
+    "id": "skill#scheduling",
+    "skillName": "bmad-shard-doc",
+    "skillGoal": "Splits large markdown documents into smaller, organized files based on level 2 (default) sections",
+    "intentSignature": "Splits large markdown documents into smaller, organized files based on level 2 (default) sections",
+    "intentSignatures": [
+      "Splits large markdown documents into smaller, organized files based on level 2 (default) sections",
+      "Use if the user says perform shard document"
+    ],
+    "triggerPatterns": [],
+    "expectedInputs": [],
+    "expectedOutputs": [
+      "Check",
+      "Verify",
+      "Count",
+      "If"
+    ],
+    "dependencies": [
+      "archive"
+    ],
+    "controlFlowFeatures": [
+      "branching"
+    ],
+    "ioContract": {
+      "inputsRaw": "",
+      "outputsRaw": ""
+    },
+    "preconditions": []
+  },
+  "structural": [
+    {
+      "id": "skill#scene:VERIFY:1",
+      "scene": "VERIFY",
+      "sceneGoal": "Step 4: Verify Output",
+      "summary": "Step 4: Verify Output",
+      "containsLogicalIds": [],
+      "transitionsTo": [
+        "skill#scene:FINALIZE:2"
+      ]
+    },
+    {
+      "id": "skill#scene:FINALIZE:2",
+      "scene": "FINALIZE",
+      "sceneGoal": "Step 5: Report Completion",
+      "summary": "Step 5: Report Completion",
+      "containsLogicalIds": [],
+      "transitionsTo": []
+    }
+  ],
+  "logical": [],
+  "warnings": [
+    "scheduling.triggerPatterns empty (LLM fill needed)",
+    "scheduling.expectedInputs empty (LLM fill needed)",
+    "no actions inferred from body (LLM fill needed)"
+  ]
+}

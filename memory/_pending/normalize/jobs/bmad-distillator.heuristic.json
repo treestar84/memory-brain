@@ -1,0 +1,97 @@
+{
+  "sslVersion": "0.2.0",
+  "sourceSkillPath": ".claude/skills/bmad-distillator/SKILL.md",
+  "sourceSha256": "756ee0706ff6b8a3d5726b465e81ba244e4eaeba21b7de0d2390473acebb5ddc",
+  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedBy": "heuristic",
+  "scheduling": {
+    "id": "skill#scheduling",
+    "skillName": "bmad-distillator",
+    "skillGoal": "Lossless LLM-optimized compression of source documents",
+    "intentSignature": "Lossless LLM-optimized compression of source documents",
+    "intentSignatures": [
+      "Lossless LLM-optimized compression of source documents",
+      "Use when the user requests to 'distill documents' or 'create a distillate'"
+    ],
+    "triggerPatterns": [
+      "the user requests to 'distill documents' or 'create a distillate'",
+      "requests to 'distill documents' or 'create a distillate'"
+    ],
+    "expectedInputs": [],
+    "expectedOutputs": [
+      "No",
+      "No",
+      "No",
+      "Each",
+      "Themes",
+      "Frontmatter",
+      "3",
+      "Section",
+      "Cross"
+    ],
+    "dependencies": [
+      "total_estimated_tokens",
+      "distillate_total_tokens",
+      "source_total_tokens",
+      "compression_ratio"
+    ],
+    "controlFlowFeatures": [
+      "branching",
+      "loop",
+      "credential_access"
+    ],
+    "ioContract": {
+      "inputsRaw": "",
+      "outputsRaw": ""
+    },
+    "preconditions": []
+  },
+  "structural": [
+    {
+      "id": "skill#scene:REASON:1",
+      "scene": "REASON",
+      "sceneGoal": "Stage 1: Analyze",
+      "summary": "Stage 1: Analyze",
+      "containsLogicalIds": [],
+      "transitionsTo": [
+        "skill#scene:VERIFY:2"
+      ]
+    },
+    {
+      "id": "skill#scene:VERIFY:2",
+      "scene": "VERIFY",
+      "sceneGoal": "Stage 3: Verify & Output",
+      "summary": "Stage 3: Verify & Output",
+      "containsLogicalIds": [],
+      "transitionsTo": [
+        "skill#scene:VERIFY:3"
+      ]
+    },
+    {
+      "id": "skill#scene:VERIFY:3",
+      "scene": "VERIFY",
+      "sceneGoal": "Stage 4: Round-Trip Validation (--validate only)",
+      "summary": "Stage 4: Round-Trip Validation (--validate only)",
+      "containsLogicalIds": [
+        "skill#logical:1"
+      ],
+      "transitionsTo": []
+    }
+  ],
+  "logical": [
+    {
+      "id": "skill#logical:1",
+      "action": "READ",
+      "description": "Read (heuristic from §\"Stage 4: Round-Trip Validation (--validate only)\")",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "Read",
+      "effects": [],
+      "evidenceClaimIds": []
+    }
+  ],
+  "warnings": [
+    "scheduling.expectedInputs empty (LLM fill needed)"
+  ]
+}

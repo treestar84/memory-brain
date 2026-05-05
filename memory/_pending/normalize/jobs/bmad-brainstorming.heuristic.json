@@ -1,0 +1,38 @@
+{
+  "sslVersion": "0.2.0",
+  "sourceSkillPath": ".claude/skills/bmad-brainstorming/SKILL.md",
+  "sourceSha256": "f4a2c22b40ed34cdbd3282dd6161a3b869902f3bc75b58e181fc9faf78eedd9d",
+  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedBy": "heuristic",
+  "scheduling": {
+    "id": "skill#scheduling",
+    "skillName": "bmad-brainstorming",
+    "skillGoal": "Facilitate interactive brainstorming sessions using diverse creative techniques and ideation methods",
+    "intentSignature": "Facilitate interactive brainstorming sessions using diverse creative techniques and ideation methods",
+    "intentSignatures": [
+      "Facilitate interactive brainstorming sessions using diverse creative techniques and ideation methods",
+      "Use when the user says help me brainstorm or help me ideate"
+    ],
+    "triggerPatterns": [
+      "the user says help me brainstorm or help me ideate",
+      "says help me brainstorm or help me ideate"
+    ],
+    "expectedInputs": [],
+    "expectedOutputs": [],
+    "dependencies": [],
+    "controlFlowFeatures": [],
+    "ioContract": {
+      "inputsRaw": "",
+      "outputsRaw": ""
+    },
+    "preconditions": []
+  },
+  "structural": [],
+  "logical": [],
+  "warnings": [
+    "scheduling.expectedInputs empty (LLM fill needed)",
+    "scheduling.expectedOutputs empty (LLM fill needed)",
+    "no scenes inferred from headings (LLM fill needed)",
+    "no actions inferred from body (LLM fill needed)"
+  ]
+}

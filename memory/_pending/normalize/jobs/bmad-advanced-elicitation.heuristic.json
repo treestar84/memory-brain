@@ -1,0 +1,43 @@
+{
+  "sslVersion": "0.2.0",
+  "sourceSkillPath": ".claude/skills/bmad-advanced-elicitation/SKILL.md",
+  "sourceSha256": "1a7396d28ba7524588d44e5eac9b6a41372a0bf8d9e1c4c469728493abd5e12f",
+  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedBy": "heuristic",
+  "scheduling": {
+    "id": "skill#scheduling",
+    "skillName": "bmad-advanced-elicitation",
+    "skillGoal": "Push the LLM to reconsider, refine, and improve its recent output",
+    "intentSignature": "Push the LLM to reconsider, refine, and improve its recent output",
+    "intentSignatures": [
+      "Push the LLM to reconsider, refine, and improve its recent output",
+      "Use when user asks for deeper critique or mentions a known deeper critique method, e.g",
+      "socratic, first principles, pre-mortem, red team"
+    ],
+    "triggerPatterns": [
+      "user asks for deeper critique or mentions a known deeper critique method, e"
+    ],
+    "expectedInputs": [],
+    "expectedOutputs": [],
+    "dependencies": [
+      "communication_language"
+    ],
+    "controlFlowFeatures": [
+      "branching",
+      "loop"
+    ],
+    "ioContract": {
+      "inputsRaw": "",
+      "outputsRaw": ""
+    },
+    "preconditions": []
+  },
+  "structural": [],
+  "logical": [],
+  "warnings": [
+    "scheduling.expectedInputs empty (LLM fill needed)",
+    "scheduling.expectedOutputs empty (LLM fill needed)",
+    "no scenes inferred from headings (LLM fill needed)",
+    "no actions inferred from body (LLM fill needed)"
+  ]
+}

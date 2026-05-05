@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>memory-brain · KG-Brain Dashboard</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --surface: #161b22;
+    --surface-2: #21262d;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --accent: #58a6ff;
+    --warn: #d29922;
+    --crit: #f85149;
+    --ok: #3fb950;
+    --info: #79c0ff;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  header { padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--surface); display: flex; align-items: baseline; gap: 24px; }
+  header h1 { margin: 0; font-size: 18px; font-weight: 600; }
+  header .sub { color: var(--muted); font-size: 12px; font-family: var(--mono); }
+  header .stats { margin-left: auto; display: flex; gap: 20px; font-size: 13px; }
+  header .stats span b { color: var(--accent); margin-right: 4px; font-variant-numeric: tabular-nums; }
+
+  .layout { display: grid; grid-template-columns: 320px 1fr; height: calc(100vh - 60px); }
+  .sidebar { border-right: 1px solid var(--border); overflow-y: auto; padding: 12px; background: var(--surface); }
+  .main { overflow-y: auto; padding: 24px; }
+
+  .search { margin-bottom: 12px; }
+  .search input { width: 100%; padding: 8px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font: inherit; }
+  .search input:focus { outline: none; border-color: var(--accent); }
+
+  .skill-item { padding: 8px 10px; border-radius: 6px; cursor: pointer; margin-bottom: 2px; display: flex; align-items: center; gap: 8px; }
+  .skill-item:hover { background: var(--surface-2); }
+  .skill-item.active { background: var(--surface-2); border-left: 2px solid var(--accent); padding-left: 8px; }
+  .skill-item .name { flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .badge { font-size: 10px; padding: 2px 6px; border-radius: 10px; font-family: var(--mono); }
+  .badge.heuristic { background: #25313d; color: var(--info); }
+  .badge.llm { background: #1f3a26; color: var(--ok); }
+  .badge.pending { background: #3a2f1d; color: var(--warn); }
+  .badge.failed { background: #3a1d1d; color: var(--crit); }
+  .badge.warn { background: #3a2f1d; color: var(--warn); }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .panel h2 { margin: 0 0 12px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+  .panel h3 { margin: 16px 0 8px; font-size: 13px; color: var(--accent); }
+
+  .kv { display: grid; grid-template-columns: 140px 1fr; gap: 6px 16px; font-size: 13px; }
+  .kv dt { color: var(--muted); font-family: var(--mono); }
+  .kv dd { margin: 0; word-break: break-word; }
+  .chip { display: inline-block; padding: 2px 8px; margin: 2px 4px 2px 0; border-radius: 10px; font-size: 11px; background: var(--surface-2); font-family: var(--mono); }
+  .chip.scope { background: #25313d; color: var(--info); }
+  .chip.action { background: #1f3a26; color: var(--ok); }
+  .chip.empty { color: var(--muted); font-style: italic; background: transparent; padding: 0; }
+
+  .scenes { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .scene { padding: 6px 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; font-family: var(--mono); font-size: 12px; }
+  .scene .scene-goal { color: var(--muted); font-size: 11px; display: block; margin-top: 2px; }
+  .arrow { color: var(--muted); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  td.action { font-family: var(--mono); }
+  td .empty-mark { color: var(--warn); }
+
+  .empty { color: var(--muted); padding: 32px; text-align: center; }
+
+  .risk-row { padding: 8px 12px; border-radius: 6px; margin-bottom: 6px; border-left: 3px solid; }
+  .risk-row.critical { background: #2d1717; border-color: var(--crit); }
+  .risk-row.warning { background: #2d2417; border-color: var(--warn); }
+  .risk-row.info { background: #17242d; border-color: var(--info); }
+  .risk-row .subj { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .risk-row .msg { font-weight: 500; }
+
+  .search-results { margin-bottom: 16px; }
+  .search-results h2 { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+  .result { padding: 6px 10px; cursor: pointer; border-radius: 6px; }
+  .result:hover { background: var(--surface-2); }
+  .result .score { color: var(--muted); font-family: var(--mono); font-size: 11px; margin-left: 8px; }
+  .warn-line { font-family: var(--mono); font-size: 12px; color: var(--warn); margin-bottom: 4px; }
+  .queue-hint { margin-top: 12px; color: var(--muted); }
+  .meta-sha { font-family: var(--mono); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>memory-brain · KG-Brain Dashboard</h1>
+  <span class="sub" id="version"></span>
+  <div class="stats" id="stats"></div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="search">
+      <input id="q" type="search" placeholder="skill discovery 검색 (test failure …)" autocomplete="off" />
+    </div>
+    <div id="searchResults" class="search-results" hidden></div>
+    <div id="skillList"></div>
+  </aside>
+
+  <main class="main">
+    <div id="detail">
+      <div class="empty">왼쪽에서 skill 을 선택하거나 검색하세요.</div>
+    </div>
+  </main>
+</div>
+
+<script>
+// All DOM construction goes through el() / text() — never innerHTML with
+// user data. Production OSS XSS-safe contract.
+
+const $ = (s) => document.querySelector(s);
+
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k === "class") node.className = v;
+    else if (k === "dataset") for (const [dk, dv] of Object.entries(v)) node.dataset[dk] = dv;
+    else if (k.startsWith("on") && typeof v === "function") node.addEventListener(k.slice(2), v);
+    else if (k === "hidden" && v) node.hidden = true;
+    else node.setAttribute(k, v);
+  }
+  for (const c of children.flat()) {
+    if (c == null || c === false) continue;
+    node.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  }
+  return node;
+}
+function text(s) { return document.createTextNode(String(s ?? "")); }
+function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+let state = { skills: [], risk: null, queue: null, selected: null };
+
+async function load() {
+  const [skillsRes, riskRes, queueRes] = await Promise.all([
+    fetch("/api/skills").then((r) => r.json()),
+    fetch("/api/risk").then((r) => r.json()),
+    fetch("/api/queue").then((r) => r.json()),
+  ]);
+  state.skills = skillsRes.skills;
+  state.risk = riskRes;
+  state.queue = queueRes;
+  $("#version").textContent = `SSL ${skillsRes.sslVersion} · ${skillsRes.skills.length} skills`;
+  renderStats();
+  renderSkillList();
+}
+
+function renderStats() {
+  const llm = state.skills.filter((s) => s.generatedBy === "llm").length;
+  const heur = state.skills.filter((s) => s.generatedBy === "heuristic").length;
+  const queue = state.queue?.counts ?? {};
+  const findings = state.risk?.findings ?? [];
+  const crit = findings.filter((f) => f.severity === "critical").length;
+  const warn = findings.filter((f) => f.severity === "warning").length;
+  const stats = $("#stats");
+  clear(stats);
+  for (const [n, label] of [[heur, "heuristic"], [llm, "llm-enriched"], [queue.pending ?? 0, "queued"], [crit, "critical"], [warn, "warning"]]) {
+    stats.append(el("span", {}, el("b", {}, n), label));
+  }
+}
+
+function renderSkillList() {
+  const list = $("#skillList");
+  clear(list);
+  if (state.skills.length === 0) {
+    list.append(el("div", { class: "empty" }, "SSL 문서 없음. ", el("code", {}, "bin/cfgm-ssl-enqueue.ts"), " 실행."));
+    return;
+  }
+  for (const s of state.skills) {
+    const badges = [];
+    badges.push(el("span", { class: `badge ${s.generatedBy}` }, s.generatedBy === "llm" ? "llm" : "heuristic"));
+    if (s.queueStatus === "pending") badges.push(el("span", { class: "badge pending" }, "queued"));
+    if (s.queueStatus === "failed") badges.push(el("span", { class: "badge failed" }, "failed"));
+    if (s.warnings > 0) badges.push(el("span", { class: "badge warn" }, `${s.warnings}w`));
+    const item = el("div", {
+      class: "skill-item" + (state.selected === s.slug ? " active" : ""),
+      dataset: { slug: s.slug },
+      onclick: () => selectSkill(s.slug),
+    },
+      el("span", { class: "name" }, s.name),
+      ...badges,
+    );
+    list.append(item);
+  }
+}
+
+async function selectSkill(slug) {
+  state.selected = slug;
+  renderSkillList();
+  const data = await fetch(`/api/skills/${encodeURIComponent(slug)}`).then((r) => r.json());
+  const detail = $("#detail");
+  clear(detail);
+  if (data.error) {
+    detail.append(el("div", { class: "empty" }, data.error));
+    return;
+  }
+  renderDetail(detail, data);
+}
+
+function renderDetail(root, data) {
+  const { doc, queueStatus, risk } = data;
+  const sched = doc.scheduling;
+
+  // Scheduling panel
+  root.append(makePanel("Scheduling — 왜·언제 호출되는가",
+    makeKV([
+      ["skill", el("b", {}, sched.skillName)],
+      ["goal", text(sched.skillGoal || "(host LLM 처리 필요)")],
+      ["intents", makeChips(sched.intentSignatures)],
+      ["triggers", makeChips(sched.triggerPatterns)],
+      ["inputs", makeChips(sched.expectedInputs)],
+      ["outputs", makeChips(sched.expectedOutputs)],
+      ["dependencies", makeChips(sched.dependencies)],
+      ["flow features", makeChips(sched.controlFlowFeatures)],
+    ]),
+  ));
+
+  // Structural panel
+  const scenesBox = el("div", { class: "scenes" });
+  (doc.structural || []).forEach((s, i) => {
+    if (i > 0) scenesBox.append(el("span", { class: "arrow" }, "→"));
+    scenesBox.append(el("div", { class: "scene" },
+      el("b", {}, s.scene),
+      el("span", { class: "scene-goal" }, s.sceneGoal || s.summary),
+    ));
+  });
+  root.append(makePanel("Structural — 어떻게 흐르는가", scenesBox));
+
+  // Logical panel
+  const logicalBody = (doc.logical || []).length === 0
+    ? el("div", { class: "empty" }, "action 추론 안 됨 — host LLM 처리 필요")
+    : (() => {
+        const tbl = el("table");
+        const thead = el("thead", {}, el("tr", {},
+          ...["action", "target", "resources", "effects", "설명"].map((h) => el("th", {}, h))
+        ));
+        const tbody = el("tbody");
+        for (const l of doc.logical) {
+          const effectsTd = el("td");
+          if ((l.effects || []).length === 0) {
+            effectsTd.append(el("span", { class: "empty-mark" }, "(empty)"));
+          } else {
+            for (const e of l.effects) effectsTd.append(el("span", { class: "chip" }, e));
+          }
+          const resourcesTd = el("td");
+          for (const r of (l.resources || [])) resourcesTd.append(el("span", { class: "chip scope" }, r));
+          tbody.append(el("tr", {},
+            el("td", { class: "action" }, el("span", { class: "chip action" }, l.action)),
+            el("td", {}, l.resourceTarget || ""),
+            resourcesTd,
+            effectsTd,
+            el("td", {}, l.description),
+          ));
+        }
+        tbl.append(thead, tbody);
+        return tbl;
+      })();
+  root.append(makePanel("Logical — 무엇을 하는가", logicalBody));
+
+  // Risk findings (this skill)
+  if (risk && risk.length > 0) {
+    const riskBox = el("div");
+    for (const f of risk) {
+      riskBox.append(el("div", { class: `risk-row ${f.severity}` },
+        el("div", { class: "subj" }, f.subject),
+        el("div", { class: "msg" }, f.message),
+      ));
+    }
+    root.append(makePanel("Risk findings (이 skill)", riskBox));
+  }
+
+  // Warnings
+  if (doc.warnings && doc.warnings.length > 0) {
+    const warnBox = el("div");
+    for (const w of doc.warnings) warnBox.append(el("div", { class: "warn-line" }, `— ${w}`));
+    if (queueStatus === "pending") {
+      warnBox.append(el("p", { class: "queue-hint" },
+        el("b", {}, "queue 상태:"), " pending — host CLI 에 자연어로 \"memory-brain pending 작업 처리\" 요청"
+      ));
+    }
+    root.append(makePanel(`Warnings — host LLM 이 메울 hole (${doc.warnings.length})`, warnBox));
+  }
+
+  // Metadata
+  root.append(makePanel("Metadata",
+    makeKV([
+      ["source", el("code", {}, doc.sourceSkillPath)],
+      ["SHA-256", el("span", { class: "meta-sha" }, doc.sourceSha256)],
+      ["generated by", text(doc.generatedBy)],
+      ["generated at", text(doc.generatedAt)],
+    ]),
+  ));
+}
+
+function makePanel(title, ...children) {
+  return el("div", { class: "panel" }, el("h2", {}, title), ...children);
+}
+
+function makeKV(rows) {
+  const dl = el("dl", { class: "kv" });
+  for (const [k, v] of rows) {
+    dl.append(el("dt", {}, k), el("dd", {}, v));
+  }
+  return dl;
+}
+
+function makeChips(items) {
+  if (!items || items.length === 0) return el("span", { class: "chip empty" }, "(없음)");
+  const wrap = el("span");
+  for (const it of items) wrap.append(el("span", { class: "chip" }, it));
+  return wrap;
+}
+
+let searchTimer;
+$("#q").addEventListener("input", (e) => {
+  clearTimeout(searchTimer);
+  const q = e.target.value.trim();
+  if (!q) { $("#searchResults").hidden = true; return; }
+  searchTimer = setTimeout(() => doSearch(q), 200);
+});
+
+async function doSearch(q) {
+  const data = await fetch(`/api/search?q=${encodeURIComponent(q)}`).then((r) => r.json());
+  const box = $("#searchResults");
+  clear(box);
+  if (data.error) { box.hidden = true; return; }
+  box.hidden = false;
+  box.append(el("h2", {}, `검색 결과 (${data.hits.length})`));
+  if (data.hits.length === 0) {
+    box.append(el("div", { class: "empty" }, "매칭 없음"));
+    return;
+  }
+  for (const h of data.hits) {
+    box.append(el("div", {
+      class: "result",
+      dataset: { slug: h.skillSlug },
+      onclick: () => selectSkill(h.skillSlug),
+    },
+      h.skillName,
+      el("span", { class: "score" }, `rank ${h.rank.toFixed(2)}`),
+    ));
+  }
+}
+
+load();
+</script>
+</body>
+</html>

@@ -96,6 +96,7 @@ for (const fullPath of filesToProcess) {
   const slug = slugFromSkillPath(fullPath).replace(/[^a-zA-Z0-9_-]+/g, "-").toLowerCase();
   const outPath = resolve(args.outDir, `${slug}.json`);
   const jobPath = resolve(args.jobsDir, `${slug}.job.md`);
+  const heuristicPath = resolve(args.jobsDir, `${slug}.heuristic.json`);
 
   // Stale check — same SHA in either output or pending job → skip
   if (!args.force) {
@@ -126,16 +127,18 @@ for (const fullPath of filesToProcess) {
     continue;
   }
 
-  // Enqueue as host-processable job
+  // Enqueue as host-processable job — heuristic 은 sidecar JSON, job.md 는
+  // instruction 만. fence collision (source 안에 ```json) 을 회피한다.
+  await Bun.write(heuristicPath, JSON.stringify(doc, null, 2));
   const job = renderJobFile({
     slug,
     sourcePath: relative(process.cwd(), fullPath),
     sourceSha: sha,
     outputPath: relative(process.cwd(), outPath),
+    heuristicPath: relative(process.cwd(), heuristicPath),
     specDir: relative(process.cwd(), args.specDir),
     generatedAt,
-    source,
-    heuristicDoc: doc,
+    warningsCount: doc.warnings.length,
   });
   await Bun.write(jobPath, job);
   stats.enqueued++;
@@ -158,10 +161,10 @@ interface RenderJobOpts {
   sourcePath: string;
   sourceSha: string;
   outputPath: string;
+  heuristicPath: string;
   specDir: string;
   generatedAt: string;
-  source: string;
-  heuristicDoc: unknown;
+  warningsCount: number;
 }
 
 function renderJobFile(o: RenderJobOpts): string {
@@ -171,25 +174,20 @@ function renderJobFile(o: RenderJobOpts): string {
     `status: pending`,
     `source_path: ${o.sourcePath}`,
     `source_sha256: ${o.sourceSha}`,
+    `heuristic_path: ${o.heuristicPath}`,
     `output_path: ${o.outputPath}`,
     `enqueued_at: ${o.generatedAt}`,
+    `warnings_count: ${o.warningsCount}`,
     `---`,
     ``,
     `# Normalize job — \`${o.slug}\``,
     ``,
     `이 작업의 처리 방법은 [\`${o.specDir}/prompt.md\`](${o.specDir}/prompt.md) + [\`${o.specDir}/ssl-schema.md\`](${o.specDir}/ssl-schema.md) 를 먼저 읽고 따른다.`,
     ``,
-    `## Source`,
+    `## 입력`,
     ``,
-    `\`\`\`markdown`,
-    o.source,
-    `\`\`\``,
-    ``,
-    `## Heuristic 1차 결과 (warnings 있음 — host LLM 이 메울 hole 명시)`,
-    ``,
-    `\`\`\`json`,
-    JSON.stringify(o.heuristicDoc, null, 2),
-    `\`\`\``,
+    `- 원본: [\`${o.sourcePath}\`](${o.sourcePath}) — SHA-256 \`${o.sourceSha}\``,
+    `- Heuristic 1차 (warnings ${o.warningsCount}): [\`${o.heuristicPath}\`](${o.heuristicPath})`,
     ``,
     `## 완료 후`,
     ``,

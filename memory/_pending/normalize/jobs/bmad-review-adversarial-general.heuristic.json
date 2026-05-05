@@ -1,0 +1,40 @@
+{
+  "sslVersion": "0.2.0",
+  "sourceSkillPath": ".claude/skills/bmad-review-adversarial-general/SKILL.md",
+  "sourceSha256": "7bffc39e6dba4d9123648c5d4d79e17c3c5b1efbd927c3fe0026c2dbb8d99cff",
+  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedBy": "heuristic",
+  "scheduling": {
+    "id": "skill#scheduling",
+    "skillName": "bmad-review-adversarial-general",
+    "skillGoal": "Perform a Cynical Review and produce a findings report",
+    "intentSignature": "Perform a Cynical Review and produce a findings report",
+    "intentSignatures": [
+      "Perform a Cynical Review and produce a findings report",
+      "Use when the user requests a critical review of something"
+    ],
+    "triggerPatterns": [
+      "the user requests a critical review of something",
+      "requests a critical review of something"
+    ],
+    "expectedInputs": [],
+    "expectedOutputs": [],
+    "dependencies": [],
+    "controlFlowFeatures": [
+      "branching"
+    ],
+    "ioContract": {
+      "inputsRaw": "",
+      "outputsRaw": ""
+    },
+    "preconditions": []
+  },
+  "structural": [],
+  "logical": [],
+  "warnings": [
+    "scheduling.expectedInputs empty (LLM fill needed)",
+    "scheduling.expectedOutputs empty (LLM fill needed)",
+    "no scenes inferred from headings (LLM fill needed)",
+    "no actions inferred from body (LLM fill needed)"
+  ]
+}

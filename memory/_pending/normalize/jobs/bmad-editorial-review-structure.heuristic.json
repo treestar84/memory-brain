@@ -1,0 +1,80 @@
+{
+  "sslVersion": "0.2.0",
+  "sourceSkillPath": ".claude/skills/bmad-editorial-review-structure/SKILL.md",
+  "sourceSha256": "164444359d74f695a84faf7ea558d0eef39c75561e6b26669f97a165c6f75538",
+  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedBy": "heuristic",
+  "scheduling": {
+    "id": "skill#scheduling",
+    "skillName": "bmad-editorial-review-structure",
+    "skillGoal": "Structural editor that proposes cuts, reorganization, and simplification while preserving comprehension",
+    "intentSignature": "Structural editor that proposes cuts, reorganization, and simplification while preserving comprehension",
+    "intentSignatures": [
+      "Structural editor that proposes cuts, reorganization, and simplification while preserving comprehension",
+      "Use when user requests structural review or editorial review of structure"
+    ],
+    "triggerPatterns": [
+      "user requests structural review or editorial review of structure"
+    ],
+    "expectedInputs": [
+      "Check",
+      "If",
+      "Validate",
+      "If",
+      "Identify",
+      "Note"
+    ],
+    "expectedOutputs": [
+      "Output",
+      "Output",
+      "Output",
+      "If"
+    ],
+    "dependencies": [],
+    "controlFlowFeatures": [
+      "branching",
+      "loop",
+      "network_access",
+      "stateful"
+    ],
+    "ioContract": {
+      "inputsRaw": "",
+      "outputsRaw": ""
+    },
+    "preconditions": []
+  },
+  "structural": [
+    {
+      "id": "skill#scene:REASON:1",
+      "scene": "REASON",
+      "sceneGoal": "Explanation (Conceptual)",
+      "summary": "Explanation (Conceptual)",
+      "containsLogicalIds": [],
+      "transitionsTo": [
+        "skill#scene:PREPARE:2"
+      ]
+    },
+    {
+      "id": "skill#scene:PREPARE:2",
+      "scene": "PREPARE",
+      "sceneGoal": "Prompt/Task Definition (Functional)",
+      "summary": "Prompt/Task Definition (Functional)",
+      "containsLogicalIds": [],
+      "transitionsTo": [
+        "skill#scene:ACQUIRE:3"
+      ]
+    },
+    {
+      "id": "skill#scene:ACQUIRE:3",
+      "scene": "ACQUIRE",
+      "sceneGoal": "Step 1: Validate Input",
+      "summary": "Step 1: Validate Input",
+      "containsLogicalIds": [],
+      "transitionsTo": []
+    }
+  ],
+  "logical": [],
+  "warnings": [
+    "no actions inferred from body (LLM fill needed)"
+  ]
+}

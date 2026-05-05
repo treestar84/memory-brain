@@ -110,3 +110,23 @@
 - `bin/cfgm-ssl-validate.ts` — 1 job 결과 검증 (validateSSL gate)
 - `bin/cfgm-ssl-status.ts` — pending/done 통계
 - 호출 진입점 0 — 파일과 자연어만으로 vendor-agnostic. host LLM 이 자기 inference 채널로 처리.
+
+## PR-V3.13-rev2.1 (2026-05-05) — fence-collision fix + 첫 실데이터 시범 + KG-Brain Dashboard
+
+**Fence collision 수정**
+- 기존 job.md 내부 ` ```json` 블록이 source SKILL.md 안의 ` ```json` 과 충돌해 일부 skill (예: bmad-distillator, bmad-review-edge-case-hunter) 의 heuristic JSON 추출 실패.
+- 해결: heuristic 을 `<slug>.heuristic.json` sidecar 파일로 분리. job.md 는 frontmatter + reference link 만.
+- 영향: enqueue/viewer/_spec/prompt.md/test 모두 sidecar 모델로 갱신.
+
+**첫 실데이터 시범 (작업 A)**
+- `.claude/skills/**` 11 건 모두 enqueue 성공. 11/11 pending (heuristic 만으론 hole 1+).
+- ROUTER → SearchIndex → SSLRiskDetector end-to-end 정상 동작.
+
+**KG-Brain Dashboard (`bin/cfgm-ssl-viewer.ts` + `.html`)**
+- Bun.serve() + HTML import (CLAUDE.md Bun 정책 준수). 외부 React/Tailwind/MCP 의존성 0.
+- 5 endpoint: `/api/skills`, `/api/skills/:slug`, `/api/search`, `/api/queue`, `/api/risk`.
+- UI: skill list + detail (Scheduling/Structural/Logical 3-layer 시각화) + search + risk findings + warnings 목록.
+- XSS-safe DOM API (innerHTML 미사용).
+- 사용법: `bun run viewer:ssl` → http://localhost:4041
+
+**검증**: 749/749 pass · typecheck OK · 회귀 0건.

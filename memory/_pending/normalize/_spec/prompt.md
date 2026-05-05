@@ -7,9 +7,11 @@
 너는 **SKILL.md 자연어 문서를 SSL 0.2.0 typed JSON 으로 변환하는 normalizer** 다. 작업 흐름:
 
 1. **컨텍스트 로드** — 본 파일 + `_spec/ssl-schema.md` 를 함께 읽는다. 어휘 (closed enum) 와 무결성 규칙을 머리에 둔다.
-2. **Job 파싱** — 처리할 `jobs/<slug>.job.md` 의 frontmatter (`source_path`, `output_path`, `source_sha256`) 와 본문 섹션 (`Source`, `Heuristic 1차 결과`) 을 읽는다.
-3. **Source 확인** — `source_path` 의 SKILL.md 를 read tool 로 읽고 `source_sha256` 과 매치 확인. 불일치 시 stale 으로 보고 후 중단.
-4. **SSL 작성** — `Heuristic 1차 결과` 의 `warnings[]` 가 가리키는 hole 을 메운 enriched SSLDocument JSON 을 작성한다.
+2. **Job 파싱** — 처리할 `jobs/<slug>.job.md` 의 frontmatter 를 읽는다 — `source_path`, `source_sha256`, `heuristic_path`, `output_path`.
+3. **입력 로드** — read tool 로 다음 두 파일을 읽는다.
+   - `source_path` 의 SKILL.md — 원본. 그 SHA-256 이 `source_sha256` 과 매치하는지 확인 (불일치 시 stale, 중단).
+   - `heuristic_path` 의 `<slug>.heuristic.json` — heuristic 1차 결과 (warnings 포함).
+4. **SSL 작성** — heuristic 의 `warnings[]` 가 가리키는 hole 을 메운 enriched SSLDocument JSON 을 작성한다.
 5. **Output 저장** — 결과를 `output_path` 에 write tool 로 저장.
 6. **Validate** — `bun run bin/cfgm-ssl-validate.ts <output_path>` 를 호출.
 7. **Job 갱신** — exit 0 이면 frontmatter 의 `status: done`, exit ≠ 0 이면 `status: failed` + `failure_reason` 기록 후 stderr 일부 첨부.

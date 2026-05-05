@@ -1,0 +1,69 @@
+{
+  "sslVersion": "0.2.0",
+  "sourceSkillPath": ".claude/skills/bmad-editorial-review-prose/SKILL.md",
+  "sourceSha256": "b3687fe80567378627bc2a0c5034ae8d65dfeedcf2b6c90da077f4feca462d0c",
+  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedBy": "heuristic",
+  "scheduling": {
+    "id": "skill#scheduling",
+    "skillName": "bmad-editorial-review-prose",
+    "skillGoal": "Clinical copy-editor that reviews text for communication issues",
+    "intentSignature": "Clinical copy-editor that reviews text for communication issues",
+    "intentSignatures": [
+      "Clinical copy-editor that reviews text for communication issues",
+      "Use when user says review for prose or improve the prose"
+    ],
+    "triggerPatterns": [
+      "user says review for prose or improve the prose"
+    ],
+    "expectedInputs": [
+      "Check",
+      "If",
+      "Validate",
+      "If",
+      "Identify",
+      "Note"
+    ],
+    "expectedOutputs": [
+      "If",
+      "If"
+    ],
+    "dependencies": [
+      "humans",
+      "llm"
+    ],
+    "controlFlowFeatures": [
+      "branching",
+      "loop"
+    ],
+    "ioContract": {
+      "inputsRaw": "",
+      "outputsRaw": ""
+    },
+    "preconditions": []
+  },
+  "structural": [
+    {
+      "id": "skill#scene:ACQUIRE:1",
+      "scene": "ACQUIRE",
+      "sceneGoal": "Step 1: Validate Input",
+      "summary": "Step 1: Validate Input",
+      "containsLogicalIds": [],
+      "transitionsTo": [
+        "skill#scene:REASON:2"
+      ]
+    },
+    {
+      "id": "skill#scene:REASON:2",
+      "scene": "REASON",
+      "sceneGoal": "Step 2: Analyze Style",
+      "summary": "Step 2: Analyze Style",
+      "containsLogicalIds": [],
+      "transitionsTo": []
+    }
+  ],
+  "logical": [],
+  "warnings": [
+    "no actions inferred from body (LLM fill needed)"
+  ]
+}

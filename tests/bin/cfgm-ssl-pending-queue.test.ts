@@ -48,8 +48,13 @@ describe("cfgm-ssl-enqueue / validate / status (PR-V3.13-rev2 file-based queue)"
     expect(jobText).toContain("source_path:");
     expect(jobText).toContain("output_path:");
     expect(jobText).toContain("source_sha256:");
-    expect(jobText).toContain("## Source");
-    expect(jobText).toContain("## Heuristic 1차 결과");
+    expect(jobText).toContain("heuristic_path:");
+
+    // Sidecar heuristic JSON 존재 (V3.13-rev2.1 fence-collision fix)
+    const sidecarPath = join(projectDir, "memory/_pending/normalize/jobs/example-pending.heuristic.json");
+    const sidecar = JSON.parse(await readFile(sidecarPath, "utf-8"));
+    expect(sidecar.scheduling.skillName).toBe("example-pending");
+    expect(Array.isArray(sidecar.warnings)).toBe(true);
   });
 
   test("enqueue: re-run with unchanged SHA → skipped", async () => {
@@ -80,13 +85,8 @@ describe("cfgm-ssl-enqueue / validate / status (PR-V3.13-rev2 file-based queue)"
   test("validate: valid SSL JSON → exit 0", async () => {
     // First enqueue + grab heuristic doc from job file
     cli("cfgm-ssl-enqueue", projectDir, ["--json"]);
-    const jobPath = join(projectDir, "memory/_pending/normalize/jobs/example-pending.job.md");
-    const jobText = await readFile(jobPath, "utf-8");
-
-    // Extract the heuristic JSON from the job file
-    const m = jobText.match(/```json\n([\s\S]+?)\n```/);
-    expect(m).not.toBeNull();
-    const heuristicDoc = JSON.parse(m![1]);
+    const sidecarPath = join(projectDir, "memory/_pending/normalize/jobs/example-pending.heuristic.json");
+    const heuristicDoc = JSON.parse(await readFile(sidecarPath, "utf-8"));
     // The heuristic doc has warnings, so validate would fail on warnings.
     // For this test, we strip warnings to simulate a "host LLM completed" output.
     heuristicDoc.warnings = [];
@@ -116,10 +116,8 @@ describe("cfgm-ssl-enqueue / validate / status (PR-V3.13-rev2 file-based queue)"
 
   test("validate: unresolved warnings → exit 1", async () => {
     cli("cfgm-ssl-enqueue", projectDir, ["--json"]);
-    const jobPath = join(projectDir, "memory/_pending/normalize/jobs/example-pending.job.md");
-    const jobText = await readFile(jobPath, "utf-8");
-    const m = jobText.match(/```json\n([\s\S]+?)\n```/);
-    const docWithWarnings = JSON.parse(m![1]);
+    const sidecarPath = join(projectDir, "memory/_pending/normalize/jobs/example-pending.heuristic.json");
+    const docWithWarnings = JSON.parse(await readFile(sidecarPath, "utf-8"));
     expect(docWithWarnings.warnings.length).toBeGreaterThan(0);
 
     const outDir = join(projectDir, "memory/concepts/_ssl");

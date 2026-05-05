@@ -1,0 +1,47 @@
+{
+  "sslVersion": "0.2.0",
+  "sourceSkillPath": ".claude/skills/bmad-party-mode/SKILL.md",
+  "sourceSha256": "0e24fb777af648d3f093b6f8932a4b91a9fe1b459439b661fcb7879ac50e2ac0",
+  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedBy": "heuristic",
+  "scheduling": {
+    "id": "skill#scheduling",
+    "skillName": "bmad-party-mode",
+    "skillGoal": "Orchestrates group discussions between installed BMAD agents, enabling natural multi-agent conversations where each agent is a real subagent with independent thinking",
+    "intentSignature": "Orchestrates group discussions between installed BMAD agents, enabling natural multi-agent conversations where each agent is a real subagent with independent thinking",
+    "intentSignatures": [
+      "Orchestrates group discussions between installed BMAD agents, enabling natural multi-agent conversations where each agent is a real subagent with independent thinking",
+      "Use when user requests party mode, wants multiple agent perspectives, group discussion, roundtable, or multi-agent conversation about their project"
+    ],
+    "triggerPatterns": [
+      "user requests party mode, wants multiple agent perspectives, group discussion, roundtable, or multi-agent conversation about their project",
+      "just prefers it",
+      "says they're done (any natural phrasing — \"thanks\", \"that's all\", \"end party mode\", etc"
+    ],
+    "expectedInputs": [],
+    "expectedOutputs": [],
+    "dependencies": [
+      "haiku"
+    ],
+    "controlFlowFeatures": [
+      "branching",
+      "loop",
+      "scheduled_retry",
+      "network_access",
+      "long_running"
+    ],
+    "ioContract": {
+      "inputsRaw": "",
+      "outputsRaw": ""
+    },
+    "preconditions": []
+  },
+  "structural": [],
+  "logical": [],
+  "warnings": [
+    "scheduling.expectedInputs empty (LLM fill needed)",
+    "scheduling.expectedOutputs empty (LLM fill needed)",
+    "no scenes inferred from headings (LLM fill needed)",
+    "no actions inferred from body (LLM fill needed)"
+  ]
+}
