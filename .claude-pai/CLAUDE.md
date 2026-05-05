@@ -62,7 +62,8 @@
 
 - `docs/RULES.md` — 5 원칙 전문
 - `memory/_pending/normalize/_spec/prompt.md` — normalize 작업 상세 명세 (이 CLAUDE.md 와 일부 중복; 본 파일이 우선)
-- `memory/_pending/normalize/_spec/ssl-schema.md` — SSL 0.2.0 schema 구조 명세
+- `memory/_pending/normalize/_spec/ssl-schema.md` — SSL 0.3.0 schema 구조 명세 (4 신규 노드 포함)
 - `memory/_pending/normalize/_spec/vocabulary.yaml` — closed vocabulary 단일 source. enum 검증 시 본 파일 우선 참조 (default + extensions)
+- `memory/concepts/_ssl/_canonical/actions.yaml` — canonical action store. logical.actionRef 가 본 파일의 ID 참조. 매치되는 패턴은 반드시 ref 사용 (inline 금지 — 결정성 보장).
 - `memory/SCHEMA.md` — memory/ 디렉토리 전체 구조
 - `memory/ROUTER.md` — retrieval policy

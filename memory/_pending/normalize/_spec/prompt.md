@@ -38,6 +38,13 @@
 - **`structural[].sceneGoal`** — active form. heuristic 의 `summary` (헤더 텍스트) 를 능동 목표로 다시 표현.
 - **`logical[].effects[]`** — past-tense observable post-condition. 예: `urls_persisted`, `tests_executed`. **모든 logical 노드가 1+ effects 를 가져야 함**.
 - **`logical[].resourceTarget`** — 구체적 식별자 (예: `search_api`, `keyword_results` 테이블).
+- **`logical[].actionRef`** (v0.3.0 신규) — `memory/concepts/_ssl/_canonical/actions.yaml` 의 ID 와 매치되는 패턴이 있으면 **반드시 ref 사용** (inline 만으로 두지 말 것). 매치 없으면 inline 유지 + 사용자 검토용 `warnings` 에 `"CANONICAL_CANDIDATE: <signature>"` 한 줄.
+- **`decisions[]`, `interactions[]`, `evidence[]`, `protocols[]`** (v0.3.0 신규 4 노드) — SKILL.md 본문에서 다음 패턴이 발견되면 채움:
+  - 분기 logic ("if X then Y") → DecisionNode
+  - 사용자 발화 ("사용자에게 ~라고 묻기") → InteractionNode
+  - 예시·sample input/output → EvidenceNode
+  - 다른 skill 호출·위임 → ProtocolNode
+  - **없으면 빈 배열 유지** — 강제로 만들지 말 것 (false positive 금지).
 
 ### 절대 금지
 

@@ -266,6 +266,65 @@ function renderDetail(root, data) {
       })();
   root.append(makePanel("Logical — 무엇을 하는가", logicalBody));
 
+  // v0.3.0 신규 4 노드 — Decisions / Interactions / Evidence / Protocols
+  const renderDecisions = () => {
+    if (!doc.decisions || doc.decisions.length === 0) return null;
+    const box = el("div");
+    for (const d of doc.decisions) {
+      const node = el("div", { class: "scene", style: "display:block;margin-bottom:8px" },
+        el("b", {}, d.question),
+      );
+      const branchUl = el("ul", { style: "margin:6px 0 0 16px;padding:0" });
+      for (const b of d.branches) {
+        branchUl.append(el("li", {}, el("code", {}, "when "), b.when, el("code", {}, " → "), b.then));
+      }
+      node.append(branchUl);
+      if (d.fallback) node.append(el("div", { style: "color:var(--muted);margin-top:4px" }, "fallback: ", d.fallback));
+      box.append(node);
+    }
+    return makePanel(`Decisions (${doc.decisions.length})`, box);
+  };
+  const renderInteractions = () => {
+    if (!doc.interactions || doc.interactions.length === 0) return null;
+    const box = el("div");
+    for (const i of doc.interactions) {
+      box.append(el("div", { class: "scene", style: "display:block;margin-bottom:8px" },
+        el("span", { class: "chip" }, i.expectedResponseType),
+        " ",
+        el("b", {}, i.prompt),
+        i.options && i.options.length > 0 ? el("div", { style: "margin-top:4px" }, "options: ", i.options.map((o) => el("span", { class: "chip" }, o))) : null,
+      ));
+    }
+    return makePanel(`Interactions (${doc.interactions.length})`, box);
+  };
+  const renderEvidence = () => {
+    if (!doc.evidence || doc.evidence.length === 0) return null;
+    const box = el("div");
+    for (const e of doc.evidence) {
+      box.append(el("div", { class: "scene", style: "display:block;margin-bottom:8px" },
+        el("b", {}, e.caseLabel),
+        el("ul", { style: "margin:4px 0 0 16px" }, ...(e.successCriteria || []).map((c) => el("li", {}, c))),
+      ));
+    }
+    return makePanel(`Evidence (${doc.evidence.length})`, box);
+  };
+  const renderProtocols = () => {
+    if (!doc.protocols || doc.protocols.length === 0) return null;
+    const box = el("div");
+    for (const p of doc.protocols) {
+      box.append(el("div", { class: "scene", style: "display:block;margin-bottom:8px" },
+        "delegate to ", el("b", {}, p.delegateTo), " when ", el("i", {}, p.whenCondition),
+        p.inputsForward && p.inputsForward.length > 0 ? el("div", { style: "margin-top:4px" }, "inputs: ", p.inputsForward.map((s) => el("span", { class: "chip" }, s))) : null,
+        p.outputsExpected && p.outputsExpected.length > 0 ? el("div", {}, "outputs: ", p.outputsExpected.map((s) => el("span", { class: "chip" }, s))) : null,
+      ));
+    }
+    return makePanel(`Protocols (${doc.protocols.length})`, box);
+  };
+  for (const fn of [renderDecisions, renderInteractions, renderEvidence, renderProtocols]) {
+    const panel = fn();
+    if (panel) root.append(panel);
+  }
+
   // Risk findings (this skill)
   if (risk && risk.length > 0) {
     const riskBox = el("div");
