@@ -2,7 +2,7 @@
   "sslVersion": "0.3.0",
   "sourceSkillPath": ".claude/skills/bmad-party-mode/SKILL.md",
   "sourceSha256": "0e24fb777af648d3f093b6f8932a4b91a9fe1b459439b661fcb7879ac50e2ac0",
-  "generatedAt": "2026-05-05T14:51:31.743Z",
+  "generatedAt": "2026-05-05T15:39:32.761Z",
   "generatedBy": "heuristic",
   "scheduling": {
     "id": "bmad-party-mode#scheduling",

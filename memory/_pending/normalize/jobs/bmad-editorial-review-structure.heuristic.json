@@ -2,7 +2,7 @@
   "sslVersion": "0.3.0",
   "sourceSkillPath": ".claude/skills/bmad-editorial-review-structure/SKILL.md",
   "sourceSha256": "164444359d74f695a84faf7ea558d0eef39c75561e6b26669f97a165c6f75538",
-  "generatedAt": "2026-05-05T14:51:31.743Z",
+  "generatedAt": "2026-05-05T15:39:32.761Z",
   "generatedBy": "heuristic",
   "scheduling": {
     "id": "bmad-editorial-review-structure#scheduling",

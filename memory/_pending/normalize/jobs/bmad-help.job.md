@@ -1,12 +1,12 @@
 ---
 job_id: norm-2026-05-05-bmad-help
 status: done
-done_at: 2026-05-06T00:00:00.000Z
+done_at: 2026-05-05T15:50:27.000Z
 source_path: .claude/skills/bmad-help/SKILL.md
 source_sha256: cd7096b2ff55b2b87e12d6b9c4c9ea13dfca78c49299a09327c97107f9531da8
 heuristic_path: memory/_pending/normalize/jobs/bmad-help.heuristic.json
 output_path: memory/concepts/_ssl/bmad-help.json
-enqueued_at: 2026-05-05T14:51:31.743Z
+enqueued_at: 2026-05-05T15:39:32.761Z
 warnings_count: 4
 ---
 

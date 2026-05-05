@@ -106,7 +106,8 @@
       "effects": [
         "content_loaded"
       ],
-      "evidenceClaimIds": []
+      "evidenceClaimIds": [],
+      "actionRef": "READ_FROM_MEMORY"
     },
     {
       "id": "bmad-review-edge-case-hunter#logical:2",

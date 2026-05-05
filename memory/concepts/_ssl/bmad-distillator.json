@@ -214,7 +214,8 @@
       "effects": [
         "graceful_degradation_path_chosen"
       ],
-      "evidenceClaimIds": []
+      "evidenceClaimIds": [],
+      "actionRef": "BRANCH_ON_LOCAL_FILE"
     },
     {
       "id": "bmad-distillator#logical:7",

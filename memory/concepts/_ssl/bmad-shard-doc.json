@@ -153,7 +153,8 @@
       "effects": [
         "source_validated_or_halted"
       ],
-      "evidenceClaimIds": []
+      "evidenceClaimIds": [],
+      "actionRef": "BRANCH_ON_LOCAL_FILE"
     },
     {
       "id": "bmad-shard-doc#logical:3",
@@ -180,7 +181,8 @@
       "effects": [
         "destination_writable_or_halted"
       ],
-      "evidenceClaimIds": []
+      "evidenceClaimIds": [],
+      "actionRef": "BRANCH_ON_LOCAL_FILE"
     },
     {
       "id": "bmad-shard-doc#logical:5",

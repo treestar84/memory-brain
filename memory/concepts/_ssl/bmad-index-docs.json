@@ -105,7 +105,8 @@
       "effects": [
         "directory_access_validated_or_halted"
       ],
-      "evidenceClaimIds": []
+      "evidenceClaimIds": [],
+      "actionRef": "BRANCH_ON_LOCAL_FILE"
     },
     {
       "id": "bmad-index-docs#logical:2",

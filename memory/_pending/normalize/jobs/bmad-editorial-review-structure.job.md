@@ -1,12 +1,12 @@
 ---
 job_id: norm-2026-05-05-bmad-editorial-review-structure
 status: done
-done_at: 2026-05-06T00:00:00.000Z
+done_at: 2026-05-05T15:50:27.000Z
 source_path: .claude/skills/bmad-editorial-review-structure/SKILL.md
 source_sha256: 164444359d74f695a84faf7ea558d0eef39c75561e6b26669f97a165c6f75538
 heuristic_path: memory/_pending/normalize/jobs/bmad-editorial-review-structure.heuristic.json
 output_path: memory/concepts/_ssl/bmad-editorial-review-structure.json
-enqueued_at: 2026-05-05T14:51:31.743Z
+enqueued_at: 2026-05-05T15:39:32.761Z
 warnings_count: 1
 ---
 

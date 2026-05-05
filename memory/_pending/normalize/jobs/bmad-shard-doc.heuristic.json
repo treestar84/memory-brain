@@ -2,7 +2,7 @@
   "sslVersion": "0.3.0",
   "sourceSkillPath": ".claude/skills/bmad-shard-doc/SKILL.md",
   "sourceSha256": "3a1538536514725fd4f31aded280ee56b9645fc61d114fd94aacb3ac52304e52",
-  "generatedAt": "2026-05-05T14:51:31.743Z",
+  "generatedAt": "2026-05-05T15:39:32.761Z",
   "generatedBy": "heuristic",
   "scheduling": {
     "id": "bmad-shard-doc#scheduling",

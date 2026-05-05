@@ -2,7 +2,7 @@
   "sslVersion": "0.3.0",
   "sourceSkillPath": ".claude/skills/bmad-brainstorming/SKILL.md",
   "sourceSha256": "f4a2c22b40ed34cdbd3282dd6161a3b869902f3bc75b58e181fc9faf78eedd9d",
-  "generatedAt": "2026-05-05T14:51:31.743Z",
+  "generatedAt": "2026-05-05T15:39:32.761Z",
   "generatedBy": "heuristic",
   "scheduling": {
     "id": "bmad-brainstorming#scheduling",

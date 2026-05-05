@@ -2,7 +2,7 @@
   "sslVersion": "0.3.0",
   "sourceSkillPath": ".claude/skills/bmad-distillator/SKILL.md",
   "sourceSha256": "756ee0706ff6b8a3d5726b465e81ba244e4eaeba21b7de0d2390473acebb5ddc",
-  "generatedAt": "2026-05-05T14:51:31.743Z",
+  "generatedAt": "2026-05-05T15:39:32.761Z",
   "generatedBy": "heuristic",
   "scheduling": {
     "id": "bmad-distillator#scheduling",

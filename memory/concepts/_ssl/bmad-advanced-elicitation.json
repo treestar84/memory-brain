@@ -134,7 +134,8 @@
       "effects": [
         "section_content_acquired"
       ],
-      "evidenceClaimIds": []
+      "evidenceClaimIds": [],
+      "actionRef": "READ_FROM_MEMORY"
     },
     {
       "id": "bmad-advanced-elicitation#logical:2",

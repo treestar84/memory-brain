@@ -2,7 +2,7 @@
   "sslVersion": "0.3.0",
   "sourceSkillPath": ".claude/skills/bmad-advanced-elicitation/SKILL.md",
   "sourceSha256": "1a7396d28ba7524588d44e5eac9b6a41372a0bf8d9e1c4c469728493abd5e12f",
-  "generatedAt": "2026-05-05T14:51:31.743Z",
+  "generatedAt": "2026-05-05T15:39:32.761Z",
   "generatedBy": "heuristic",
   "scheduling": {
     "id": "bmad-advanced-elicitation#scheduling",

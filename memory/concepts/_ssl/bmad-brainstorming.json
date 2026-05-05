@@ -170,7 +170,8 @@
       "effects": [
         "session_mode_decided"
       ],
-      "evidenceClaimIds": []
+      "evidenceClaimIds": [],
+      "actionRef": "BRANCH_ON_LOCAL_FILE"
     },
     {
       "id": "bmad-brainstorming#logical:4",
@@ -211,7 +212,8 @@
       "effects": [
         "selection_mode_path_taken"
       ],
-      "evidenceClaimIds": []
+      "evidenceClaimIds": [],
+      "actionRef": "BRANCH_ON_LOCAL_FILE"
     },
     {
       "id": "bmad-brainstorming#logical:7",
