@@ -5,6 +5,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-05-06
+
+### Added
+- **V3.5 claim ledger 이관** — `memory/claims/ledger.jsonl` (git-tracked). 이전: `.memory-brain/claims/` (gitignored)
+- `resolveProjectRoot()` + `buildClaimStorage()` — bootstrap 헬퍼, bin 7개 적용
+- README quickstart 보강 — SSL normalize 흐름, CLI 참조표, Prerequisites
+- CHANGELOG 초판
+
 ## [0.3.0] — 2026-05-06
 
 ### Added
