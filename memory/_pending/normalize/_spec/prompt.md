@@ -1,6 +1,6 @@
-# SSL Normalize 작업 프롬프트 (host LLM 용)
+# SSL Normalize 작업 프롬프트 (PAI 세션용)
 
-> 본 파일은 host LLM 이 normalize job 을 처리할 때 따르는 자연어 명세다. memory-brain 본체 코드는 본 파일을 호출하지 않는다 — host CLI 가 read tool 로 직접 읽는다.
+> 본 파일은 **PAI 세션** (`.claude-pai/` 프로파일로 실행된 분리 세션) 이 normalize job 을 처리할 때 따르는 자연어 명세다. 메인 세션이 본 명세를 따라 처리하면 원칙 5 위반 — PAI 세션을 띄우는 것이 옳다. 자세한 PAI 세션 정체성은 `.claude-pai/CLAUDE.md` 참조.
 
 ## 너의 역할
 

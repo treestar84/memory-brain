@@ -150,9 +150,9 @@ if (args.json) {
   console.log(`SSL enqueue — input ${args.inputDir}`);
   console.log(`scanned=${stats.scanned} complete=${stats.completeDirect} enqueued=${stats.enqueued} skipped=${stats.skippedUnchanged}`);
   if (stats.enqueued > 0) {
-    console.log(`\n→ host LLM 처리 필요: ${stats.enqueued} 건`);
-    console.log(`  사용자 → host CLI 에 자연어로 "${args.jobsDir} 의 pending 작업 처리" 요청`);
-    console.log(`  처리 명세: ${args.specDir}/prompt.md`);
+    console.log(`\n→ PAI 세션 처리 필요: ${stats.enqueued} 건`);
+    console.log(`  PAI 세션이 떠 있다면 다음 prompt/hook 시 자동 인지하여 처리합니다.`);
+    console.log(`  PAI 세션이 없다면 별도 터미널에서 'CLAUDE_CONFIG_DIR=.claude-pai claude' 로 띄우세요.`);
   }
 }
 
