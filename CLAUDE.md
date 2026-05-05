@@ -31,7 +31,7 @@ alwaysApply: true
 | L1 Bootloader | 본 파일 + `MEMORY.md` | 메모리 사용 규칙 |
 | L2 Router | `memory/ROUTER.md` | retrieval policy |
 | L3 Wiki | `memory/{sources,projects,concepts,decisions}/` | canonical knowledge (PR-V3.4) |
-| L4 Claim | `.memory-brain/claims/ledger.jsonl` (PR-V3.5에서 `memory/claims/` 이관) | claim/evidence 원장 |
+| L4 Claim | `memory/claims/ledger.jsonl` (git-tracked, PR-V3.5 이관 완료) | claim/evidence 원장 |
 | L5 Graph/Search | `memory/indexes/` (PR-V3.6) | derived index (rebuild 가능) |
 | L6 Persona | `.memory-brain/memory/profile/*.jsonl` | PersonaStore (peers/sessions/messages/representations) |
 | L7 Governance | `memory/reports/` (PR-V3.7) | duplicate / stale / contradiction / decay |

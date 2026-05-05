@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
-import { FsStorage } from "../src/core/storage/FsStorage";
 import { RealClock } from "../src/core/clock/Clock";
 import { ClaimStore } from "../src/core/claim/ClaimStore";
-import { resolveStorageRoot } from "../src/hooks/bootstrap";
+import { buildClaimStorage } from "../src/hooks/bootstrap";
 
 function parseList(arg: string | undefined): string[] {
   if (!arg) return [];
@@ -27,8 +26,7 @@ if (acceptIds.length === 0 && rejectIds.length === 0) {
   process.exit(1);
 }
 
-const storage = new FsStorage(resolveStorageRoot());
-const store = new ClaimStore(storage, new RealClock());
+const store = new ClaimStore(buildClaimStorage(), new RealClock());
 
 const processed: { id: string; status: "accepted" | "rejected" }[] = [];
 const failed: { id: string; status: "accepted" | "rejected"; error: string }[] = [];

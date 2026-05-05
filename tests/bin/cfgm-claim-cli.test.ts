@@ -38,7 +38,7 @@ function makeCandidate(overrides: Partial<ClaimCandidate> = {}): ClaimCandidate 
 }
 
 async function seed(projectDir: string, claims: ClaimCandidate[]) {
-  const storage = new FsStorage(join(projectDir, ".memory-brain"));
+  const storage = new FsStorage(projectDir);
   const store = new ClaimStore(storage, new FakeClock());
   for (const c of claims) await store.append(c);
 }

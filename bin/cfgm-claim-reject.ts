@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
-import { FsStorage } from "../src/core/storage/FsStorage";
 import { RealClock } from "../src/core/clock/Clock";
 import { ClaimStore } from "../src/core/claim/ClaimStore";
-import { resolveStorageRoot } from "../src/hooks/bootstrap";
+import { buildClaimStorage } from "../src/hooks/bootstrap";
 
 const args = process.argv.slice(2);
 const candidateId = args[0];
@@ -16,8 +15,7 @@ const byIdx = args.indexOf("--by");
 const decidedBy = byIdx >= 0 ? args[byIdx + 1] : undefined;
 const force = args.includes("--force");
 
-const storage = new FsStorage(resolveStorageRoot());
-const store = new ClaimStore(storage, new RealClock());
+const store = new ClaimStore(buildClaimStorage(), new RealClock());
 
 try {
   await store.decide(candidateId, "rejected", { reason, decidedBy, force });

@@ -1,4 +1,4 @@
-import { resolve } from "node:path";
+import { resolve, dirname } from "node:path";
 import { homedir } from "node:os";
 
 import { FsStorage } from "../core/storage/FsStorage";
@@ -37,6 +37,18 @@ export function resolveStorageRoot(): string {
   if (process.env.CFGM_PROJECT_ROOT) return resolve(process.env.CFGM_PROJECT_ROOT, ".memory-brain");
   const home = process.env.HOME || homedir();
   return resolve(home, ".claude-brain", "memory-brain");
+}
+
+export function resolveProjectRoot(): string {
+  if (process.env.CFGM_PROJECT) return resolve(process.env.CFGM_PROJECT);
+  if (process.env.CFGM_PROJECT_ROOT) return resolve(process.env.CFGM_PROJECT_ROOT);
+  const storageRoot = resolveStorageRoot();
+  if (storageRoot.endsWith(".memory-brain")) return dirname(storageRoot);
+  return storageRoot;
+}
+
+export function buildClaimStorage(): FsStorage {
+  return new FsStorage(resolveProjectRoot());
 }
 
 export type BootstrappedDeps = {
@@ -95,7 +107,7 @@ export function buildDeps(root: string = resolveStorageRoot()): BootstrappedDeps
   const detectorWeight = new DetectorWeight(learningLedger);
   const promotionLedger = new PromotionLedger(storage, clock, learningLedger);
   const candidateDetector = new CandidateDetector(clock);
-  const claimStore = new ClaimStore(storage, clock, learningLedger);
+  const claimStore = new ClaimStore(buildClaimStorage(), clock, learningLedger);
   const flowBlockToClaim = new FlowBlockToClaimCandidate(clock);
   const flowGraphProjector = new FlowGraphProjector();
   const personaStore = new PersonaStore(storage, clock);

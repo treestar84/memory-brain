@@ -1,8 +1,7 @@
 #!/usr/bin/env bun
-import { FsStorage } from "../src/core/storage/FsStorage";
 import { RealClock } from "../src/core/clock/Clock";
 import { ClaimStore } from "../src/core/claim/ClaimStore";
-import { resolveStorageRoot } from "../src/hooks/bootstrap";
+import { buildClaimStorage } from "../src/hooks/bootstrap";
 import type { ClaimCandidate, ClaimType } from "../src/core/claim/types";
 
 const RISK_GROUP_SIZE = 3;
@@ -14,8 +13,7 @@ const typeFilter = typeIdx >= 0 ? (args[typeIdx + 1] as ClaimType) : undefined;
 const limitIdx = args.indexOf("--limit");
 const limit = limitIdx >= 0 ? Number(args[limitIdx + 1]) : undefined;
 
-const storage = new FsStorage(resolveStorageRoot());
-const store = new ClaimStore(storage, new RealClock());
+const store = new ClaimStore(buildClaimStorage(), new RealClock());
 let pending = await store.list({ status: "pending" });
 if (typeFilter) pending = pending.filter((c) => c.proposedType === typeFilter);
 if (limit && limit > 0) pending = pending.slice(0, limit);

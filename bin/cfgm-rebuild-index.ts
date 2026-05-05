@@ -8,7 +8,7 @@ import { Indexer } from "../src/core/search/Indexer";
 import { SSLReader } from "../src/core/search/SSLReader";
 import { FsStorage } from "../src/core/storage/FsStorage";
 import { RealClock } from "../src/core/clock/Clock";
-import { resolveStorageRoot } from "../src/hooks/bootstrap";
+import { resolveStorageRoot, buildClaimStorage } from "../src/hooks/bootstrap";
 import { AutoTrigger } from "../src/core/auto-trigger/AutoTrigger";
 
 /**
@@ -38,7 +38,7 @@ const wikiReader = new WikiReader(memoryDir);
 const sslReader = new SSLReader(memoryDir);
 const storage = new FsStorage(storageRoot);
 const clock = new RealClock();
-const claimStore = new ClaimStore(storage, clock);
+const claimStore = new ClaimStore(buildClaimStorage(), clock);
 const searchIndex = new SearchIndex(indexPath);
 const indexer = new Indexer(wikiReader, claimStore, searchIndex, sslReader);
 

@@ -3,7 +3,7 @@ import type { Clock } from "../clock/Clock";
 import type { LearningLedger } from "../learning/LearningLedger";
 import type { ClaimCandidate, ClaimStatus } from "./types";
 
-const LEDGER_PATH = "claims/ledger.jsonl";
+const LEDGER_PATH = "memory/claims/ledger.jsonl";
 
 /**
  * Claim sidecar (ADR-012) + Graphiti supersede 모델 답습 (PR-V3.5, ADR-019 §3).

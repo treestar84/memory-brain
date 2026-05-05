@@ -10,7 +10,7 @@ import { StaleClaimsDetector } from "../src/core/governance/reports/StaleClaimsD
 import { ContradictionsDetector } from "../src/core/governance/reports/ContradictionsDetector";
 import { LowConfidenceDetector } from "../src/core/governance/reports/LowConfidenceDetector";
 import { ReviewQueueDetector } from "../src/core/governance/reports/ReviewQueueDetector";
-import { resolveStorageRoot } from "../src/hooks/bootstrap";
+import { resolveStorageRoot, buildClaimStorage } from "../src/hooks/bootstrap";
 import { AutoTrigger } from "../src/core/auto-trigger/AutoTrigger";
 import type { GovernanceDetector, GovernanceInput } from "../src/core/governance/reports/types";
 
@@ -32,7 +32,7 @@ const storageRoot = resolveStorageRoot();
 
 const storage = new FsStorage(storageRoot);
 const clock = new RealClock();
-const claimStore = new ClaimStore(storage, clock);
+const claimStore = new ClaimStore(buildClaimStorage(), clock);
 const wikiReader = new WikiReader(memoryDir);
 const writer = new ReportWriter(storage);
 
