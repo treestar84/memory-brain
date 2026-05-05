@@ -118,6 +118,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "READ_LOCAL_FILE",
       "resourceTarget": "_bmad/**/config.yaml and user-config.yaml",
       "effects": [
         "configs_loaded"
@@ -131,6 +132,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "TRANSFORM_IN_MEMORY",
       "resourceTarget": "config_variables",
       "effects": [
         "output_locations_resolved",
@@ -146,6 +148,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "READ_LOCAL_FILE",
       "resourceTarget": "_bmad/_config/bmad-help.csv",
       "effects": [
         "catalog_loaded"
@@ -159,6 +162,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "READ_LOCAL_FILE",
       "resourceTarget": "resolved_output_paths",
       "effects": [
         "completed_artifacts_detected",
@@ -173,6 +177,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "READ_LOCAL_FILE",
       "resourceTarget": "project_knowledge_path",
       "effects": [
         "project_knowledge_loaded_when_present"
@@ -199,6 +204,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "catalog_rows",
       "effects": [
         "active_phase_identified"
@@ -212,6 +218,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "dependency_graph",
       "effects": [
         "ordering_resolved",
@@ -226,6 +233,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "catalog_descriptions",
       "effects": [
         "navigation_hints_extracted"
@@ -239,6 +247,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "EMIT_TO_MEMORY",
       "resourceTarget": "response_block",
       "effects": [
         "recommendations_formatted_per_spec"
@@ -252,6 +261,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "BRANCH_ON_MEMORY",
       "resourceTarget": "ordering_decision",
       "effects": [
         "quick_start_offered_when_appropriate",
@@ -266,6 +276,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "EMIT_TO_MEMORY",
       "resourceTarget": "final_response",
       "effects": [
         "response_rendered_in_target_language",

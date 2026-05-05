@@ -114,6 +114,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "READ_LOCAL_FILE",
       "resourceTarget": "target_directory_path",
       "effects": [
         "file_and_subdirectory_list_obtained",
@@ -128,6 +129,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "TRANSFORM_IN_MEMORY",
       "resourceTarget": "file_listings",
       "effects": [
         "files_grouped",
@@ -142,6 +144,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "READ_LOCAL_FILE",
       "resourceTarget": "individual_file_contents",
       "effects": [
         "file_contents_loaded"
@@ -155,6 +158,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "file_contents",
       "effects": [
         "descriptions_generated_per_file"
@@ -168,6 +172,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "TRANSFORM_IN_MEMORY",
       "resourceTarget": "index_markdown_body",
       "effects": [
         "index_body_rendered_per_format"
@@ -181,6 +186,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "WRITE_LOCAL_FILE",
       "resourceTarget": "{target_directory}/index.md",
       "effects": [
         "index_md_written_or_updated"

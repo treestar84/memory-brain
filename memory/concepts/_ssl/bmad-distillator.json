@@ -135,6 +135,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "READ_LOCAL_FILE",
       "resourceTarget": "source_documents and reconstruction_files",
       "effects": [
         "originals_and_reconstructions_loaded_for_diff"
@@ -148,6 +149,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "BRANCH_ON_MEMORY",
       "resourceTarget": "caller_arguments",
       "effects": [
         "inputs_validated",
@@ -162,6 +164,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "CALL_LOCAL_SCRIPT",
       "resourceTarget": "scripts/analyze_sources.py",
       "effects": [
         "routing_determined",
@@ -191,6 +194,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "TRANSFORM_IN_MEMORY",
       "resourceTarget": "intermediate_distillates",
       "effects": [
         "intermediate_distillates_merged",
@@ -219,6 +223,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "compressor_returned_headings_and_entities",
       "effects": [
         "completeness_verified",
@@ -233,6 +238,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "distillate_content",
       "effects": [
         "format_compliance_checked"
@@ -246,6 +252,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "WRITE_LOCAL_FILE",
       "resourceTarget": "output_path or {base-name}-distillate/ folder",
       "effects": [
         "distillate_saved_to_disk",
@@ -260,6 +267,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "CALL_LOCAL_SCRIPT",
       "resourceTarget": "scripts/analyze_sources.py",
       "effects": [
         "distillate_total_tokens_measured"
@@ -273,6 +281,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "EMIT_TO_MEMORY",
       "resourceTarget": "structured_json_result",
       "effects": [
         "result_returned_to_caller"
@@ -300,6 +309,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "WRITE_LOCAL_FILE",
       "resourceTarget": "{distillate}-validation-report.md",
       "effects": [
         "validation_report_written"
@@ -313,6 +323,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "BRANCH_ON_MEMORY",
       "resourceTarget": "gap_list",
       "effects": [
         "fix_pass_decision_made"
@@ -326,6 +337,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "WRITE_LOCAL_FILE",
       "resourceTarget": "temporary_reconstruction_files",
       "effects": [
         "temp_reconstructions_cleaned_from_disk"
@@ -333,9 +345,239 @@
       "evidenceClaimIds": []
     }
   ],
-  "warnings": [],
-  "decisions": [],
-  "interactions": [],
-  "evidence": [],
-  "protocols": []
+  "decisions": [
+    {
+      "id": "bmad-distillator#decision:1",
+      "question": "Single-mode or fan-out compression?",
+      "branches": [
+        {
+          "when": "routing == 'single' (≤3 files, ≤15K estimated tokens)",
+          "then": "spawn one compressor in bmad-distillator#logical:4"
+        },
+        {
+          "when": "routing == 'fan-out'",
+          "then": "spawn per-group compressors in bmad-distillator#logical:4 then merge in bmad-distillator#logical:5"
+        }
+      ],
+      "scopeRef": "bmad-distillator#scene:ACT:1"
+    },
+    {
+      "id": "bmad-distillator#decision:2",
+      "question": "Is subagent spawning available?",
+      "branches": [
+        {
+          "when": "subagent spawning available",
+          "then": "spawn compressor(s) as specified"
+        },
+        {
+          "when": "subagent spawning unavailable",
+          "then": "graceful degradation — read sources directly and compress with the same instructions (bmad-distillator#logical:6)"
+        }
+      ],
+      "fallback": "Stage 4 cannot run under graceful degradation since the main agent has already seen originals — skip with notice",
+      "scopeRef": "bmad-distillator#scene:ACT:1"
+    },
+    {
+      "id": "bmad-distillator#decision:3",
+      "question": "Emit a single distillate file or a split folder?",
+      "branches": [
+        {
+          "when": "≤~5,000 tokens or token_budget not exceeded",
+          "then": "single file with frontmatter"
+        },
+        {
+          "when": ">~5,000 tokens or token_budget requires split",
+          "then": "{base-name}-distillate/ folder with _index.md and numbered section files"
+        }
+      ],
+      "scopeRef": "bmad-distillator#scene:VERIFY:2"
+    },
+    {
+      "id": "bmad-distillator#decision:4",
+      "question": "Was the --validate flag set?",
+      "branches": [
+        {
+          "when": "--validate set",
+          "then": "proceed to bmad-distillator#scene:VERIFY:3"
+        },
+        {
+          "when": "--validate not set",
+          "then": "skip Stage 4 and end after Stage 3"
+        }
+      ],
+      "scopeRef": "bmad-distillator#scene:VERIFY:2"
+    },
+    {
+      "id": "bmad-distillator#decision:5",
+      "question": "Were gaps found in completeness or validation?",
+      "branches": [
+        {
+          "when": "gaps found and fix-pass count < 2",
+          "then": "send a targeted fix pass to the compressor (limit 2)"
+        },
+        {
+          "when": "no gaps or fix-pass limit reached",
+          "then": "proceed without further fixes"
+        }
+      ],
+      "scopeRef": "bmad-distillator#scene:VERIFY:2"
+    }
+  ],
+  "interactions": [
+    {
+      "id": "bmad-distillator#interaction:1",
+      "prompt": "Validation found {gap_count} gap(s) in the distillate. Run a targeted fix pass to add the missing information without full recompression?",
+      "expectedResponseType": "yes-no",
+      "variables": [
+        "gap_count"
+      ],
+      "scopeRef": "bmad-distillator#scene:VERIFY:3"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "bmad-distillator#evidence:1",
+      "caseLabel": "Single distillate frontmatter",
+      "inputs": {
+        "source_documents": [
+          "doc-a.md",
+          "doc-b.md"
+        ],
+        "downstream_consumer": "PRD creation"
+      },
+      "outputs": {
+        "frontmatter": {
+          "type": "bmad-distillate",
+          "sources": [
+            "doc-a.md",
+            "doc-b.md"
+          ],
+          "downstream_consumer": "PRD creation",
+          "created": "{date}",
+          "token_estimate": 1234,
+          "parts": 1
+        }
+      },
+      "successCriteria": [
+        "Output is a single .md file with the frontmatter shown",
+        "All sources are listed as relative paths"
+      ],
+      "scopeRef": "bmad-distillator#scene:VERIFY:2"
+    },
+    {
+      "id": "bmad-distillator#evidence:2",
+      "caseLabel": "Split distillate folder layout",
+      "inputs": {
+        "distillate_size": ">5000 tokens"
+      },
+      "outputs": {
+        "folder": "{base-name}-distillate/",
+        "files": [
+          "_index.md",
+          "01-{topic-slug}.md",
+          "02-{topic-slug}.md",
+          "03-{topic-slug}.md"
+        ]
+      },
+      "successCriteria": [
+        "_index.md contains frontmatter, 3-5 bullet orientation, section manifest, and cross-cutting items",
+        "Each section file is independently loadable with a 1-line context header",
+        "Source paths are relative to the distillate folder"
+      ],
+      "scopeRef": "bmad-distillator#scene:VERIFY:2"
+    },
+    {
+      "id": "bmad-distillator#evidence:3",
+      "caseLabel": "Structured JSON result",
+      "inputs": {},
+      "outputs": {
+        "status": "complete",
+        "distillate": "{path or folder path}",
+        "section_distillates": [
+          "{path1}",
+          "{path2}"
+        ],
+        "source_total_tokens": "N",
+        "distillate_total_tokens": "N",
+        "compression_ratio": "X:1",
+        "source_documents": [
+          "{path1}",
+          "{path2}"
+        ],
+        "completeness_check": "pass | pass_with_additions"
+      },
+      "successCriteria": [
+        "compression_ratio = source_total_tokens / distillate_total_tokens, formatted as X:1",
+        "section_distillates is null when single-file output"
+      ],
+      "scopeRef": "bmad-distillator#scene:VERIFY:2"
+    },
+    {
+      "id": "bmad-distillator#evidence:4",
+      "caseLabel": "Validation report markdown",
+      "inputs": {
+        "validate_flag": true
+      },
+      "outputs": {
+        "report_path": "{distillate}-validation-report.md",
+        "sections": [
+          "Validation Summary",
+          "Gaps",
+          "Hallucinations",
+          "Possible Gap Markers"
+        ]
+      },
+      "successCriteria": [
+        "Status is one of PASS, PASS_WITH_WARNINGS, FAIL",
+        "Gaps list traces each gap to its source and section",
+        "Hallucinations list flags information not traceable to originals"
+      ],
+      "scopeRef": "bmad-distillator#scene:VERIFY:3"
+    }
+  ],
+  "protocols": [
+    {
+      "id": "bmad-distillator#protocol:1",
+      "delegateTo": "agents/distillate-compressor.md",
+      "whenCondition": "Stage 2 single mode, or per-group in fan-out mode",
+      "inputsForward": [
+        "source_file_paths"
+      ],
+      "outputsExpected": [
+        "distillate_content",
+        "source_headings",
+        "named_entities",
+        "token_estimate"
+      ],
+      "scopeRef": "bmad-distillator#scene:ACT:1"
+    },
+    {
+      "id": "bmad-distillator#protocol:2",
+      "delegateTo": "agents/distillate-compressor.md",
+      "whenCondition": "Stage 2 fan-out merge after all per-group distillates return",
+      "inputsForward": [
+        "intermediate_distillate_contents"
+      ],
+      "outputsExpected": [
+        "final_distillate_content",
+        "source_headings",
+        "named_entities",
+        "token_estimate"
+      ],
+      "scopeRef": "bmad-distillator#scene:ACT:1"
+    },
+    {
+      "id": "bmad-distillator#protocol:3",
+      "delegateTo": "agents/round-trip-reconstructor.md",
+      "whenCondition": "--validate flag set; one reconstructor per section in split mode",
+      "inputsForward": [
+        "distillate_path"
+      ],
+      "outputsExpected": [
+        "reconstruction_paths"
+      ],
+      "scopeRef": "bmad-distillator#scene:VERIFY:3"
+    }
+  ],
+  "warnings": []
 }

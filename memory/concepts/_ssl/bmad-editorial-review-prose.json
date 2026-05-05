@@ -107,6 +107,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "BRANCH_ON_MEMORY",
       "resourceTarget": "content_input",
       "effects": [
         "halt_on_too_short_content"
@@ -120,6 +121,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "BRANCH_ON_MEMORY",
       "resourceTarget": "reader_type_input",
       "effects": [
         "halt_on_invalid_reader_type"
@@ -133,6 +135,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "content_input",
       "effects": [
         "content_type_identified",
@@ -147,6 +150,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "content_style",
       "effects": [
         "style_voice_analyzed",
@@ -161,6 +165,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "BRANCH_ON_MEMORY",
       "resourceTarget": "reader_type",
       "effects": [
         "review_priorities_calibrated"
@@ -187,6 +192,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "prose_sections",
       "effects": [
         "communication_issues_identified"
@@ -200,6 +206,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "issue_set",
       "effects": [
         "minimal_fixes_proposed",
@@ -214,6 +221,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "TRANSFORM_IN_MEMORY",
       "resourceTarget": "issue_entries",
       "effects": [
         "issues_deduplicated",
@@ -229,6 +237,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "EMIT_TO_MEMORY",
       "resourceTarget": "editorial_output",
       "effects": [
         "fix_table_or_no_issues_message_emitted"

@@ -1,6 +1,7 @@
 ---
 job_id: norm-2026-05-05-bmad-review-edge-case-hunter
-status: pending
+status: done
+done_at: 2026-05-06T00:00:00.000Z
 source_path: .claude/skills/bmad-review-edge-case-hunter/SKILL.md
 source_sha256: f49ed9976f46b4cefa1fc8b4f0a495f16089905e6a7bbf4ce73b8f05c9ae3ee6
 heuristic_path: memory/_pending/normalize/jobs/bmad-review-edge-case-hunter.heuristic.json

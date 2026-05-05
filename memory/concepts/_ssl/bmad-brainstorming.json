@@ -137,6 +137,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "READ_LOCAL_FILE",
       "resourceTarget": "_bmad/core/config.yaml",
       "effects": [
         "config_values_loaded",
@@ -151,6 +152,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "TRANSFORM_IN_MEMORY",
       "resourceTarget": "brainstorming_session_output_file",
       "effects": [
         "output_path_resolved"
@@ -177,6 +179,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "READ_LOCAL_FILE",
       "resourceTarget": "brain-methods.csv",
       "effects": [
         "technique_catalog_loaded"
@@ -190,6 +193,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "technique_recommendation",
       "effects": [
         "technique_selected"
@@ -216,6 +220,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "EMIT_TO_MEMORY",
       "resourceTarget": "user_facing_prompt",
       "effects": [
         "prompt_emitted_to_user",
@@ -230,6 +235,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "WRITE_LOCAL_FILE",
       "resourceTarget": "brainstorming_session_output_file",
       "effects": [
         "idea_appended_to_session_file",
@@ -244,6 +250,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "BRANCH_ON_MEMORY",
       "resourceTarget": "idea_counter",
       "effects": [
         "creative_domain_shifted",
@@ -258,6 +265,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "TRANSFORM_IN_MEMORY",
       "resourceTarget": "raw_idea_list",
       "effects": [
         "ideas_organized_into_themes"
@@ -271,6 +279,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "WRITE_LOCAL_FILE",
       "resourceTarget": "brainstorming_session_output_file",
       "effects": [
         "session_document_finalized"

@@ -57,6 +57,19 @@ items:
     resources: [LOCAL_FS]
     description: "Invoke a local script / executable / binary."
 
+  # PR-V3.17 처리 결과 + dedup detector 가 자동 발견한 추가 시드 (2026-05-06).
+  # 11 BMAD 처리 후 canonical 미사용 16건 중 패턴 빈도 ≥3 인 항목 등록.
+  # 등록 후 PAI 재처리 시 사용률 87.2% → 예상 ~96%+.
+  BRANCH_ON_LOCAL_FILE:
+    action: BRANCH
+    resources: [LOCAL_FS]
+    description: "Conditional path selection based on local filesystem state (file existence, content, etc.)."
+
+  READ_FROM_MEMORY:
+    action: READ
+    resources: [MEMORY]
+    description: "Read previously-set in-process state (no external I/O)."
+
 # 사용자 프로젝트 별 확장 영역 — 본 영역은 코드 PR 없이 추가 가능.
 # 도메인 어휘 (특정 플러그인의 식별자 등) 는 본 영역에만, items 에 X.
 extensions: {}

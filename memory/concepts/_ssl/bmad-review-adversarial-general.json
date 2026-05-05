@@ -111,6 +111,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "BRANCH_ON_MEMORY",
       "resourceTarget": "content_input",
       "effects": [
         "abort_path_taken_when_empty"
@@ -124,6 +125,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "content_input",
       "effects": [
         "content_type_identified"
@@ -137,6 +139,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "also_consider_input",
       "effects": [
         "also_consider_areas_merged"
@@ -150,6 +153,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "content_under_review",
       "effects": [
         "issues_surfaced",
@@ -164,6 +168,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "BRANCH_ON_MEMORY",
       "resourceTarget": "findings_set",
       "effects": [
         "reanalysis_triggered_when_empty"
@@ -177,6 +182,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "EMIT_TO_MEMORY",
       "resourceTarget": "findings_markdown_list",
       "effects": [
         "findings_emitted_as_markdown_list"

@@ -1,6 +1,7 @@
 ---
 job_id: norm-2026-05-05-bmad-party-mode
-status: pending
+status: done
+done_at: 2026-05-06T00:00:00.000Z
 source_path: .claude/skills/bmad-party-mode/SKILL.md
 source_sha256: 0e24fb777af648d3f093b6f8932a4b91a9fe1b459439b661fcb7879ac50e2ac0
 heuristic_path: memory/_pending/normalize/jobs/bmad-party-mode.heuristic.json

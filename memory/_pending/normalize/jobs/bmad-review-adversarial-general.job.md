@@ -1,6 +1,7 @@
 ---
 job_id: norm-2026-05-05-bmad-review-adversarial-general
-status: pending
+status: done
+done_at: 2026-05-06T00:00:00.000Z
 source_path: .claude/skills/bmad-review-adversarial-general/SKILL.md
 source_sha256: 7bffc39e6dba4d9123648c5d4d79e17c3c5b1efbd927c3fe0026c2dbb8d99cff
 heuristic_path: memory/_pending/normalize/jobs/bmad-review-adversarial-general.heuristic.json

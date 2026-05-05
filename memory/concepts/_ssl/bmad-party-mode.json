@@ -157,6 +157,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "BRANCH_ON_MEMORY",
       "resourceTarget": "invocation_arguments",
       "effects": [
         "model_flag_resolved",
@@ -171,6 +172,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "READ_LOCAL_FILE",
       "resourceTarget": "_bmad/core/config.yaml",
       "effects": [
         "user_name_loaded",
@@ -185,6 +187,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "READ_LOCAL_FILE",
       "resourceTarget": "_bmad/_config/agent-manifest.csv",
       "effects": [
         "agent_roster_built"
@@ -198,6 +201,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "READ_LOCAL_FILE",
       "resourceTarget": "project-context.md",
       "effects": [
         "project_context_loaded_or_absent"
@@ -211,6 +215,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "EMIT_TO_MEMORY",
       "resourceTarget": "welcome_message",
       "effects": [
         "user_greeted",
@@ -225,6 +230,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "agent_roster",
       "effects": [
         "agents_selected_for_round"
@@ -238,6 +244,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "TRANSFORM_IN_MEMORY",
       "resourceTarget": "agent_prompt_template",
       "effects": [
         "per_agent_prompts_built"
@@ -251,6 +258,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "CALL_LOCAL_SCRIPT",
       "resourceTarget": "Agent_tool",
       "effects": [
         "subagents_spawned_in_parallel",
@@ -265,6 +273,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "BRANCH_ON_MEMORY",
       "resourceTarget": "solo_mode",
       "effects": [
         "solo_path_taken_when_active"
@@ -278,6 +287,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "EMIT_TO_MEMORY",
       "resourceTarget": "agent_responses",
       "effects": [
         "agent_responses_presented_to_user"
@@ -291,6 +301,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "EMIT_TO_MEMORY",
       "resourceTarget": "orchestrator_note",
       "effects": [
         "orchestrator_note_emitted_if_useful"
@@ -304,6 +315,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "BRANCH_ON_MEMORY",
       "resourceTarget": "user_followup_message",
       "effects": [
         "followup_path_taken"
@@ -317,6 +329,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "TRANSFORM_IN_MEMORY",
       "resourceTarget": "discussion_context_summary",
       "effects": [
         "discussion_context_summary_updated",
@@ -331,6 +344,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "EMIT_TO_MEMORY",
       "resourceTarget": "wrap_up_summary",
       "effects": [
         "wrap_up_delivered",

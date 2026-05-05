@@ -1,6 +1,7 @@
 ---
 job_id: norm-2026-05-05-bmad-index-docs
-status: pending
+status: done
+done_at: 2026-05-06T00:00:00.000Z
 source_path: .claude/skills/bmad-index-docs/SKILL.md
 source_sha256: a855d7060414e73ca4fe8e1a3e1cc4d0f2ce394846e52340bdf5a1317e0d234a
 heuristic_path: memory/_pending/normalize/jobs/bmad-index-docs.heuristic.json

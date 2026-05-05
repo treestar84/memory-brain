@@ -115,6 +115,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "BRANCH_ON_MEMORY",
       "resourceTarget": "content_input",
       "effects": [
         "halt_emitted_when_input_invalid"
@@ -128,6 +129,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "content_input",
       "effects": [
         "content_type_identified",
@@ -142,6 +144,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "also_consider_input",
       "effects": [
         "also_consider_areas_merged"
@@ -155,6 +158,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "content_paths",
       "effects": [
         "all_branching_paths_walked",
@@ -169,6 +173,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "TRANSFORM_IN_MEMORY",
       "resourceTarget": "path_handling_decisions",
       "effects": [
         "unhandled_paths_collected_as_findings",
@@ -183,6 +188,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "findings_set",
       "effects": [
         "completeness_revalidated",
@@ -197,6 +203,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "EMIT_TO_MEMORY",
       "resourceTarget": "findings_json_array",
       "effects": [
         "findings_emitted_as_json_array"

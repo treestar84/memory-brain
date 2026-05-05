@@ -135,6 +135,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "EMIT_TO_MEMORY",
       "resourceTarget": "user_prompt_for_source_path",
       "effects": [
         "source_path_obtained"
@@ -161,6 +162,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "TRANSFORM_IN_MEMORY",
       "resourceTarget": "default_destination_folder",
       "effects": [
         "destination_folder_resolved"
@@ -187,6 +189,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "EMIT_TO_MEMORY",
       "resourceTarget": "user_status_message",
       "effects": [
         "user_informed_of_start"
@@ -216,6 +219,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "READ_LOCAL_FILE",
       "resourceTarget": "destination_folder_path",
       "effects": [
         "shards_verified",
@@ -231,6 +235,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "BRANCH_ON_MEMORY",
       "resourceTarget": "shard_file_count",
       "effects": [
         "halt_on_zero_shards"
@@ -244,6 +249,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "EMIT_TO_MEMORY",
       "resourceTarget": "completion_report",
       "effects": [
         "completion_report_emitted"
@@ -257,6 +263,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "EMIT_TO_MEMORY",
       "resourceTarget": "original_disposition_prompt",
       "effects": [
         "user_disposition_choice_requested"
@@ -270,6 +277,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "WRITE_LOCAL_FILE",
       "resourceTarget": "source_document_path",
       "effects": [
         "original_deleted"
@@ -283,6 +291,7 @@
       "resources": [
         "LOCAL_FS"
       ],
+      "actionRef": "WRITE_LOCAL_FILE",
       "resourceTarget": "archive_path",
       "effects": [
         "archive_directory_ensured",
@@ -297,6 +306,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "EMIT_TO_MEMORY",
       "resourceTarget": "keep_warning_message",
       "effects": [
         "keep_warnings_emitted",

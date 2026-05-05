@@ -140,6 +140,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "BRANCH_ON_MEMORY",
       "resourceTarget": "content_input",
       "effects": [
         "halt_on_too_short_content"
@@ -153,6 +154,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "BRANCH_ON_MEMORY",
       "resourceTarget": "reader_type_input",
       "effects": [
         "halt_on_invalid_reader_type"
@@ -166,6 +168,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "content_input",
       "effects": [
         "document_type_identified",
@@ -180,6 +183,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "purpose_and_audience_inputs",
       "effects": [
         "purpose_resolved",
@@ -195,6 +199,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "EMIT_TO_MEMORY",
       "resourceTarget": "purpose_statement",
       "effects": [
         "purpose_statement_recorded"
@@ -208,6 +213,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "structure_models_catalog",
       "effects": [
         "structure_model_selected",
@@ -235,6 +241,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "section_map",
       "effects": [
         "section_map_built",
@@ -249,6 +256,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "section_findings",
       "effects": [
         "structural_findings_collected",
@@ -264,6 +272,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "document_flow",
       "effects": [
         "flow_issues_collected"
@@ -277,6 +286,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "TRANSFORM_IN_MEMORY",
       "resourceTarget": "findings_set",
       "effects": [
         "recommendations_compiled",
@@ -291,6 +301,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "INFER_FROM_MEMORY",
       "resourceTarget": "recommendation_entries",
       "effects": [
         "rationales_written",
@@ -305,6 +316,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "BRANCH_ON_MEMORY",
       "resourceTarget": "recommendation_set",
       "effects": [
         "length_target_checked",
@@ -319,6 +331,7 @@
       "resources": [
         "MEMORY"
       ],
+      "actionRef": "EMIT_TO_MEMORY",
       "resourceTarget": "structural_review_output",
       "effects": [
         "document_summary_emitted",
