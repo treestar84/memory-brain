@@ -1,0 +1,192 @@
+{
+  "sslVersion": "0.2.0",
+  "sourceSkillPath": ".claude/skills/bmad-index-docs/SKILL.md",
+  "sourceSha256": "a855d7060414e73ca4fe8e1a3e1cc4d0f2ce394846e52340bdf5a1317e0d234a",
+  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedBy": "llm",
+  "scheduling": {
+    "id": "bmad-index-docs#scheduling",
+    "skillName": "bmad-index-docs",
+    "skillGoal": "Generate or update an index.md in a target folder that lists every doc with concise content-derived descriptions, grouped by type and subdirectory",
+    "intentSignature": "Generate or update an index.md for a target folder",
+    "intentSignatures": [
+      "Generate or update an index.md for a target folder",
+      "Create or update an index of all files in a specific folder",
+      "Build a directory index referencing all docs",
+      "Refresh the index.md so it covers every file in the folder"
+    ],
+    "triggerPatterns": [
+      "user requests to create or update an index of all files in a specific folder",
+      "user asks to generate or refresh index.md for a directory"
+    ],
+    "expectedInputs": [
+      "target_directory_path"
+    ],
+    "expectedOutputs": [
+      "index_md_path",
+      "file_listings_grouped",
+      "subdirectory_listings"
+    ],
+    "dependencies": [],
+    "controlFlowFeatures": [
+      "branching",
+      "loop"
+    ],
+    "ioContract": {
+      "inputsRaw": "Target directory path provided by the user.",
+      "outputsRaw": "An index.md at the target folder root containing `# Directory Index`, a `## Files` section listing each file as **[filename.ext](./filename.ext)** - description, and per-subdirectory `## Subdirectories` / `### subfolder/` blocks with the same bullet pattern. Relative paths starting with ./. Hidden files skipped unless specified."
+    },
+    "preconditions": [
+      "target directory exists and is accessible",
+      "user has write permissions to create index.md in the target directory",
+      "files in the target directory are readable for content-derived descriptions"
+    ]
+  },
+  "structural": [
+    {
+      "id": "bmad-index-docs#scene:ACQUIRE:1",
+      "scene": "ACQUIRE",
+      "sceneGoal": "List all files and subdirectories in the target location",
+      "summary": "Step 1: Scan Directory",
+      "containsLogicalIds": [
+        "bmad-index-docs#logical:1",
+        "bmad-index-docs#logical:2"
+      ],
+      "transitionsTo": [
+        "bmad-index-docs#scene:REASON:1"
+      ]
+    },
+    {
+      "id": "bmad-index-docs#scene:REASON:1",
+      "scene": "REASON",
+      "sceneGoal": "Group files by type, purpose, or subdirectory; sort alphabetically within groups",
+      "summary": "Step 2: Group Content",
+      "containsLogicalIds": [
+        "bmad-index-docs#logical:3"
+      ],
+      "transitionsTo": [
+        "bmad-index-docs#scene:ACT:1"
+      ]
+    },
+    {
+      "id": "bmad-index-docs#scene:ACT:1",
+      "scene": "ACT",
+      "sceneGoal": "Read each file and produce a concise (3-10 word) content-derived description",
+      "summary": "Step 3: Generate Descriptions",
+      "containsLogicalIds": [
+        "bmad-index-docs#logical:4",
+        "bmad-index-docs#logical:5"
+      ],
+      "transitionsTo": [
+        "bmad-index-docs#scene:FINALIZE:1"
+      ]
+    },
+    {
+      "id": "bmad-index-docs#scene:FINALIZE:1",
+      "scene": "FINALIZE",
+      "sceneGoal": "Write or update the index.md following the documented output format with relative paths and grouped listings",
+      "summary": "Step 4: Create/Update Index",
+      "containsLogicalIds": [
+        "bmad-index-docs#logical:6",
+        "bmad-index-docs#logical:7"
+      ],
+      "transitionsTo": []
+    }
+  ],
+  "logical": [
+    {
+      "id": "bmad-index-docs#logical:1",
+      "action": "BRANCH",
+      "description": "Verify the target directory exists, is accessible, and is writable; HALT if not",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "target_directory_path",
+      "effects": [
+        "directory_access_validated_or_halted"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-index-docs#logical:2",
+      "action": "READ",
+      "description": "List all files and subdirectories in the target location, skipping hidden files (starting with .) unless specified",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "target_directory_path",
+      "effects": [
+        "file_and_subdirectory_list_obtained",
+        "hidden_files_filtered"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-index-docs#logical:3",
+      "action": "TRANSFORM",
+      "description": "Organize files by type, purpose, or subdirectory and sort alphabetically within each group",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "file_listings",
+      "effects": [
+        "files_grouped",
+        "groups_sorted_alphabetically"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-index-docs#logical:4",
+      "action": "READ",
+      "description": "Read each file's contents to determine its actual purpose",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "individual_file_contents",
+      "effects": [
+        "file_contents_loaded"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-index-docs#logical:5",
+      "action": "INFER",
+      "description": "Generate a concise (3-10 word) content-derived description for each file — do not guess from filenames",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "file_contents",
+      "effects": [
+        "descriptions_generated_per_file"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-index-docs#logical:6",
+      "action": "TRANSFORM",
+      "description": "Render the index body using the documented output format — `# Directory Index`, `## Files` bullets, and per-subdirectory `## Subdirectories` / `### subfolder/` blocks with **[name](./relative)** - description bullets",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "index_markdown_body",
+      "effects": [
+        "index_body_rendered_per_format"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-index-docs#logical:7",
+      "action": "WRITE",
+      "description": "Write or update index.md at the target directory root with the rendered body",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "{target_directory}/index.md",
+      "effects": [
+        "index_md_written_or_updated"
+      ],
+      "evidenceClaimIds": []
+    }
+  ],
+  "warnings": []
+}

@@ -1,0 +1,282 @@
+{
+  "sslVersion": "0.2.0",
+  "sourceSkillPath": ".claude/skills/bmad-brainstorming/SKILL.md",
+  "sourceSha256": "f4a2c22b40ed34cdbd3282dd6161a3b869902f3bc75b58e181fc9faf78eedd9d",
+  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedBy": "llm",
+  "scheduling": {
+    "id": "bmad-brainstorming#scheduling",
+    "skillName": "bmad-brainstorming",
+    "skillGoal": "Facilitate an interactive brainstorming session that generates 100+ ideas using structured creative techniques and anti-bias domain shifting",
+    "intentSignature": "Facilitate an interactive brainstorming session",
+    "intentSignatures": [
+      "Facilitate an interactive brainstorming session",
+      "Help me brainstorm",
+      "Help me ideate",
+      "Generate diverse creative ideas using structured techniques",
+      "Run a guided ideation session"
+    ],
+    "triggerPatterns": [
+      "the user says help me brainstorm or help me ideate",
+      "the user requests a structured ideation or brainstorming session"
+    ],
+    "expectedInputs": [
+      "brainstorming_topic",
+      "project_root",
+      "context_file",
+      "communication_language",
+      "user_skill_level"
+    ],
+    "expectedOutputs": [
+      "brainstorming_session_output_file",
+      "idea_count",
+      "selected_techniques"
+    ],
+    "dependencies": [
+      "_bmad/core/config.yaml",
+      "brain-methods.csv",
+      "workflow.md",
+      "template.md",
+      "steps/step-01-session-setup.md",
+      "steps/step-01b-continue.md",
+      "steps/step-02a-user-selected.md",
+      "steps/step-02b-ai-recommended.md",
+      "steps/step-02c-random-selection.md",
+      "steps/step-02d-progressive-flow.md",
+      "steps/step-03-technique-execution.md",
+      "steps/step-04-idea-organization.md"
+    ],
+    "controlFlowFeatures": [
+      "branching",
+      "loop",
+      "stateful",
+      "long_running"
+    ],
+    "ioContract": {
+      "inputsRaw": "Optional context_file from frontmatter; user-provided brainstorming topic; configuration loaded from {project-root}/_bmad/core/config.yaml (project_name, output_folder, user_name, communication_language, document_output_language, user_skill_level, date)",
+      "outputsRaw": "{output_folder}/brainstorming/brainstorming-session-{{date}}-{{time}}.md — append-only document with frontmatter state tracking and 100+ generated ideas"
+    },
+    "preconditions": [
+      "{project-root}/_bmad/core/config.yaml exists and is loadable",
+      "brain-methods.csv is available in the skill bundle",
+      "step files under ./steps/ are accessible",
+      "user is available for interactive turn-taking"
+    ]
+  },
+  "structural": [
+    {
+      "id": "bmad-brainstorming#scene:PREPARE:1",
+      "scene": "PREPARE",
+      "sceneGoal": "Load configuration and resolve session output paths",
+      "summary": "Initialization — Configuration Loading and Paths",
+      "containsLogicalIds": [
+        "bmad-brainstorming#logical:1",
+        "bmad-brainstorming#logical:2"
+      ],
+      "transitionsTo": [
+        "bmad-brainstorming#scene:ACQUIRE:1"
+      ]
+    },
+    {
+      "id": "bmad-brainstorming#scene:ACQUIRE:1",
+      "scene": "ACQUIRE",
+      "sceneGoal": "Set up the session, detect continuation, and discover techniques",
+      "summary": "Step 01: Session Setup (and 01b: Continue)",
+      "containsLogicalIds": [
+        "bmad-brainstorming#logical:3",
+        "bmad-brainstorming#logical:4"
+      ],
+      "transitionsTo": [
+        "bmad-brainstorming#scene:REASON:1"
+      ]
+    },
+    {
+      "id": "bmad-brainstorming#scene:REASON:1",
+      "scene": "REASON",
+      "sceneGoal": "Select a brainstorming technique by user choice, AI recommendation, random pick, or progressive flow",
+      "summary": "Step 02 (a/b/c/d): Technique Selection",
+      "containsLogicalIds": [
+        "bmad-brainstorming#logical:5",
+        "bmad-brainstorming#logical:6"
+      ],
+      "transitionsTo": [
+        "bmad-brainstorming#scene:ACT:1"
+      ]
+    },
+    {
+      "id": "bmad-brainstorming#scene:ACT:1",
+      "scene": "ACT",
+      "sceneGoal": "Execute the selected technique to generate ideas, shifting creative domain every 10 ideas to maintain divergence",
+      "summary": "Step 03: Technique Execution",
+      "containsLogicalIds": [
+        "bmad-brainstorming#logical:7",
+        "bmad-brainstorming#logical:8",
+        "bmad-brainstorming#logical:9"
+      ],
+      "transitionsTo": [
+        "bmad-brainstorming#scene:FINALIZE:1"
+      ]
+    },
+    {
+      "id": "bmad-brainstorming#scene:FINALIZE:1",
+      "scene": "FINALIZE",
+      "sceneGoal": "Organize generated ideas into the session output document and close the session",
+      "summary": "Step 04: Idea Organization",
+      "containsLogicalIds": [
+        "bmad-brainstorming#logical:10",
+        "bmad-brainstorming#logical:11"
+      ],
+      "transitionsTo": []
+    }
+  ],
+  "logical": [
+    {
+      "id": "bmad-brainstorming#logical:1",
+      "action": "READ",
+      "description": "Read {project-root}/_bmad/core/config.yaml and resolve project_name, output_folder, user_name, communication_language, document_output_language, user_skill_level, and date",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "_bmad/core/config.yaml",
+      "effects": [
+        "config_values_loaded",
+        "communication_language_resolved"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-brainstorming#logical:2",
+      "action": "TRANSFORM",
+      "description": "Compute brainstorming_session_output_file = {output_folder}/brainstorming/brainstorming-session-{{date}}-{{time}}.md once at workflow start",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "brainstorming_session_output_file",
+      "effects": [
+        "output_path_resolved"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-brainstorming#logical:3",
+      "action": "BRANCH",
+      "description": "Detect whether the session is a new run or continuation, and branch to step-01-session-setup or step-01b-continue accordingly",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "previous brainstorming session files",
+      "effects": [
+        "session_mode_decided"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-brainstorming#logical:4",
+      "action": "READ",
+      "description": "Load brain-methods.csv on demand for technique discovery",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "brain-methods.csv",
+      "effects": [
+        "technique_catalog_loaded"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-brainstorming#logical:5",
+      "action": "INFER",
+      "description": "Recommend or select a technique based on user choice, AI recommendation, random selection, or progressive flow rules",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "technique_recommendation",
+      "effects": [
+        "technique_selected"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-brainstorming#logical:6",
+      "action": "BRANCH",
+      "description": "Route to step-02a-user-selected, step-02b-ai-recommended, step-02c-random-selection, or step-02d-progressive-flow based on selection mode",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "steps/step-02*.md",
+      "effects": [
+        "selection_mode_path_taken"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-brainstorming#logical:7",
+      "action": "EMIT",
+      "description": "Prompt the user with technique-specific questions in the configured communication_language to elicit ideas",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "user_facing_prompt",
+      "effects": [
+        "prompt_emitted_to_user",
+        "user_kept_in_generative_mode"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-brainstorming#logical:8",
+      "action": "WRITE",
+      "description": "Append each generated idea to brainstorming_session_output_file using append-only document building",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "brainstorming_session_output_file",
+      "effects": [
+        "idea_appended_to_session_file",
+        "frontmatter_state_updated"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-brainstorming#logical:9",
+      "action": "BRANCH",
+      "description": "Every 10 ideas, consciously shift creative domain (technical → UX → business → edge cases) to combat sequential bias and continue toward the 100+ idea quantity goal",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "idea_counter",
+      "effects": [
+        "creative_domain_shifted",
+        "anti_bias_protocol_applied"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-brainstorming#logical:10",
+      "action": "TRANSFORM",
+      "description": "Cluster, deduplicate, and organize generated ideas into thematic groups per step-04",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "raw_idea_list",
+      "effects": [
+        "ideas_organized_into_themes"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-brainstorming#logical:11",
+      "action": "WRITE",
+      "description": "Write the organized ideas section back to brainstorming_session_output_file and finalize the session document",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "brainstorming_session_output_file",
+      "effects": [
+        "session_document_finalized"
+      ],
+      "evidenceClaimIds": []
+    }
+  ],
+  "warnings": []
+}

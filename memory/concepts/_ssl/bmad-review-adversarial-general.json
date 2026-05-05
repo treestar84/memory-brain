@@ -1,0 +1,188 @@
+{
+  "sslVersion": "0.2.0",
+  "sourceSkillPath": ".claude/skills/bmad-review-adversarial-general/SKILL.md",
+  "sourceSha256": "7bffc39e6dba4d9123648c5d4d79e17c3c5b1efbd927c3fe0026c2dbb8d99cff",
+  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedBy": "llm",
+  "scheduling": {
+    "id": "bmad-review-adversarial-general#scheduling",
+    "skillName": "bmad-review-adversarial-general",
+    "skillGoal": "Perform an attitude-driven adversarial review of arbitrary content and produce at least ten skeptical findings as a markdown list",
+    "intentSignature": "Perform an adversarial review and produce a findings report",
+    "intentSignatures": [
+      "Perform an adversarial review and produce a findings report",
+      "Run a Cynical Review of submitted content",
+      "Critically review a diff, spec, story, or document",
+      "Find what is wrong or missing in a submitted artifact"
+    ],
+    "triggerPatterns": [
+      "the user requests a critical review of something",
+      "the user asks for a cynical or adversarial review of an artifact"
+    ],
+    "expectedInputs": [
+      "content",
+      "also_consider"
+    ],
+    "expectedOutputs": [
+      "findings_markdown_list"
+    ],
+    "dependencies": [],
+    "controlFlowFeatures": [
+      "branching"
+    ],
+    "ioContract": {
+      "inputsRaw": "content — Content to review: diff, spec, story, doc, or any artifact. also_consider (optional) — Areas to keep in mind during review alongside normal adversarial analysis",
+      "outputsRaw": "Markdown bullet list of findings (descriptions only); halt with clarification request when content is empty or unreadable, or re-analyze when zero findings"
+    },
+    "preconditions": [
+      "content input is provided and readable",
+      "reviewer adopts cynical, jaded posture with precise professional tone"
+    ]
+  },
+  "structural": [
+    {
+      "id": "bmad-review-adversarial-general#scene:ACQUIRE:1",
+      "scene": "ACQUIRE",
+      "sceneGoal": "Receive and identify content; abort with clarification request if empty",
+      "summary": "Step 1: Receive Content",
+      "containsLogicalIds": [
+        "bmad-review-adversarial-general#logical:1",
+        "bmad-review-adversarial-general#logical:2",
+        "bmad-review-adversarial-general#logical:3"
+      ],
+      "transitionsTo": [
+        "bmad-review-adversarial-general#scene:REASON:1"
+      ]
+    },
+    {
+      "id": "bmad-review-adversarial-general#scene:REASON:1",
+      "scene": "REASON",
+      "sceneGoal": "Review with extreme skepticism and surface at least ten issues to fix or improve",
+      "summary": "Step 2: Adversarial Analysis",
+      "containsLogicalIds": [
+        "bmad-review-adversarial-general#logical:4",
+        "bmad-review-adversarial-general#logical:5"
+      ],
+      "transitionsTo": [
+        "bmad-review-adversarial-general#scene:VERIFY:1"
+      ]
+    },
+    {
+      "id": "bmad-review-adversarial-general#scene:VERIFY:1",
+      "scene": "VERIFY",
+      "sceneGoal": "Halt and re-analyze when zero findings — zero findings is suspicious",
+      "summary": "Halt Conditions",
+      "containsLogicalIds": [
+        "bmad-review-adversarial-general#logical:6"
+      ],
+      "transitionsTo": [
+        "bmad-review-adversarial-general#scene:FINALIZE:1"
+      ]
+    },
+    {
+      "id": "bmad-review-adversarial-general#scene:FINALIZE:1",
+      "scene": "FINALIZE",
+      "sceneGoal": "Emit findings as a Markdown bullet list of descriptions",
+      "summary": "Step 3: Present Findings",
+      "containsLogicalIds": [
+        "bmad-review-adversarial-general#logical:7"
+      ],
+      "transitionsTo": []
+    }
+  ],
+  "logical": [
+    {
+      "id": "bmad-review-adversarial-general#logical:1",
+      "action": "READ",
+      "description": "Load the content to review from provided input or context",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "content_input",
+      "effects": [
+        "content_loaded"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-review-adversarial-general#logical:2",
+      "action": "BRANCH",
+      "description": "If content is empty or unreadable, ask the user for clarification and abort the review",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "content_input",
+      "effects": [
+        "abort_path_taken_when_empty"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-review-adversarial-general#logical:3",
+      "action": "INFER",
+      "description": "Identify content type (diff, branch, uncommitted changes, document, etc.) to set review framing",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "content_input",
+      "effects": [
+        "content_type_identified"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-review-adversarial-general#logical:4",
+      "action": "INFER",
+      "description": "If also_consider was provided, incorporate those areas into the analysis alongside normal adversarial review",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "also_consider_input",
+      "effects": [
+        "also_consider_areas_merged"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-review-adversarial-general#logical:5",
+      "action": "INFER",
+      "description": "Adversarially analyze the content with extreme skepticism — look for what is missing as well as what is wrong, and surface at least ten findings",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "content_under_review",
+      "effects": [
+        "issues_surfaced",
+        "minimum_ten_findings_collected"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-review-adversarial-general#logical:6",
+      "action": "BRANCH",
+      "description": "If zero findings, halt and re-analyze or ask for guidance — zero findings is suspicious",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "findings_set",
+      "effects": [
+        "reanalysis_triggered_when_empty"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-review-adversarial-general#logical:7",
+      "action": "EMIT",
+      "description": "Output findings as a Markdown bullet list of descriptions only — no profanity or personal attacks, precise professional tone",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "findings_markdown_list",
+      "effects": [
+        "findings_emitted_as_markdown_list"
+      ],
+      "evidenceClaimIds": []
+    }
+  ],
+  "warnings": []
+}

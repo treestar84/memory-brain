@@ -1,0 +1,314 @@
+{
+  "sslVersion": "0.2.0",
+  "sourceSkillPath": ".claude/skills/bmad-advanced-elicitation/SKILL.md",
+  "sourceSha256": "1a7396d28ba7524588d44e5eac9b6a41372a0bf8d9e1c4c469728493abd5e12f",
+  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedBy": "llm",
+  "scheduling": {
+    "id": "bmad-advanced-elicitation#scheduling",
+    "skillName": "bmad-advanced-elicitation",
+    "skillGoal": "Iteratively push the LLM to reconsider, refine, and improve recent output by applying user-selected critique methods until the user proceeds",
+    "intentSignature": "Iteratively refine recent output through user-selected critique methods",
+    "intentSignatures": [
+      "Iteratively refine recent output through user-selected critique methods",
+      "Push the LLM to reconsider, refine, and improve its recent output",
+      "Run a deeper critique using methods like socratic, first principles, pre-mortem, red team",
+      "Apply advanced elicitation to a generated section"
+    ],
+    "triggerPatterns": [
+      "user asks for deeper critique",
+      "user mentions a known deeper critique method (socratic, first principles, pre-mortem, red team)",
+      "skill is invoked indirectly to enhance a just-generated section"
+    ],
+    "expectedInputs": [
+      "current_section_content",
+      "communication_language",
+      "project_root",
+      "user_selection"
+    ],
+    "expectedOutputs": [
+      "enhanced_section_content",
+      "applied_methods_log",
+      "completion_signal"
+    ],
+    "dependencies": [
+      "./methods.csv",
+      "_bmad/_config/agent-manifest.csv",
+      "communication_language"
+    ],
+    "controlFlowFeatures": [
+      "branching",
+      "loop",
+      "stateful"
+    ],
+    "ioContract": {
+      "inputsRaw": "Current section content from invoking skill (or recent assistant output). methods.csv with columns category, method_name, description, output_pattern. agent-manifest.csv from {project-root}/_bmad/_config/. communication_language from config. User selection per round: 1-5 (method), r (reshuffle), a (list all), x (proceed), or direct feedback / multiple numbers.",
+      "outputsRaw": "Enhanced section content returned to invoking skill when user selects x; intermediate enhanced versions presented after each method; re-presentation of the 1-5,r,a,x prompt after each round; completion signal back to invoking skill."
+    },
+    "preconditions": [
+      "./methods.csv exists in the skill bundle",
+      "{project-root}/_bmad/_config/agent-manifest.csv exists",
+      "communication_language resolved from config",
+      "current section content is available (either passed in or visible in conversation)"
+    ]
+  },
+  "structural": [
+    {
+      "id": "bmad-advanced-elicitation#scene:ACQUIRE:1",
+      "scene": "ACQUIRE",
+      "sceneGoal": "Receive or review the section content to enhance when invoked indirectly",
+      "summary": "Integration (When Invoked Indirectly)",
+      "containsLogicalIds": [
+        "bmad-advanced-elicitation#logical:1"
+      ],
+      "transitionsTo": [
+        "bmad-advanced-elicitation#scene:PREPARE:1"
+      ]
+    },
+    {
+      "id": "bmad-advanced-elicitation#scene:PREPARE:1",
+      "scene": "PREPARE",
+      "sceneGoal": "Load the method registry and agent manifest, analyze context, and smart-select 5 methods for presentation",
+      "summary": "Step 1: Method Registry Loading",
+      "containsLogicalIds": [
+        "bmad-advanced-elicitation#logical:2",
+        "bmad-advanced-elicitation#logical:3",
+        "bmad-advanced-elicitation#logical:4"
+      ],
+      "transitionsTo": [
+        "bmad-advanced-elicitation#scene:ACT:1"
+      ]
+    },
+    {
+      "id": "bmad-advanced-elicitation#scene:ACT:1",
+      "scene": "ACT",
+      "sceneGoal": "Display the 1-5/r/a/x options and route on the user's selection",
+      "summary": "Step 2: Present Options and Handle Responses",
+      "containsLogicalIds": [
+        "bmad-advanced-elicitation#logical:5",
+        "bmad-advanced-elicitation#logical:6",
+        "bmad-advanced-elicitation#logical:7",
+        "bmad-advanced-elicitation#logical:8",
+        "bmad-advanced-elicitation#logical:9",
+        "bmad-advanced-elicitation#logical:10",
+        "bmad-advanced-elicitation#logical:11"
+      ],
+      "transitionsTo": [
+        "bmad-advanced-elicitation#scene:VERIFY:1",
+        "bmad-advanced-elicitation#scene:FINALIZE:1"
+      ]
+    },
+    {
+      "id": "bmad-advanced-elicitation#scene:VERIFY:1",
+      "scene": "VERIFY",
+      "sceneGoal": "After applying a method, ask the user whether to apply changes to the document and HALT until they answer; loop back to the options",
+      "summary": "Critical loop behavior — re-offer 1-5,r,a,x choices after each method execution",
+      "containsLogicalIds": [
+        "bmad-advanced-elicitation#logical:12",
+        "bmad-advanced-elicitation#logical:13"
+      ],
+      "transitionsTo": [
+        "bmad-advanced-elicitation#scene:ACT:1"
+      ]
+    },
+    {
+      "id": "bmad-advanced-elicitation#scene:FINALIZE:1",
+      "scene": "FINALIZE",
+      "sceneGoal": "On user 'x', return the fully enhanced content back to the invoking skill and signal completion",
+      "summary": "Case x (Proceed)",
+      "containsLogicalIds": [
+        "bmad-advanced-elicitation#logical:14"
+      ],
+      "transitionsTo": []
+    }
+  ],
+  "logical": [
+    {
+      "id": "bmad-advanced-elicitation#logical:1",
+      "action": "READ",
+      "description": "Receive or review the current section content that was just generated by the invoking prompt or process",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "current_section_content",
+      "effects": [
+        "section_content_acquired"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-advanced-elicitation#logical:2",
+      "action": "READ",
+      "description": "Load and read ./methods.csv and {project-root}/_bmad/_config/agent-manifest.csv",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "methods.csv and agent-manifest.csv",
+      "effects": [
+        "method_registry_loaded",
+        "agent_manifest_loaded"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-advanced-elicitation#logical:3",
+      "action": "INFER",
+      "description": "Analyze conversation context — content type, complexity, stakeholder needs, risk level, and creative potential",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "conversation_context",
+      "effects": [
+        "context_dimensions_extracted"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-advanced-elicitation#logical:4",
+      "action": "INFER",
+      "description": "Smart-select 5 methods that best match context, balancing foundational and specialized techniques across categories",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "method_registry",
+      "effects": [
+        "five_methods_selected"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-advanced-elicitation#logical:5",
+      "action": "EMIT",
+      "description": "Render the Advanced Elicitation Options block (numbered 1-5, plus r, a, x) in {communication_language} and prompt the user",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "options_block",
+      "effects": [
+        "options_displayed_to_user"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-advanced-elicitation#logical:6",
+      "action": "BRANCH",
+      "description": "Route on the user's selection: 1-5, r, a, x, direct feedback, or multiple numbers",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "user_selection",
+      "effects": [
+        "selection_route_taken"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-advanced-elicitation#logical:7",
+      "action": "TRANSFORM",
+      "description": "Cases 1-5 — execute the selected method using its CSV description, adapting complexity to context, and produce an enhanced version of the section",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "selected_method",
+      "effects": [
+        "method_executed",
+        "enhanced_section_produced"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-advanced-elicitation#logical:8",
+      "action": "INFER",
+      "description": "Case r — pick 5 random but diverse methods across categories, with positions 1 and 2 chosen as the most likely useful for the current section",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "method_registry",
+      "effects": [
+        "reshuffled_method_set_chosen"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-advanced-elicitation#logical:9",
+      "action": "EMIT",
+      "description": "Case a — list all methods with descriptions in a compact table and allow the user to select any by name or number",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "all_methods_table",
+      "effects": [
+        "full_methods_listed"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-advanced-elicitation#logical:10",
+      "action": "TRANSFORM",
+      "description": "Direct feedback case — apply the user's stated changes to the current section content",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "current_section_content",
+      "effects": [
+        "user_feedback_applied"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-advanced-elicitation#logical:11",
+      "action": "TRANSFORM",
+      "description": "Multiple-numbers case — execute the chosen methods in sequence on the content",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "selected_method_sequence",
+      "effects": [
+        "methods_executed_in_sequence"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-advanced-elicitation#logical:12",
+      "action": "WAIT",
+      "description": "After showing the enhanced version, ask whether to apply the changes (y/n/other) and HALT until the user responds",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "apply_confirmation_prompt",
+      "effects": [
+        "halted_awaiting_user_decision"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-advanced-elicitation#logical:13",
+      "action": "BRANCH",
+      "description": "Apply changes only on Yes; on No discard the proposed changes from memory; on other reply, follow the user's instructions",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "user_apply_decision",
+      "effects": [
+        "changes_applied_or_discarded",
+        "iteration_state_updated"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-advanced-elicitation#logical:14",
+      "action": "EMIT",
+      "description": "Case x — return the fully enhanced content back to the invoking skill and signal completion so the next section can proceed",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "enhanced_section_content",
+      "effects": [
+        "enhanced_content_returned",
+        "completion_signaled_to_invoker"
+      ],
+      "evidenceClaimIds": []
+    }
+  ],
+  "warnings": []
+}

@@ -255,7 +255,13 @@ export class SkillNormalizer {
   }
 
   private slugFromPath(p: string): string {
-    const base = p.split("/").filter(Boolean).pop() ?? "skill";
-    return base.replace(/\.md$/i, "").replace(/[^a-zA-Z0-9_-]+/g, "-").toLowerCase();
+    // Convention: .claude/skills/<slug>/SKILL.md → use folder name as slug.
+    // Otherwise (.../foo.md) → use file basename minus .md extension.
+    const segs = p.split("/").filter(Boolean);
+    if (segs.length === 0) return "skill";
+    const last = segs[segs.length - 1]!;
+    const useParent = last.toUpperCase() === "SKILL.MD" && segs.length >= 2;
+    const raw = useParent ? segs[segs.length - 2]! : last;
+    return raw.replace(/\.md$/i, "").replace(/[^a-zA-Z0-9_-]+/g, "-").toLowerCase();
   }
 }

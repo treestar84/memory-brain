@@ -1,0 +1,337 @@
+{
+  "sslVersion": "0.2.0",
+  "sourceSkillPath": ".claude/skills/bmad-distillator/SKILL.md",
+  "sourceSha256": "756ee0706ff6b8a3d5726b465e81ba244e4eaeba21b7de0d2390473acebb5ddc",
+  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedBy": "llm",
+  "scheduling": {
+    "id": "bmad-distillator#scheduling",
+    "skillName": "bmad-distillator",
+    "skillGoal": "Compress source documents into a lossless LLM-optimized distillate that preserves every fact, decision, constraint, and relationship",
+    "intentSignature": "Distill source documents into a lossless LLM-optimized distillate",
+    "intentSignatures": [
+      "Distill source documents into a lossless LLM-optimized distillate",
+      "Lossless LLM-optimized compression of source documents",
+      "Create a distillate from source files for downstream LLM consumption",
+      "Produce a hyper-compressed token-efficient document set from sources"
+    ],
+    "triggerPatterns": [
+      "the user requests to 'distill documents' or 'create a distillate'",
+      "downstream LLM workflow needs a single dense context input from many sources"
+    ],
+    "expectedInputs": [
+      "source_documents",
+      "downstream_consumer",
+      "token_budget",
+      "output_path",
+      "validate_flag"
+    ],
+    "expectedOutputs": [
+      "distillate_path",
+      "section_distillate_paths",
+      "source_total_tokens",
+      "distillate_total_tokens",
+      "compression_ratio",
+      "completeness_check_status",
+      "validation_report_path"
+    ],
+    "dependencies": [
+      "scripts/analyze_sources.py",
+      "agents/distillate-compressor.md",
+      "agents/round-trip-reconstructor.md",
+      "subagent_spawner"
+    ],
+    "controlFlowFeatures": [
+      "branching",
+      "loop",
+      "long_running",
+      "stateful"
+    ],
+    "ioContract": {
+      "inputsRaw": "source_documents (required) — file paths, folder paths, or glob patterns; downstream_consumer (optional) — workflow name; token_budget (optional) — target size; output_path (optional) — destination; --validate (flag) — round-trip reconstruction test",
+      "outputsRaw": "{ status, distillate, section_distillates, source_total_tokens, distillate_total_tokens, compression_ratio, source_documents, completeness_check }"
+    },
+    "preconditions": [
+      "source_documents paths are accessible on the local filesystem",
+      "scripts/analyze_sources.py is available in the skill bundle",
+      "subagent spawning is available (graceful degradation otherwise)"
+    ]
+  },
+  "structural": [
+    {
+      "id": "bmad-distillator#scene:ACQUIRE:1",
+      "scene": "ACQUIRE",
+      "sceneGoal": "Validate caller-provided arguments and route to Stage 1",
+      "summary": "On Activation",
+      "containsLogicalIds": [
+        "bmad-distillator#logical:2"
+      ],
+      "transitionsTo": [
+        "bmad-distillator#scene:REASON:1"
+      ]
+    },
+    {
+      "id": "bmad-distillator#scene:REASON:1",
+      "scene": "REASON",
+      "sceneGoal": "Analyze source documents to determine routing and grouping",
+      "summary": "Stage 1: Analyze",
+      "containsLogicalIds": [
+        "bmad-distillator#logical:3"
+      ],
+      "transitionsTo": [
+        "bmad-distillator#scene:ACT:1"
+      ]
+    },
+    {
+      "id": "bmad-distillator#scene:ACT:1",
+      "scene": "ACT",
+      "sceneGoal": "Spawn compressor subagents and produce intermediate or final distillates",
+      "summary": "Stage 2: Compress",
+      "containsLogicalIds": [
+        "bmad-distillator#logical:4",
+        "bmad-distillator#logical:5",
+        "bmad-distillator#logical:6"
+      ],
+      "transitionsTo": [
+        "bmad-distillator#scene:VERIFY:2"
+      ]
+    },
+    {
+      "id": "bmad-distillator#scene:VERIFY:2",
+      "scene": "VERIFY",
+      "sceneGoal": "Run completeness and format checks then save the distillate and report",
+      "summary": "Stage 3: Verify & Output",
+      "containsLogicalIds": [
+        "bmad-distillator#logical:7",
+        "bmad-distillator#logical:8",
+        "bmad-distillator#logical:9",
+        "bmad-distillator#logical:10",
+        "bmad-distillator#logical:11"
+      ],
+      "transitionsTo": [
+        "bmad-distillator#scene:VERIFY:3"
+      ]
+    },
+    {
+      "id": "bmad-distillator#scene:VERIFY:3",
+      "scene": "VERIFY",
+      "sceneGoal": "Reconstruct sources from the distillate and produce a validation report when --validate is set",
+      "summary": "Stage 4: Round-Trip Validation (--validate only)",
+      "containsLogicalIds": [
+        "bmad-distillator#logical:1",
+        "bmad-distillator#logical:12",
+        "bmad-distillator#logical:13",
+        "bmad-distillator#logical:14",
+        "bmad-distillator#logical:15"
+      ],
+      "transitionsTo": []
+    }
+  ],
+  "logical": [
+    {
+      "id": "bmad-distillator#logical:1",
+      "action": "READ",
+      "description": "Read original source documents and reconstructions to perform a section-by-section semantic diff during round-trip validation",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "source_documents and reconstruction_files",
+      "effects": [
+        "originals_and_reconstructions_loaded_for_diff"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-distillator#logical:2",
+      "action": "BRANCH",
+      "description": "Validate caller arguments (source_documents required; others optional) and route to Stage 1",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "caller_arguments",
+      "effects": [
+        "inputs_validated",
+        "stage1_entered"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-distillator#logical:3",
+      "action": "CALL_TOOL",
+      "description": "Run scripts/analyze_sources.py with the source paths to obtain routing recommendation and group manifest",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "scripts/analyze_sources.py",
+      "effects": [
+        "routing_determined",
+        "groups_identified",
+        "source_total_tokens_computed"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-distillator#logical:4",
+      "action": "CALL_TOOL",
+      "description": "Spawn one or more distillate-compressor subagents to produce intermediate distillates from source groups",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "agents/distillate-compressor.md",
+      "effects": [
+        "compressor_subagents_spawned",
+        "intermediate_distillates_produced"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-distillator#logical:5",
+      "action": "TRANSFORM",
+      "description": "Spawn a final merge compressor over the intermediate distillates for cross-group dedup, thematic regrouping, and final compression",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "intermediate_distillates",
+      "effects": [
+        "intermediate_distillates_merged",
+        "final_distillate_produced",
+        "intermediates_cleaned_from_memory"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-distillator#logical:6",
+      "action": "BRANCH",
+      "description": "If subagent spawning is unavailable, read the source documents and perform the compression work directly using the same instructions",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "source_documents",
+      "effects": [
+        "graceful_degradation_path_chosen"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-distillator#logical:7",
+      "action": "INFER",
+      "description": "Verify each source heading and named entity returned by the compressor appears in the distillate content; on gap send a targeted fix pass (max 2)",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "compressor_returned_headings_and_entities",
+      "effects": [
+        "completeness_verified",
+        "gaps_identified_or_zero"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-distillator#logical:8",
+      "action": "INFER",
+      "description": "Verify the distillate follows format rules — bullets only, no decoration, no repetition, self-contained bullets, themed `##` headings",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "distillate_content",
+      "effects": [
+        "format_compliance_checked"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-distillator#logical:9",
+      "action": "WRITE",
+      "description": "Save the distillate as a single file with frontmatter, or as a folder with _index.md and section files when split is required",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "output_path or {base-name}-distillate/ folder",
+      "effects": [
+        "distillate_saved_to_disk",
+        "frontmatter_attached"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-distillator#logical:10",
+      "action": "CALL_TOOL",
+      "description": "Run scripts/analyze_sources.py on the final distillate output(s) to compute distillate_total_tokens",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "scripts/analyze_sources.py",
+      "effects": [
+        "distillate_total_tokens_measured"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-distillator#logical:11",
+      "action": "EMIT",
+      "description": "Return structured JSON with status, distillate path(s), token counts, compression ratio, source list, and completeness_check",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "structured_json_result",
+      "effects": [
+        "result_returned_to_caller"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-distillator#logical:12",
+      "action": "CALL_TOOL",
+      "description": "Spawn round-trip-reconstructor subagent(s) with only the distillate path(s) to attempt source reconstruction without seeing originals",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "agents/round-trip-reconstructor.md",
+      "effects": [
+        "reconstructor_subagents_spawned",
+        "reconstructions_received"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-distillator#logical:13",
+      "action": "WRITE",
+      "description": "Produce the validation report file adjacent to the distillate as `<distillate>-validation-report.md` with summary, gaps, hallucinations, and possible-gap markers",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "{distillate}-validation-report.md",
+      "effects": [
+        "validation_report_written"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-distillator#logical:14",
+      "action": "BRANCH",
+      "description": "If gaps are found, offer a targeted fix pass on the distillate (max 2 fix passes), adding missing information without full recompression",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "gap_list",
+      "effects": [
+        "fix_pass_decision_made"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-distillator#logical:15",
+      "action": "WRITE",
+      "description": "Delete temporary reconstruction files after the validation report is generated",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "temporary_reconstruction_files",
+      "effects": [
+        "temp_reconstructions_cleaned_from_disk"
+      ],
+      "evidenceClaimIds": []
+    }
+  ],
+  "warnings": []
+}

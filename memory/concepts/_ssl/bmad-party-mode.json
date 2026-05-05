@@ -1,0 +1,343 @@
+{
+  "sslVersion": "0.2.0",
+  "sourceSkillPath": ".claude/skills/bmad-party-mode/SKILL.md",
+  "sourceSha256": "0e24fb777af648d3f093b6f8932a4b91a9fe1b459439b661fcb7879ac50e2ac0",
+  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedBy": "llm",
+  "scheduling": {
+    "id": "bmad-party-mode#scheduling",
+    "skillName": "bmad-party-mode",
+    "skillGoal": "Orchestrate a roundtable where BMAD agents are spawned as independent subagents so each delivers a genuinely diverse perspective",
+    "intentSignature": "Orchestrate a multi-agent roundtable discussion",
+    "intentSignatures": [
+      "Orchestrate a multi-agent roundtable discussion",
+      "Run party mode with BMAD agents",
+      "Get multiple agent perspectives on a topic",
+      "Hold a group discussion with several BMAD personas",
+      "Facilitate a multi-agent conversation about the project"
+    ],
+    "triggerPatterns": [
+      "user requests party mode",
+      "user wants multiple agent perspectives",
+      "user asks for a roundtable or group discussion",
+      "user invokes a multi-agent conversation about their project"
+    ],
+    "expectedInputs": [
+      "model_flag",
+      "solo_flag",
+      "user_message",
+      "project_root",
+      "agent_manifest",
+      "project_context"
+    ],
+    "expectedOutputs": [
+      "agent_responses",
+      "orchestrator_note",
+      "wrap_up_summary"
+    ],
+    "dependencies": [
+      "_bmad/core/config.yaml",
+      "_bmad/_config/agent-manifest.csv",
+      "subagent_spawner",
+      "Agent_tool"
+    ],
+    "controlFlowFeatures": [
+      "branching",
+      "loop",
+      "long_running",
+      "stateful"
+    ],
+    "ioContract": {
+      "inputsRaw": "Optional CLI flags `--model <model>` and `--solo`; user message per round; config from {project-root}/_bmad/core/config.yaml; agent roster from {project-root}/_bmad/_config/agent-manifest.csv; optional **/project-context.md",
+      "outputsRaw": "For each round, the full unabridged response of each spawned agent (each prefixed with its icon and displayName), optionally followed by a short Orchestrator Note; on exit, a brief wrap-up of key takeaways"
+    },
+    "preconditions": [
+      "{project-root}/_bmad/core/config.yaml exists and is loadable",
+      "{project-root}/_bmad/_config/agent-manifest.csv exists with displayName, title, icon, role, identity, communicationStyle, principles columns",
+      "Agent tool / subagent spawner is available (else --solo is used)"
+    ]
+  },
+  "structural": [
+    {
+      "id": "bmad-party-mode#scene:PREPARE:1",
+      "scene": "PREPARE",
+      "sceneGoal": "Parse arguments, load config, build the agent roster, and load project context",
+      "summary": "On Activation",
+      "containsLogicalIds": [
+        "bmad-party-mode#logical:1",
+        "bmad-party-mode#logical:2",
+        "bmad-party-mode#logical:3",
+        "bmad-party-mode#logical:4"
+      ],
+      "transitionsTo": [
+        "bmad-party-mode#scene:ACQUIRE:1"
+      ]
+    },
+    {
+      "id": "bmad-party-mode#scene:ACQUIRE:1",
+      "scene": "ACQUIRE",
+      "sceneGoal": "Greet the user, present the agent roster, and accept the discussion topic",
+      "summary": "Welcome the user",
+      "containsLogicalIds": [
+        "bmad-party-mode#logical:5"
+      ],
+      "transitionsTo": [
+        "bmad-party-mode#scene:REASON:1"
+      ]
+    },
+    {
+      "id": "bmad-party-mode#scene:REASON:1",
+      "scene": "REASON",
+      "sceneGoal": "Pick 2-4 agents whose expertise best fits the current user message",
+      "summary": "The Core Loop — 1. Pick the Right Voices",
+      "containsLogicalIds": [
+        "bmad-party-mode#logical:6"
+      ],
+      "transitionsTo": [
+        "bmad-party-mode#scene:ACT:1"
+      ]
+    },
+    {
+      "id": "bmad-party-mode#scene:ACT:1",
+      "scene": "ACT",
+      "sceneGoal": "Build per-agent prompts and spawn all selected subagents in parallel (or roleplay all in solo mode)",
+      "summary": "The Core Loop — 2. Build Context and Spawn",
+      "containsLogicalIds": [
+        "bmad-party-mode#logical:7",
+        "bmad-party-mode#logical:8",
+        "bmad-party-mode#logical:9"
+      ],
+      "transitionsTo": [
+        "bmad-party-mode#scene:VERIFY:1"
+      ]
+    },
+    {
+      "id": "bmad-party-mode#scene:VERIFY:1",
+      "scene": "VERIFY",
+      "sceneGoal": "Present each agent's full response unabridged and optionally add a brief orchestrator note",
+      "summary": "The Core Loop — 3. Present Responses",
+      "containsLogicalIds": [
+        "bmad-party-mode#logical:10",
+        "bmad-party-mode#logical:11"
+      ],
+      "transitionsTo": [
+        "bmad-party-mode#scene:RECOVER:1"
+      ]
+    },
+    {
+      "id": "bmad-party-mode#scene:RECOVER:1",
+      "scene": "RECOVER",
+      "sceneGoal": "Handle follow-ups, summarize prior rounds to keep context under 400 words, and recover from convergence or weak responses",
+      "summary": "The Core Loop — 4. Handle Follow-ups + Keeping Context Manageable + When Things Go Sideways",
+      "containsLogicalIds": [
+        "bmad-party-mode#logical:12",
+        "bmad-party-mode#logical:13"
+      ],
+      "transitionsTo": [
+        "bmad-party-mode#scene:REASON:1",
+        "bmad-party-mode#scene:FINALIZE:1"
+      ]
+    },
+    {
+      "id": "bmad-party-mode#scene:FINALIZE:1",
+      "scene": "FINALIZE",
+      "sceneGoal": "When the user signals done, deliver a brief wrap-up of key takeaways and return to normal mode",
+      "summary": "Exit",
+      "containsLogicalIds": [
+        "bmad-party-mode#logical:14"
+      ],
+      "transitionsTo": []
+    }
+  ],
+  "logical": [
+    {
+      "id": "bmad-party-mode#logical:1",
+      "action": "BRANCH",
+      "description": "Parse `--model <model>` and `--solo` flags from the invocation arguments",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "invocation_arguments",
+      "effects": [
+        "model_flag_resolved",
+        "solo_flag_resolved"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-party-mode#logical:2",
+      "action": "READ",
+      "description": "Load configuration from {project-root}/_bmad/core/config.yaml and resolve user_name and communication_language",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "_bmad/core/config.yaml",
+      "effects": [
+        "user_name_loaded",
+        "communication_language_loaded"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-party-mode#logical:3",
+      "action": "READ",
+      "description": "Read the agent manifest at {project-root}/_bmad/_config/agent-manifest.csv and build an internal roster with displayName, title, icon, role, identity, communicationStyle, and principles",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "_bmad/_config/agent-manifest.csv",
+      "effects": [
+        "agent_roster_built"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-party-mode#logical:4",
+      "action": "READ",
+      "description": "Search for **/project-context.md and hold it as background context to pass to agents when relevant",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "project-context.md",
+      "effects": [
+        "project_context_loaded_or_absent"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-party-mode#logical:5",
+      "action": "EMIT",
+      "description": "Greet the user using {user_name} and {communication_language}, mention solo mode if active, show the full agent roster (icon + name + one-line role), and ask what to discuss",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "welcome_message",
+      "effects": [
+        "user_greeted",
+        "agent_roster_displayed"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-party-mode#logical:6",
+      "action": "INFER",
+      "description": "Choose 2-4 agents whose expertise best fits the user's current message, honoring named agents, rotating over time, and matching breadth to topic complexity",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "agent_roster",
+      "effects": [
+        "agents_selected_for_round"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-party-mode#logical:7",
+      "action": "TRANSFORM",
+      "description": "For each selected agent, render the agent prompt template with persona fields, the under-400-word discussion summary, optional project context, and any cross-talk responses",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "agent_prompt_template",
+      "effects": [
+        "per_agent_prompts_built"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-party-mode#logical:8",
+      "action": "CALL_TOOL",
+      "description": "Spawn all selected agents in parallel via the Agent tool — single response with multiple Agent calls; if --model was set, force that model on every spawn",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "Agent_tool",
+      "effects": [
+        "subagents_spawned_in_parallel",
+        "responses_received"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-party-mode#logical:9",
+      "action": "BRANCH",
+      "description": "If --solo is active, skip spawning and roleplay all selected agents directly in a single message, keeping each response clearly separated by icon and name",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "solo_mode",
+      "effects": [
+        "solo_path_taken_when_active"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-party-mode#logical:10",
+      "action": "EMIT",
+      "description": "Present each agent's full unabridged response one after another, separated by blank lines, with no framing, blending, or summary",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "agent_responses",
+      "effects": [
+        "agent_responses_presented_to_user"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-party-mode#logical:11",
+      "action": "EMIT",
+      "description": "Optionally append a brief, clearly-labeled Orchestrator Note flagging disagreement or suggesting next-round voices",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "orchestrator_note",
+      "effects": [
+        "orchestrator_note_emitted_if_useful"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-party-mode#logical:12",
+      "action": "BRANCH",
+      "description": "Route follow-ups based on user phrasing — react to a specific agent, bring in a new agent, expand on a point, or restart the loop with all agents",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "user_followup_message",
+      "effects": [
+        "followup_path_taken"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-party-mode#logical:13",
+      "action": "TRANSFORM",
+      "description": "Compress prior rounds into an under-400-word discussion summary every 2-3 rounds or on topic shift, capturing positions taken and the user's direction",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "discussion_context_summary",
+      "effects": [
+        "discussion_context_summary_updated",
+        "context_kept_under_400_words"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-party-mode#logical:14",
+      "action": "EMIT",
+      "description": "On user exit signal, deliver a brief wrap-up of key takeaways and return to normal mode",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "wrap_up_summary",
+      "effects": [
+        "wrap_up_delivered",
+        "party_mode_exited"
+      ],
+      "evidenceClaimIds": []
+    }
+  ],
+  "warnings": []
+}

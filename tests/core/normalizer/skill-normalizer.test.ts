@@ -111,6 +111,32 @@ some prose without recognizable headings.
     expect(doc.warnings.some((w: string) => /no scenes/.test(w))).toBe(true);
   });
 
+  test("slug — .claude/skills/<folder>/SKILL.md → folder name (PR-V3.16.1 bug fix)", () => {
+    const docFolder = normalizer.normalize({
+      skillPath: ".claude/skills/bmad-distillator/SKILL.md",
+      source: SAMPLE_SKILL,
+      sourceSha256: "x",
+      generatedAt: "2026-05-05T00:00:00Z",
+    });
+    expect(docFolder.scheduling.id).toBe("bmad-distillator#scheduling");
+
+    const docCase = normalizer.normalize({
+      skillPath: ".claude/skills/My-Skill/skill.md",
+      source: SAMPLE_SKILL,
+      sourceSha256: "x",
+      generatedAt: "2026-05-05T00:00:00Z",
+    });
+    expect(docCase.scheduling.id).toBe("my-skill#scheduling");
+
+    const docFlat = normalizer.normalize({
+      skillPath: ".claude/skills/example-debug.md",
+      source: SAMPLE_SKILL,
+      sourceSha256: "x",
+      generatedAt: "2026-05-05T00:00:00Z",
+    });
+    expect(docFlat.scheduling.id).toBe("example-debug#scheduling");
+  });
+
   test("v0.2.0 풍부화 schema (PR-V3.12.1) — 신규 필드가 채워진다", () => {
     const src = `---
 name: rich-skill

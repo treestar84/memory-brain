@@ -1,0 +1,208 @@
+{
+  "sslVersion": "0.2.0",
+  "sourceSkillPath": ".claude/skills/bmad-review-edge-case-hunter/SKILL.md",
+  "sourceSha256": "f49ed9976f46b4cefa1fc8b4f0a495f16089905e6a7bbf4ce73b8f05c9ae3ee6",
+  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedBy": "llm",
+  "scheduling": {
+    "id": "bmad-review-edge-case-hunter#scheduling",
+    "skillName": "bmad-review-edge-case-hunter",
+    "skillGoal": "Mechanically enumerate every branching path and boundary in the provided content and report only unhandled edge cases as a structured JSON array",
+    "intentSignature": "Mechanically enumerate paths and boundaries to find unhandled edge cases",
+    "intentSignatures": [
+      "Mechanically enumerate paths and boundaries to find unhandled edge cases",
+      "Walk every branching path and boundary condition and report only unhandled cases",
+      "Run an exhaustive method-driven edge-case review of code, specs, or diffs",
+      "Identify missing handling without commenting on code quality"
+    ],
+    "triggerPatterns": [
+      "you need exhaustive edge-case analysis of code, specs, or diffs",
+      "method-driven (not attitude-driven) edge-case review is requested",
+      "diff or function review focused on missing guards"
+    ],
+    "expectedInputs": [
+      "content",
+      "also_consider"
+    ],
+    "expectedOutputs": [
+      "findings_json_array"
+    ],
+    "dependencies": [],
+    "controlFlowFeatures": [
+      "branching",
+      "loop"
+    ],
+    "ioContract": {
+      "inputsRaw": "content — Content to review: diff, full file, or function. also_consider (optional) — Areas to keep in mind during review alongside normal edge-case analysis",
+      "outputsRaw": "JSON array of objects, each with exactly: location (file:start-end | file:line | file:hunk), trigger_condition (≤15 words), guard_snippet (single-line escaped string), potential_consequence (≤15 words). Empty array `[]` is valid. On undecodable input, return the documented halt-condition object."
+    },
+    "preconditions": [
+      "content input is provided and decodable as text",
+      "scope rules apply (diff → only diff hunks; full file/function → entire content)",
+      "external functions are ignored unless explicitly referenced by content"
+    ]
+  },
+  "structural": [
+    {
+      "id": "bmad-review-edge-case-hunter#scene:ACQUIRE:1",
+      "scene": "ACQUIRE",
+      "sceneGoal": "Receive content, decode it, identify content type, and apply scope rules",
+      "summary": "Step 1: Receive Content",
+      "containsLogicalIds": [
+        "bmad-review-edge-case-hunter#logical:1",
+        "bmad-review-edge-case-hunter#logical:2",
+        "bmad-review-edge-case-hunter#logical:3"
+      ],
+      "transitionsTo": [
+        "bmad-review-edge-case-hunter#scene:REASON:1"
+      ]
+    },
+    {
+      "id": "bmad-review-edge-case-hunter#scene:REASON:1",
+      "scene": "REASON",
+      "sceneGoal": "Walk every branching path and boundary condition in scope and collect only unhandled paths",
+      "summary": "Step 2: Exhaustive Path Analysis",
+      "containsLogicalIds": [
+        "bmad-review-edge-case-hunter#logical:4",
+        "bmad-review-edge-case-hunter#logical:5",
+        "bmad-review-edge-case-hunter#logical:6"
+      ],
+      "transitionsTo": [
+        "bmad-review-edge-case-hunter#scene:VERIFY:1"
+      ]
+    },
+    {
+      "id": "bmad-review-edge-case-hunter#scene:VERIFY:1",
+      "scene": "VERIFY",
+      "sceneGoal": "Revisit edge classes to confirm no unhandled paths were missed and prune confirmed-handled findings",
+      "summary": "Step 3: Validate Completeness",
+      "containsLogicalIds": [
+        "bmad-review-edge-case-hunter#logical:7"
+      ],
+      "transitionsTo": [
+        "bmad-review-edge-case-hunter#scene:FINALIZE:1"
+      ]
+    },
+    {
+      "id": "bmad-review-edge-case-hunter#scene:FINALIZE:1",
+      "scene": "FINALIZE",
+      "sceneGoal": "Emit findings as a JSON array following the strict output format",
+      "summary": "Step 4: Present Findings",
+      "containsLogicalIds": [
+        "bmad-review-edge-case-hunter#logical:8"
+      ],
+      "transitionsTo": []
+    }
+  ],
+  "logical": [
+    {
+      "id": "bmad-review-edge-case-hunter#logical:1",
+      "action": "READ",
+      "description": "Load the content to review strictly from the provided input",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "content_input",
+      "effects": [
+        "content_loaded"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-review-edge-case-hunter#logical:2",
+      "action": "BRANCH",
+      "description": "If content is empty or cannot be decoded as text, emit the documented halt-condition JSON and stop",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "content_input",
+      "effects": [
+        "halt_emitted_when_input_invalid"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-review-edge-case-hunter#logical:3",
+      "action": "INFER",
+      "description": "Identify content type (diff, full file, or function) to determine scope rules",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "content_input",
+      "effects": [
+        "content_type_identified",
+        "scope_rules_selected"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-review-edge-case-hunter#logical:4",
+      "action": "INFER",
+      "description": "If also_consider was provided, incorporate those areas into the analysis alongside normal edge-case classes",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "also_consider_input",
+      "effects": [
+        "also_consider_areas_merged"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-review-edge-case-hunter#logical:5",
+      "action": "INFER",
+      "description": "Walk all branching paths — control flow (conditionals, loops, error handlers, early returns) and domain boundaries — deriving relevant edge classes from the content itself",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "content_paths",
+      "effects": [
+        "all_branching_paths_walked",
+        "domain_boundaries_walked"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-review-edge-case-hunter#logical:6",
+      "action": "TRANSFORM",
+      "description": "For each path, determine whether the content handles it; collect only unhandled paths and discard handled ones silently",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "path_handling_decisions",
+      "effects": [
+        "unhandled_paths_collected_as_findings",
+        "handled_paths_discarded_silently"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-review-edge-case-hunter#logical:7",
+      "action": "INFER",
+      "description": "Revisit every edge class (missing else/default, null/empty inputs, off-by-one loops, arithmetic overflow, implicit type coercion, race conditions, timeout gaps) to add missed unhandled paths and prune confirmed-handled ones",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "findings_set",
+      "effects": [
+        "completeness_revalidated",
+        "findings_set_pruned_and_extended"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-review-edge-case-hunter#logical:8",
+      "action": "EMIT",
+      "description": "Output the findings as a strict JSON array of objects with exactly four fields (location, trigger_condition, guard_snippet, potential_consequence) — no extra text, no markdown wrapping; empty array when no unhandled paths found",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "findings_json_array",
+      "effects": [
+        "findings_emitted_as_json_array"
+      ],
+      "evidenceClaimIds": []
+    }
+  ],
+  "warnings": []
+}

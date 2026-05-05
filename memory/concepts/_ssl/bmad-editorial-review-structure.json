@@ -1,0 +1,332 @@
+{
+  "sslVersion": "0.2.0",
+  "sourceSkillPath": ".claude/skills/bmad-editorial-review-structure/SKILL.md",
+  "sourceSha256": "164444359d74f695a84faf7ea558d0eef39c75561e6b26669f97a165c6f75538",
+  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedBy": "llm",
+  "scheduling": {
+    "id": "bmad-editorial-review-structure#scheduling",
+    "skillName": "bmad-editorial-review-structure",
+    "skillGoal": "Review document structure and propose prioritized cuts, reorganization, condensation, and preservation recommendations to improve clarity and flow before copy editing",
+    "intentSignature": "Structural-edit a document for high-value density and propose recommendations",
+    "intentSignatures": [
+      "Structural-edit a document for high-value density and propose recommendations",
+      "Run a structural review or editorial review of structure",
+      "Propose cuts, merges, moves, and condensations on a document",
+      "Optimize a document's structure before copy editing"
+    ],
+    "triggerPatterns": [
+      "user requests structural review or editorial review of structure",
+      "user asks to optimize document structure before copy editing"
+    ],
+    "expectedInputs": [
+      "content",
+      "style_guide",
+      "purpose",
+      "target_audience",
+      "reader_type",
+      "length_target"
+    ],
+    "expectedOutputs": [
+      "document_summary_block",
+      "prioritized_recommendations",
+      "estimated_reduction",
+      "no_changes_message"
+    ],
+    "dependencies": [
+      "Microsoft_Writing_Style_Guide_principles",
+      "Structure_Models_catalog"
+    ],
+    "controlFlowFeatures": [
+      "branching",
+      "loop",
+      "stateful"
+    ],
+    "ioContract": {
+      "inputsRaw": "content (required) — Document to review (markdown, plain text, or structured content). style_guide (optional) — overrides all generic principles except CONTENT IS SACROSANCT. purpose (optional). target_audience (optional). reader_type (optional, default `humans`). length_target (optional, e.g. '30% shorter').",
+      "outputsRaw": "Markdown block: ## Document Summary (Purpose, Audience, Reader type, Structure model, Current length); ## Recommendations (numbered entries with [CUT/MERGE/MOVE/CONDENSE/QUESTION/PRESERVE] - section name, Rationale, Impact ~X words, optional Comprehension note); ## Summary (Total recommendations, Estimated reduction, Meets length target, Comprehension trade-offs). Or 'No substantive changes recommended -- document structure is sound'."
+    },
+    "preconditions": [
+      "content has at least 3 words",
+      "reader_type is `humans` or `llm` (or omitted, defaulting to `humans`)",
+      "document headings, sections, and lists are detectable for structural mapping"
+    ]
+  },
+  "structural": [
+    {
+      "id": "bmad-editorial-review-structure#scene:ACQUIRE:3",
+      "scene": "ACQUIRE",
+      "sceneGoal": "Validate inputs (length, reader_type), identify document type and structure, and note current word and section counts",
+      "summary": "Step 1: Validate Input",
+      "containsLogicalIds": [
+        "bmad-editorial-review-structure#logical:1",
+        "bmad-editorial-review-structure#logical:2",
+        "bmad-editorial-review-structure#logical:3"
+      ],
+      "transitionsTo": [
+        "bmad-editorial-review-structure#scene:PREPARE:2"
+      ]
+    },
+    {
+      "id": "bmad-editorial-review-structure#scene:PREPARE:2",
+      "scene": "PREPARE",
+      "sceneGoal": "Resolve or infer purpose and target_audience, state the document's existence in one sentence, and select the appropriate structure model",
+      "summary": "Step 2: Understand Purpose",
+      "containsLogicalIds": [
+        "bmad-editorial-review-structure#logical:4",
+        "bmad-editorial-review-structure#logical:5",
+        "bmad-editorial-review-structure#logical:6"
+      ],
+      "transitionsTo": [
+        "bmad-editorial-review-structure#scene:REASON:1"
+      ]
+    },
+    {
+      "id": "bmad-editorial-review-structure#scene:REASON:1",
+      "scene": "REASON",
+      "sceneGoal": "Map document structure with section word counts and evaluate against the selected model's primary rules to find cuts, merges, moves, redundancies, scope violations, and burying",
+      "summary": "Step 3: Structural Analysis (CRITICAL)",
+      "containsLogicalIds": [
+        "bmad-editorial-review-structure#logical:7",
+        "bmad-editorial-review-structure#logical:8",
+        "bmad-editorial-review-structure#logical:9"
+      ],
+      "transitionsTo": [
+        "bmad-editorial-review-structure#scene:REASON:4"
+      ]
+    },
+    {
+      "id": "bmad-editorial-review-structure#scene:REASON:4",
+      "scene": "REASON",
+      "sceneGoal": "Assess reader's journey, premature detail, missing scaffolding, anti-patterns, and human pacing to surface flow issues",
+      "summary": "Step 4: Flow Analysis",
+      "containsLogicalIds": [
+        "bmad-editorial-review-structure#logical:10"
+      ],
+      "transitionsTo": [
+        "bmad-editorial-review-structure#scene:ACT:1"
+      ]
+    },
+    {
+      "id": "bmad-editorial-review-structure#scene:ACT:1",
+      "scene": "ACT",
+      "sceneGoal": "Compile findings into prioritized recommendations with category, rationale, and impact; flag comprehension trade-offs for human readers",
+      "summary": "Step 5: Generate Recommendations",
+      "containsLogicalIds": [
+        "bmad-editorial-review-structure#logical:11",
+        "bmad-editorial-review-structure#logical:12",
+        "bmad-editorial-review-structure#logical:13"
+      ],
+      "transitionsTo": [
+        "bmad-editorial-review-structure#scene:FINALIZE:1"
+      ]
+    },
+    {
+      "id": "bmad-editorial-review-structure#scene:FINALIZE:1",
+      "scene": "FINALIZE",
+      "sceneGoal": "Output the document summary, prioritized recommendations, and estimated reduction; otherwise output 'No substantive changes recommended'",
+      "summary": "Step 6: Output Results",
+      "containsLogicalIds": [
+        "bmad-editorial-review-structure#logical:14"
+      ],
+      "transitionsTo": []
+    }
+  ],
+  "logical": [
+    {
+      "id": "bmad-editorial-review-structure#logical:1",
+      "action": "BRANCH",
+      "description": "If content is empty or fewer than 3 words, HALT with the documented error",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "content_input",
+      "effects": [
+        "halt_on_too_short_content"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-structure#logical:2",
+      "action": "BRANCH",
+      "description": "If reader_type is provided and is not `humans` or `llm`, HALT with the documented error",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "reader_type_input",
+      "effects": [
+        "halt_on_invalid_reader_type"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-structure#logical:3",
+      "action": "INFER",
+      "description": "Identify document type and structure (headings, sections, lists, etc.) and note current word count and section count",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "content_input",
+      "effects": [
+        "document_type_identified",
+        "section_and_word_counts_recorded"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-structure#logical:4",
+      "action": "INFER",
+      "description": "Use provided purpose and target_audience or infer them from content; identify the core question the document answers",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "purpose_and_audience_inputs",
+      "effects": [
+        "purpose_resolved",
+        "audience_resolved",
+        "core_question_identified"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-structure#logical:5",
+      "action": "EMIT",
+      "description": "State in one sentence: 'This document exists to help [audience] accomplish [goal]'",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "purpose_statement",
+      "effects": [
+        "purpose_statement_recorded"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-structure#logical:6",
+      "action": "INFER",
+      "description": "Select the most appropriate structure model (Tutorial/Guide, Reference/Database, Explanation, Prompt/Task Definition, Strategic/Context) and apply Human-Reader or LLM-Reader principles per reader_type",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "structure_models_catalog",
+      "effects": [
+        "structure_model_selected",
+        "reader_principles_applied"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-structure#logical:7",
+      "action": "READ",
+      "description": "If style_guide was provided, consult it now and treat its requirements as overriding default principles for this analysis",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "style_guide_input",
+      "effects": [
+        "style_guide_requirements_loaded_when_present"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-structure#logical:8",
+      "action": "INFER",
+      "description": "Map the document structure with each major section's word count and evaluate against the selected model's primary rules (e.g., 'Does recommendation come first?' for Pyramid)",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "section_map",
+      "effects": [
+        "section_map_built",
+        "model_rule_compliance_evaluated"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-structure#logical:9",
+      "action": "INFER",
+      "description": "For each section, decide whether to cut, merge, move, or split; identify true redundancies, scope violations, and buried critical information; for humans, evaluate comprehension aids individually",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "section_findings",
+      "effects": [
+        "structural_findings_collected",
+        "redundancies_and_scope_violations_identified",
+        "buried_information_flagged"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-structure#logical:10",
+      "action": "INFER",
+      "description": "Assess reader's journey, premature detail, missing scaffolding, anti-patterns (FAQs that should be inline, appendices to cut, body-repeating overviews), and pacing for humans",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "document_flow",
+      "effects": [
+        "flow_issues_collected"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-structure#logical:11",
+      "action": "TRANSFORM",
+      "description": "Compile findings into prioritized recommendations and categorize each as CUT, MERGE, MOVE, CONDENSE, QUESTION, or PRESERVE",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "findings_set",
+      "effects": [
+        "recommendations_compiled",
+        "categories_assigned"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-structure#logical:12",
+      "action": "INFER",
+      "description": "For each recommendation, write a one-sentence rationale and estimate impact in words (saved or, for PRESERVE, cost)",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "recommendation_entries",
+      "effects": [
+        "rationales_written",
+        "impacts_estimated"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-structure#logical:13",
+      "action": "BRANCH",
+      "description": "If length_target was provided, assess whether recommendations meet it; if reader_type='humans' and recommendations would cut comprehension aids, flag with a comprehension warning",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "recommendation_set",
+      "effects": [
+        "length_target_checked",
+        "comprehension_warnings_flagged_for_humans"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-structure#logical:14",
+      "action": "EMIT",
+      "description": "Output Document Summary, prioritized Recommendations list, and Summary (totals, estimated reduction, length target met, comprehension trade-offs) per the documented markdown format; otherwise emit 'No substantive changes recommended -- document structure is sound'",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "structural_review_output",
+      "effects": [
+        "document_summary_emitted",
+        "recommendations_emitted",
+        "or_no_changes_message_emitted"
+      ],
+      "evidenceClaimIds": []
+    }
+  ],
+  "warnings": []
+}

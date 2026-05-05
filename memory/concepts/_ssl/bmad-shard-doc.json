@@ -1,0 +1,309 @@
+{
+  "sslVersion": "0.2.0",
+  "sourceSkillPath": ".claude/skills/bmad-shard-doc/SKILL.md",
+  "sourceSha256": "3a1538536514725fd4f31aded280ee56b9645fc61d114fd94aacb3ac52304e52",
+  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedBy": "llm",
+  "scheduling": {
+    "id": "bmad-shard-doc#scheduling",
+    "skillName": "bmad-shard-doc",
+    "skillGoal": "Split a large markdown document into smaller files at level 2 sections via @kayvan/markdown-tree-parser, then handle the original per user choice",
+    "intentSignature": "Split a large markdown document into level-2 section shards",
+    "intentSignatures": [
+      "Split a large markdown document into level-2 section shards",
+      "Perform shard document",
+      "Break a large markdown file into smaller organized files",
+      "Run @kayvan/markdown-tree-parser explode against a markdown document"
+    ],
+    "triggerPatterns": [
+      "the user says 'perform shard document'",
+      "the user requests sharding of a large markdown document"
+    ],
+    "expectedInputs": [
+      "source_document_path",
+      "destination_folder_path",
+      "original_document_disposition_choice"
+    ],
+    "expectedOutputs": [
+      "shard_files",
+      "index_md",
+      "completion_report",
+      "original_document_disposition_outcome"
+    ],
+    "dependencies": [
+      "npx",
+      "@kayvan/markdown-tree-parser"
+    ],
+    "controlFlowFeatures": [
+      "branching",
+      "network_access"
+    ],
+    "ioContract": {
+      "inputsRaw": "Source markdown document path (.md). Destination folder path — default is same location as source, folder named after source file without .md extension. User choice on original document: [d]elete, [m]ove to archive, or [k]eep.",
+      "outputsRaw": "Sharded section files in destination folder; index.md in destination folder; completion report containing source path, destination path, file count, index.md confirmation, and any tool warnings; original-document disposition outcome (deleted | moved-to-archive | kept-with-warning)."
+    },
+    "preconditions": [
+      "source document exists and has .md extension",
+      "destination folder exists or can be created with write permission",
+      "npx is available and able to fetch @kayvan/markdown-tree-parser"
+    ]
+  },
+  "structural": [
+    {
+      "id": "bmad-shard-doc#scene:ACQUIRE:1",
+      "scene": "ACQUIRE",
+      "sceneGoal": "Obtain and validate the source markdown document path",
+      "summary": "Step 1: Get Source Document",
+      "containsLogicalIds": [
+        "bmad-shard-doc#logical:1",
+        "bmad-shard-doc#logical:2"
+      ],
+      "transitionsTo": [
+        "bmad-shard-doc#scene:ACQUIRE:2"
+      ]
+    },
+    {
+      "id": "bmad-shard-doc#scene:ACQUIRE:2",
+      "scene": "ACQUIRE",
+      "sceneGoal": "Determine the destination folder (default or user-provided), verify or create it, and check write permissions",
+      "summary": "Step 2: Get Destination Folder",
+      "containsLogicalIds": [
+        "bmad-shard-doc#logical:3",
+        "bmad-shard-doc#logical:4"
+      ],
+      "transitionsTo": [
+        "bmad-shard-doc#scene:ACT:1"
+      ]
+    },
+    {
+      "id": "bmad-shard-doc#scene:ACT:1",
+      "scene": "ACT",
+      "sceneGoal": "Run npx @kayvan/markdown-tree-parser explode and capture output and errors",
+      "summary": "Step 3: Execute Sharding",
+      "containsLogicalIds": [
+        "bmad-shard-doc#logical:5",
+        "bmad-shard-doc#logical:6"
+      ],
+      "transitionsTo": [
+        "bmad-shard-doc#scene:VERIFY:1"
+      ]
+    },
+    {
+      "id": "bmad-shard-doc#scene:VERIFY:1",
+      "scene": "VERIFY",
+      "sceneGoal": "Verify destination contains shards and an index.md, and count files; halt if none created",
+      "summary": "Step 4: Verify Output",
+      "containsLogicalIds": [
+        "bmad-shard-doc#logical:7",
+        "bmad-shard-doc#logical:8"
+      ],
+      "transitionsTo": [
+        "bmad-shard-doc#scene:FINALIZE:2"
+      ]
+    },
+    {
+      "id": "bmad-shard-doc#scene:FINALIZE:2",
+      "scene": "FINALIZE",
+      "sceneGoal": "Display the completion report including paths, count, and tool output",
+      "summary": "Step 5: Report Completion",
+      "containsLogicalIds": [
+        "bmad-shard-doc#logical:9"
+      ],
+      "transitionsTo": [
+        "bmad-shard-doc#scene:ACT:2"
+      ]
+    },
+    {
+      "id": "bmad-shard-doc#scene:ACT:2",
+      "scene": "ACT",
+      "sceneGoal": "Prompt for and execute the user's choice on the original document — delete, move to archive, or keep with warning",
+      "summary": "Step 6: Handle Original Document",
+      "containsLogicalIds": [
+        "bmad-shard-doc#logical:10",
+        "bmad-shard-doc#logical:11",
+        "bmad-shard-doc#logical:12",
+        "bmad-shard-doc#logical:13"
+      ],
+      "transitionsTo": []
+    }
+  ],
+  "logical": [
+    {
+      "id": "bmad-shard-doc#logical:1",
+      "action": "EMIT",
+      "description": "If the source document path was not provided, ask the user to supply it",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "user_prompt_for_source_path",
+      "effects": [
+        "source_path_obtained"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-shard-doc#logical:2",
+      "action": "BRANCH",
+      "description": "Verify the source file exists, is accessible, and has a .md extension; HALT with error if not found or not markdown",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "source_document_path",
+      "effects": [
+        "source_validated_or_halted"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-shard-doc#logical:3",
+      "action": "TRANSFORM",
+      "description": "Compute the default destination folder as the source file's directory plus a folder named after the source file without .md extension, and prompt the user to confirm or override",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "default_destination_folder",
+      "effects": [
+        "destination_folder_resolved"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-shard-doc#logical:4",
+      "action": "BRANCH",
+      "description": "Verify the destination folder exists or can be created and that write permission is granted; HALT with error if permission denied",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "destination_folder_path",
+      "effects": [
+        "destination_writable_or_halted"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-shard-doc#logical:5",
+      "action": "EMIT",
+      "description": "Inform the user that sharding is beginning",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "user_status_message",
+      "effects": [
+        "user_informed_of_start"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-shard-doc#logical:6",
+      "action": "CALL_TOOL",
+      "description": "Execute `npx @kayvan/markdown-tree-parser explode <source-document> <destination-folder>` and capture output and errors; HALT on failure",
+      "resources": [
+        "NETWORK",
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "npx @kayvan/markdown-tree-parser",
+      "effects": [
+        "shard_command_executed",
+        "shards_written_to_disk",
+        "halt_on_command_failure"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-shard-doc#logical:7",
+      "action": "READ",
+      "description": "List the destination folder, verify shards exist and index.md was created, and count the number of section files",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "destination_folder_path",
+      "effects": [
+        "shards_verified",
+        "index_md_verified",
+        "shard_file_count_obtained"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-shard-doc#logical:8",
+      "action": "BRANCH",
+      "description": "If no files were created, HALT with an error message",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "shard_file_count",
+      "effects": [
+        "halt_on_zero_shards"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-shard-doc#logical:9",
+      "action": "EMIT",
+      "description": "Display a completion report listing source path, destination path, shard count, index.md confirmation, and any tool output or warnings",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "completion_report",
+      "effects": [
+        "completion_report_emitted"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-shard-doc#logical:10",
+      "action": "EMIT",
+      "description": "Present the user with options for the original document — [d] delete (recommended), [m] move to archive, or [k] keep (not recommended)",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "original_disposition_prompt",
+      "effects": [
+        "user_disposition_choice_requested"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-shard-doc#logical:11",
+      "action": "WRITE",
+      "description": "If the user selects [d], delete the original source document file and confirm deletion to the user",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "source_document_path",
+      "effects": [
+        "original_deleted"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-shard-doc#logical:12",
+      "action": "WRITE",
+      "description": "If the user selects [m], create the archive directory if needed, move the original to the chosen archive path (default: source_dir/archive/<filename>), and confirm",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "archive_path",
+      "effects": [
+        "archive_directory_ensured",
+        "original_moved_to_archive"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-shard-doc#logical:13",
+      "action": "EMIT",
+      "description": "If the user selects [k], display the keeping-original warnings and confirm the user's choice",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "keep_warning_message",
+      "effects": [
+        "keep_warnings_emitted",
+        "original_kept_with_warning"
+      ],
+      "evidenceClaimIds": []
+    }
+  ],
+  "warnings": []
+}

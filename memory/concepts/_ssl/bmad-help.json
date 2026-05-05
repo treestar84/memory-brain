@@ -1,0 +1,278 @@
+{
+  "sslVersion": "0.2.0",
+  "sourceSkillPath": ".claude/skills/bmad-help/SKILL.md",
+  "sourceSha256": "cd7096b2ff55b2b87e12d6b9c4c9ea13dfca78c49299a09327c97107f9531da8",
+  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedBy": "llm",
+  "scheduling": {
+    "id": "bmad-help#scheduling",
+    "skillName": "bmad-help",
+    "skillGoal": "Analyze the user's BMad workflow state and query, recommend the next skill(s) to run, and answer general module questions grounded in registered documentation",
+    "intentSignature": "Recommend the next BMad skill or answer a BMad question grounded in module docs",
+    "intentSignatures": [
+      "Recommend the next BMad skill or answer a BMad question grounded in module docs",
+      "Help the user understand where they are in the BMad workflow and what to do next",
+      "Answer 'bmad help' or 'what should I do next' queries",
+      "Provide a grounded answer to a general BMad question using module documentation"
+    ],
+    "triggerPatterns": [
+      "user asks for help, bmad help, what to do next, or what to start with in BMad",
+      "user asks a general BMad module question that may need documentation grounding"
+    ],
+    "expectedInputs": [
+      "user_query",
+      "project_root",
+      "active_module",
+      "current_workflow_state"
+    ],
+    "expectedOutputs": [
+      "recommended_skill_list",
+      "next_required_item",
+      "quick_start_offer",
+      "grounded_answer"
+    ],
+    "dependencies": [
+      "_bmad/_config/bmad-help.csv",
+      "_bmad/**/config.yaml",
+      "_bmad/**/user-config.yaml",
+      "project_knowledge_path",
+      "module_documentation_urls"
+    ],
+    "controlFlowFeatures": [
+      "branching",
+      "loop",
+      "network_access",
+      "stateful"
+    ],
+    "ioContract": {
+      "inputsRaw": "User query plus the BMad project root. Catalog from {project-root}/_bmad/_config/bmad-help.csv. Configs (config.yaml, user-config.yaml) under {project-root}/_bmad/ and subfolders. Optional project_knowledge file. Module docs at URLs/paths in `output-location` of `_meta` rows.",
+      "outputsRaw": "Per-recommendation block with [menu-code] Display name, `skill-name` in backticks, action invocation context for multi-action skills, description, args; ordering: optional items first then the next required; presented in {communication_language}; with a quick-start offer when a single skill is the clear next step."
+    },
+    "preconditions": [
+      "{project-root}/_bmad/_config/bmad-help.csv is present and parseable",
+      "config.yaml and user-config.yaml resolve required variables (output-location, communication_language, project_knowledge)",
+      "Module documentation URLs from `_meta` rows are reachable when general questions need grounding"
+    ]
+  },
+  "structural": [
+    {
+      "id": "bmad-help#scene:PREPARE:1",
+      "scene": "PREPARE",
+      "sceneGoal": "Resolve project root, load configs, and resolve output-location and communication_language variables",
+      "summary": "Data Sources — Config",
+      "containsLogicalIds": [
+        "bmad-help#logical:1",
+        "bmad-help#logical:2"
+      ],
+      "transitionsTo": [
+        "bmad-help#scene:ACQUIRE:1"
+      ]
+    },
+    {
+      "id": "bmad-help#scene:ACQUIRE:1",
+      "scene": "ACQUIRE",
+      "sceneGoal": "Load the catalog, scan resolved output paths for completed artifacts, and optionally load project_knowledge and module docs",
+      "summary": "Data Sources — Catalog, Artifacts, Project knowledge, Module docs",
+      "containsLogicalIds": [
+        "bmad-help#logical:3",
+        "bmad-help#logical:4",
+        "bmad-help#logical:5",
+        "bmad-help#logical:6"
+      ],
+      "transitionsTo": [
+        "bmad-help#scene:REASON:1"
+      ]
+    },
+    {
+      "id": "bmad-help#scene:REASON:1",
+      "scene": "REASON",
+      "sceneGoal": "Interpret CSV phases, dependencies, and required gates to determine where the user is and what comes next",
+      "summary": "CSV Interpretation",
+      "containsLogicalIds": [
+        "bmad-help#logical:7",
+        "bmad-help#logical:8",
+        "bmad-help#logical:9"
+      ],
+      "transitionsTo": [
+        "bmad-help#scene:ACT:1"
+      ]
+    },
+    {
+      "id": "bmad-help#scene:ACT:1",
+      "scene": "ACT",
+      "sceneGoal": "Format the response per spec — optional items first then the next required, with menu codes, skill names, args, and an optional quick-start offer",
+      "summary": "Response Format + Constraints",
+      "containsLogicalIds": [
+        "bmad-help#logical:10",
+        "bmad-help#logical:11",
+        "bmad-help#logical:12"
+      ],
+      "transitionsTo": []
+    }
+  ],
+  "logical": [
+    {
+      "id": "bmad-help#logical:1",
+      "action": "READ",
+      "description": "Load config.yaml and user-config.yaml under {project-root}/_bmad/ and its subfolders",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "_bmad/**/config.yaml and user-config.yaml",
+      "effects": [
+        "configs_loaded"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-help#logical:2",
+      "action": "TRANSFORM",
+      "description": "Resolve output-location variables, communication_language, and project_knowledge from the loaded configs",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "config_variables",
+      "effects": [
+        "output_locations_resolved",
+        "communication_language_resolved",
+        "project_knowledge_path_resolved"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-help#logical:3",
+      "action": "READ",
+      "description": "Read the catalog at {project-root}/_bmad/_config/bmad-help.csv (assembled manifest of all installed module skills)",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "_bmad/_config/bmad-help.csv",
+      "effects": [
+        "catalog_loaded"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-help#logical:4",
+      "action": "READ",
+      "description": "Search resolved output paths for files matching `outputs` patterns and fuzzy-match found files to catalog rows to detect completion",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "resolved_output_paths",
+      "effects": [
+        "completed_artifacts_detected",
+        "completion_state_inferred"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-help#logical:5",
+      "action": "READ",
+      "description": "If project_knowledge resolves to an existing path, read it for grounding context",
+      "resources": [
+        "LOCAL_FS"
+      ],
+      "resourceTarget": "project_knowledge_path",
+      "effects": [
+        "project_knowledge_loaded_when_present"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-help#logical:6",
+      "action": "CALL_TOOL",
+      "description": "When a question doesn't map to a skill, fetch module documentation from URLs in `_meta` rows' output-location and use it to ground the answer",
+      "resources": [
+        "NETWORK"
+      ],
+      "resourceTarget": "module_documentation_urls",
+      "effects": [
+        "module_docs_fetched_for_grounding"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-help#logical:7",
+      "action": "INFER",
+      "description": "Parse CSV phases — `anytime` available regardless of state, numbered phases flow in order — and place the user in the active phase",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "catalog_rows",
+      "effects": [
+        "active_phase_identified"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-help#logical:8",
+      "action": "INFER",
+      "description": "Order recommendations using `after` / `before` dependencies and respect `required=true` gates as required for proceeding to later phases",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "dependency_graph",
+      "effects": [
+        "ordering_resolved",
+        "required_gates_enforced"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-help#logical:9",
+      "action": "INFER",
+      "description": "Read description fields as navigation hints (cycle info, alternate paths) — not just display text",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "catalog_descriptions",
+      "effects": [
+        "navigation_hints_extracted"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-help#logical:10",
+      "action": "EMIT",
+      "description": "Present each recommended item with [menu-code], display name, `skill-name` in backticks, action invocation context for multi-action skills, description, and args",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "response_block",
+      "effects": [
+        "recommendations_formatted_per_spec"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-help#logical:11",
+      "action": "BRANCH",
+      "description": "When a single skill is the clear next step, offer a quick-start to run it for the user rather than just listing it; otherwise show optional items first, then the next required",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "ordering_decision",
+      "effects": [
+        "quick_start_offered_when_appropriate",
+        "ordering_optional_then_required_applied"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-help#logical:12",
+      "action": "EMIT",
+      "description": "Render output in {communication_language}, recommend running each skill in a fresh context window, and match the user's tone (conversational vs structured)",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "final_response",
+      "effects": [
+        "response_rendered_in_target_language",
+        "fresh_context_recommendation_included"
+      ],
+      "evidenceClaimIds": []
+    }
+  ],
+  "warnings": []
+}

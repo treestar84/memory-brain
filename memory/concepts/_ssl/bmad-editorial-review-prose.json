@@ -1,0 +1,240 @@
+{
+  "sslVersion": "0.2.0",
+  "sourceSkillPath": ".claude/skills/bmad-editorial-review-prose/SKILL.md",
+  "sourceSha256": "b3687fe80567378627bc2a0c5034ae8d65dfeedcf2b6c90da077f4feca462d0c",
+  "generatedAt": "2026-05-05T00:47:10.012Z",
+  "generatedBy": "llm",
+  "scheduling": {
+    "id": "bmad-editorial-review-prose#scheduling",
+    "skillName": "bmad-editorial-review-prose",
+    "skillGoal": "Review prose for comprehension-impeding communication issues and emit minimal-fix suggestions in a three-column markdown table, preserving content and author voice",
+    "intentSignature": "Clinical copy-edit prose for communication issues, output a three-column fix table",
+    "intentSignatures": [
+      "Clinical copy-edit prose for communication issues, output a three-column fix table",
+      "Review prose for clarity and comprehension issues",
+      "Improve the prose with minimal-intervention fixes",
+      "Run an editorial review on a passage of text"
+    ],
+    "triggerPatterns": [
+      "user says 'review for prose'",
+      "user asks to improve the prose"
+    ],
+    "expectedInputs": [
+      "content",
+      "style_guide",
+      "reader_type"
+    ],
+    "expectedOutputs": [
+      "editorial_fix_table",
+      "no_issues_message"
+    ],
+    "dependencies": [
+      "Microsoft_Writing_Style_Guide_principles"
+    ],
+    "controlFlowFeatures": [
+      "branching",
+      "loop"
+    ],
+    "ioContract": {
+      "inputsRaw": "content (required) — Cohesive unit of text to review (markdown, plain text, or text-heavy XML). style_guide (optional) — Project-specific style guide overriding all generic principles except CONTENT IS SACROSANCT. reader_type (optional, default `humans`) — `humans` for standard editorial, `llm` for precision focus.",
+      "outputsRaw": "Three-column markdown table with columns Original Text | Revised Text | Changes; otherwise the literal string 'No editorial issues identified'. HALT errors when content is empty/<3 words or reader_type is invalid."
+    },
+    "preconditions": [
+      "content has at least 3 words",
+      "reader_type is `humans` or `llm` (or omitted, defaulting to `humans`)",
+      "code blocks, frontmatter, and structural markup are detectable so they can be skipped"
+    ]
+  },
+  "structural": [
+    {
+      "id": "bmad-editorial-review-prose#scene:ACQUIRE:1",
+      "scene": "ACQUIRE",
+      "sceneGoal": "Validate inputs, identify content type, and note skip-zones (code blocks, frontmatter, markup)",
+      "summary": "Step 1: Validate Input",
+      "containsLogicalIds": [
+        "bmad-editorial-review-prose#logical:1",
+        "bmad-editorial-review-prose#logical:2",
+        "bmad-editorial-review-prose#logical:3"
+      ],
+      "transitionsTo": [
+        "bmad-editorial-review-prose#scene:REASON:2"
+      ]
+    },
+    {
+      "id": "bmad-editorial-review-prose#scene:REASON:2",
+      "scene": "REASON",
+      "sceneGoal": "Analyze style, tone, and voice; calibrate review priorities by reader_type",
+      "summary": "Step 2: Analyze Style",
+      "containsLogicalIds": [
+        "bmad-editorial-review-prose#logical:4",
+        "bmad-editorial-review-prose#logical:5"
+      ],
+      "transitionsTo": [
+        "bmad-editorial-review-prose#scene:ACT:1"
+      ]
+    },
+    {
+      "id": "bmad-editorial-review-prose#scene:ACT:1",
+      "scene": "ACT",
+      "sceneGoal": "Review prose, identify issues, determine minimal fixes, and merge/dedup overlapping entries",
+      "summary": "Step 3: Editorial Review (CRITICAL)",
+      "containsLogicalIds": [
+        "bmad-editorial-review-prose#logical:6",
+        "bmad-editorial-review-prose#logical:7",
+        "bmad-editorial-review-prose#logical:8",
+        "bmad-editorial-review-prose#logical:9"
+      ],
+      "transitionsTo": [
+        "bmad-editorial-review-prose#scene:FINALIZE:1"
+      ]
+    },
+    {
+      "id": "bmad-editorial-review-prose#scene:FINALIZE:1",
+      "scene": "FINALIZE",
+      "sceneGoal": "Output the three-column fix table when issues are found; otherwise output 'No editorial issues identified'",
+      "summary": "Step 4: Output Results",
+      "containsLogicalIds": [
+        "bmad-editorial-review-prose#logical:10"
+      ],
+      "transitionsTo": []
+    }
+  ],
+  "logical": [
+    {
+      "id": "bmad-editorial-review-prose#logical:1",
+      "action": "BRANCH",
+      "description": "If content is empty or contains fewer than 3 words, HALT with the documented error message",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "content_input",
+      "effects": [
+        "halt_on_too_short_content"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-prose#logical:2",
+      "action": "BRANCH",
+      "description": "If reader_type is not `humans` or `llm` (and is provided), HALT with the documented error message",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "reader_type_input",
+      "effects": [
+        "halt_on_invalid_reader_type"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-prose#logical:3",
+      "action": "INFER",
+      "description": "Identify content type (markdown, plain text, XML with text) and note any code blocks, frontmatter, or structural markup to skip",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "content_input",
+      "effects": [
+        "content_type_identified",
+        "skip_zones_marked"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-prose#logical:4",
+      "action": "INFER",
+      "description": "Analyze the style, tone, and voice of the input text; note intentional stylistic choices to preserve",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "content_style",
+      "effects": [
+        "style_voice_analyzed",
+        "intentional_choices_logged"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-prose#logical:5",
+      "action": "BRANCH",
+      "description": "Calibrate review priorities by reader_type — `llm` favors unambiguous references, consistent terminology, explicit structure, no hedging; `humans` favors clarity, flow, readability, natural progression",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "reader_type",
+      "effects": [
+        "review_priorities_calibrated"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-prose#logical:6",
+      "action": "READ",
+      "description": "If style_guide was provided, consult it now and treat its requirements as overriding all generic principles for this review (except CONTENT IS SACROSANCT)",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "style_guide_input",
+      "effects": [
+        "style_guide_requirements_loaded_when_present"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-prose#logical:7",
+      "action": "INFER",
+      "description": "Walk all prose sections (skipping code blocks, frontmatter, structural markup) to identify communication issues that impede comprehension",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "prose_sections",
+      "effects": [
+        "communication_issues_identified"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-prose#logical:8",
+      "action": "INFER",
+      "description": "For each issue, determine the minimal fix that achieves clarity and phrase uncertain fixes as 'Consider: [suggestion]?' queries",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "issue_set",
+      "effects": [
+        "minimal_fixes_proposed",
+        "uncertain_fixes_phrased_as_queries"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-prose#logical:9",
+      "action": "TRANSFORM",
+      "description": "Deduplicate same-issue occurrences into one entry listing all locations, merge overlapping issues into single entries, and preserve author voice",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "issue_entries",
+      "effects": [
+        "issues_deduplicated",
+        "overlapping_fixes_merged",
+        "author_voice_preserved"
+      ],
+      "evidenceClaimIds": []
+    },
+    {
+      "id": "bmad-editorial-review-prose#logical:10",
+      "action": "EMIT",
+      "description": "If issues found, output the three-column markdown table (Original Text | Revised Text | Changes); otherwise output the literal 'No editorial issues identified'",
+      "resources": [
+        "MEMORY"
+      ],
+      "resourceTarget": "editorial_output",
+      "effects": [
+        "fix_table_or_no_issues_message_emitted"
+      ],
+      "evidenceClaimIds": []
+    }
+  ],
+  "warnings": []
+}
