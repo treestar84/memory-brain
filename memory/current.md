@@ -130,3 +130,37 @@
 - 사용법: `bun run viewer:ssl` → http://localhost:4041
 
 **검증**: 749/749 pass · typecheck OK · 회귀 0건.
+
+## PR-V3.17 사이클 (2026-05-05~06) — Canonical Store + SSL 0.3.0 + 4 신규 노드
+
+**커밋**: `a371abc` (a) → `558b0b0` (b) → `a3e58d6` (c) → `9c80832` (d) → `d665393` (stats) → `0f12c27` (시드 9 + 측정)
+
+- **a (Canonical Store 인프라)**: `_canonical/actions.yaml` 외부화 + `actionRef` optional + loader + validateSSL 확장. 시드 7 (INFER/EMIT/BRANCH/TRANSFORM/READ/WRITE/CALL_LOCAL_SCRIPT).
+- **b (SSL 0.3.0 + 4 신규 노드)**: DecisionNode/InteractionNode/EvidenceNode/ProtocolNode + EXPECTED_RESPONSE_TYPES enum + `.claude-pai/` noise gitignore.
+- **c (Dedup detector)**: `CanonicalCandidatesDetector` (governance 6번째). N≥3 회 inline 패턴 자동 발견.
+- **d (PAI prompt + viewer)**: `_spec/prompt.md` + `ssl-schema.md` + viewer 4 panel 시각화.
+- **stats CLI**: `bin/cfgm-ssl-stats.ts` — V3.17 효과 측정.
+- **시드 9 확장**: dedup 후보 2건 (BRANCH_ON_LOCAL_FILE, READ_FROM_MEMORY) yaml 만 편집해 등록.
+
+**PAI 처리 결과 (2026-05-06, 11 BMAD)**:
+- Canonical 사용률: **87.2%** (109/125 logical) — 목표 50% 크게 초과
+- 4 노드 채움: bmad-distillator 1/11 (D=5 I=1 E=4 P=3) — 단순 plugin 한계, false positive 회피 정상
+- validateSSL 통과: 11/11
+- 평균 SSL: +10% (수용 가능)
+- Audit log: `memory/_pending/normalize/_spec/canonical-proposal-v2.md`
+
+**검증**: 785/785 pass · typecheck OK · 회귀 0건.
+
+## 다음 세션 시작점 (Bootstrap)
+
+### 즉시 가능한 다음 단계
+1. **시드 9 효과 측정**: `bun run bin/cfgm-ssl-enqueue.ts --force` → PAI 재처리 → `cfgm-ssl-stats` 로 87.2% → ~96%+ 검증
+2. **V3.18 ExecutionBindingNode** 검토 — SSL 그래프 실행 가능 KG 화 (큰 결정, 사용자 합의)
+3. **plan v3 미완**: V3.5 (claim ledger 이관 `.memory-brain/claims/` → `memory/claims/`), V3.16 (ML risk classifier)
+4. **운영 품질**: README quickstart 보강, CONTRIBUTING.md, CHANGELOG.md, CI 설정 (RULES 위반 자동 감지)
+
+### 사용자 확정 정체성 / 정책
+- `docs/RULES.md` 5 원칙 (MCP X / 구독 auth / OMC X / production / 분리 PAI 세션)
+- canonical 시드는 고정 X — yaml 만 편집해 확장 가능
+- skill md 절반 이상 SSL 대체가 목표 (V3.17 가 인프라, 실 측정으로 입증 진행 중)
+- 도메인 어휘 (BMAD 등) 본체 X, `extensions:` 영역만
