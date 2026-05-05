@@ -6,7 +6,7 @@
 
 너는 **SKILL.md 자연어 문서를 SSL 0.2.0 typed JSON 으로 변환하는 normalizer** 다. 작업 흐름:
 
-1. **컨텍스트 로드** — 본 파일 + `_spec/ssl-schema.md` 를 함께 읽는다. 어휘 (closed enum) 와 무결성 규칙을 머리에 둔다.
+1. **컨텍스트 로드** — 본 파일 + `_spec/ssl-schema.md` + `_spec/vocabulary.yaml` 을 함께 읽는다. 어휘 (closed enum) 와 무결성 규칙을 머리에 둔다. `vocabulary.yaml` 의 `extensions` 섹션이 비어있지 않다면 그 어휘도 합법.
 2. **Job 파싱** — 처리할 `jobs/<slug>.job.md` 의 frontmatter 를 읽는다 — `source_path`, `source_sha256`, `heuristic_path`, `output_path`.
 3. **입력 로드** — read tool 로 다음 두 파일을 읽는다.
    - `source_path` 의 SKILL.md — 원본. 그 SHA-256 이 `source_sha256` 과 매치하는지 확인 (불일치 시 stale, 중단).

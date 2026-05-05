@@ -1,0 +1,102 @@
+# SSL Closed Vocabulary — 사람·LLM·코드 모두가 참조하는 단일 명세
+#
+# 본 파일은 SSL 의 closed enum 정의를 외부화한 첫 단계 (proposal artifact).
+# 현 시점: 본 파일은 LLM (PAI 세션) 이 normalize 시 참조하는 명세이며,
+# 코드의 enum (src/core/ontology/ssl.ts) 은 본 파일과 1:1 동기 상태.
+#
+# 다음 단계 (사용자 합의 후 PR-V3.16.3): src/core/ontology/ssl.ts 가 본 파일을
+# 직접 로드 + extensions 섹션 검증 → 코드 변경 없이 enum 추가 가능.
+#
+# docs/RULES.md 원칙 4: vendor-agnostic — 도메인 별 어휘 추가가 코드 PR 없이 가능해야 함.
+
+sslVersion: "0.2.0"
+
+# ─── L2 Structural — Scene (skill 의 phase 종류) ──────────────────────────
+scenes:
+  - name: PREPARE
+    definition: "Setup phase before main work — load config, init state"
+  - name: ACQUIRE
+    definition: "Pull data from external sources without mutating them"
+  - name: REASON
+    definition: "Analyze, decide, plan — no side effects"
+  - name: ACT
+    definition: "Execute primary work / mutate state / produce outputs"
+  - name: VERIFY
+    definition: "Check results, validate against criteria"
+  - name: RECOVER
+    definition: "Handle errors, rollback, fallback paths"
+  - name: FINALIZE
+    definition: "Cleanup, report, return result to caller"
+
+# ─── L3 Logical — Action (atomic operation 종류) ──────────────────────────
+actions:
+  - name: READ
+    definition: "Pull data from a source without mutation"
+  - name: WRITE
+    definition: "Persist data to storage / mutate external state"
+  - name: CALL_TOOL
+    definition: "Invoke external tool, command, or function"
+  - name: INFER
+    definition: "Reason, decide, classify — produces a conclusion in MEMORY"
+  - name: EMIT
+    definition: "Send signal / message / event / notification"
+  - name: WAIT
+    definition: "Pause until external condition met (timer, signal, callback)"
+  - name: BRANCH
+    definition: "Conditional control flow — choose path based on state"
+  - name: SCHEDULE
+    definition: "Defer / queue future work for later execution"
+  - name: TRANSFORM
+    definition: "Map / reshape data in-memory without external I/O"
+
+# ─── L3 Logical — ResourceScope (action 이 접근하는 자원의 종류) ────────
+resourceScopes:
+  - name: MEMORY
+    definition: "In-process state, no persistence after the run"
+  - name: LOCAL_FS
+    definition: "Local filesystem (read/write files)"
+  - name: CREDENTIALS
+    definition: "Secrets, tokens, API keys — sensitive scope"
+  - name: NETWORK
+    definition: "External network calls (HTTP, etc.)"
+  - name: DATABASE
+    definition: "Persistent structured store (SQL, KV)"
+  - name: QUEUE
+    definition: "Message queue / job scheduler / pubsub"
+
+# ─── L1 Scheduling — ControlFlowFeature (skill 의 흐름 특성) ─────────────
+controlFlowFeatures:
+  - name: branching
+    definition: "Has conditional path selection"
+  - name: loop
+    definition: "Has repeated iteration"
+  - name: scheduled_retry
+    definition: "Has backoff/retry-on-failure logic"
+  - name: network_access
+    definition: "Makes outbound network calls"
+  - name: credential_access
+    definition: "Reads or uses secrets / tokens / keys"
+  - name: long_running
+    definition: "Multi-minute or unbounded duration"
+  - name: stateful
+    definition: "Persists state across runs"
+
+# ─── 사용자 프로젝트별 확장 (코드 수정 없이 enum 추가 영역) ────────────
+# 현재는 빈 stub. 다음 PR (V3.16.3) 에서 validateSSL 이 본 섹션을 로드해
+# default + extensions 합집합으로 검증한다. 그 PR 머지 전에는 본 섹션의
+# 항목은 검증되지 않으므로 사용 금지.
+extensions:
+  scenes: []
+  actions: []
+  resourceScopes: []
+  controlFlowFeatures: []
+
+# ─── 본 파일과 코드의 관계 ──────────────────────────────────────────────
+# 현 시점 (PR-V3.16.2):
+#   - 본 파일 = LLM/PAI 세션이 참조하는 명세 (이미 동작)
+#   - src/core/ontology/ssl.ts = 코드 enum (본 파일과 동기, 단방향 fallback)
+#   - 둘이 어긋나면 코드가 우선 (validateSSL gate)
+# 다음 단계 (PR-V3.16.3):
+#   - 코드가 본 파일을 직접 로드 + extensions 검증
+#   - 어긋남 자동 감지 → CI fail
+#   - 사용자가 본 파일만 편집해서 어휘 추가 가능
