@@ -44,6 +44,12 @@ alwaysApply: true
 - 중복 발견 시 **무조건 append 하지 말 것** — upsert/merge/supersede.
 - 오래된 정보를 **삭제만으로 처리하지 말 것** — supersede / decay / archive 우선.
 
+## 아키텍처 원칙 (필수 — 새 코드 추가 전 확인)
+
+본 프로젝트는 **production-grade open-source memory engine** 이다. MVP 가 아니다.
+4 핵심 원칙: ① MCP 사용 X · ② 구독 auth 기본 (API 토큰 호출 X) · ③ OMC/OMX 의존 X · ④ production 품질.
+**상세 규칙·예외·위반 처리는 [`docs/RULES.md`](./docs/RULES.md) 를 새 코드 추가 전 반드시 확인.**
+
 ---
 
 # Bun 정책 (코드 작성 시)
