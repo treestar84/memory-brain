@@ -137,7 +137,7 @@ export class KGProjector {
       }
 
       // REFERENCES_EVIDENCE 엣지: logical → claim
-      for (const claimId of l.evidenceClaimIds) {
+      for (const claimId of l.evidenceClaimIds ?? []) {
         edges.push({
           fromId: l.id,
           toId: claimId,

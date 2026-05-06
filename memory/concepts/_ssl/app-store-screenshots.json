@@ -1,0 +1,217 @@
+{
+  "sslVersion": "0.3.0",
+  "sourceSkillPath": ".claude/skills/app-store-screenshots/SKILL.md",
+  "sourceSha256": "69cc79a20801c7efccd3dfe202a3998b3189b7c7bf394cbe74a9b9c11141f13f",
+  "generatedAt": "2026-05-06T16:10:26.532Z",
+  "generatedBy": "llm",
+  "scheduling": {
+    "id": "app-store-screenshots#scheduling",
+    "skillName": "app-store-screenshots",
+    "skillGoal": "Build and export App Store & Google Play marketing screenshots as a Next.js page using html-to-image",
+    "intentSignature": "Use when building App Store or Google Play screenshot pages, generating exportable marketing screenshots for iOS and/or Android apps, or creating programmatic screenshot generators with Next.js",
+    "intentSignatures": [
+      "Use when building App Store or Google Play screenshot pages, generating exportable marketing screenshots for iOS and/or Android apps, or creating programmatic screenshot generators with Next.js",
+      "Triggers on app store, play store, screenshots, marketing assets, html-to-image, phone mockup, android screenshots, feature graphic",
+      "Create iPhone or Android screenshot generator in Next.js",
+      "Export app screenshots at required Apple or Google Play resolution",
+      "Generate localized App Store marketing screenshots programmatically"
+    ],
+    "triggerPatterns": [
+      "building App Store or Google Play screenshot pages, generating exportable marketing screenshots for iOS and/or Android apps, or creating programmatic screenshot generators with Next",
+      "needs both Apple and Android screenshots, use a platform-based structure so every device's images are clearly separated:",
+      "confirms they're targeting Android as well"
+    ],
+    "expectedInputs": [
+      "app_screenshots",
+      "app_icon",
+      "brand_colors",
+      "font",
+      "feature_list",
+      "slide_count",
+      "style_direction"
+    ],
+    "expectedOutputs": [
+      "screenshot_png_files",
+      "nextjs_page_tsx"
+    ],
+    "dependencies": [
+      "html-to-image",
+      "next",
+      "tailwindcss",
+      "typescript"
+    ],
+    "controlFlowFeatures": [
+      "branching",
+      "loop",
+      "network_access",
+      "long_running",
+      "stateful"
+    ],
+    "ioContract": {
+      "inputsRaw": "app screenshots (PNG), app icon, brand colors, font, feature list, slide count, style direction",
+      "outputsRaw": "PNG screenshot files at Apple/Google required resolutions, Next.js page.tsx"
+    },
+    "preconditions": []
+  },
+  "structural": [
+    {
+      "id": "app-store-screenshots#scene:REASON:1",
+      "scene": "REASON",
+      "sceneGoal": "Collect app assets, brand identity, and feature priorities from the user",
+      "summary": "Collect app assets, brand identity, and feature priorities from the user",
+      "containsLogicalIds": [
+        "app-store-screenshots#logical:1",
+        "app-store-screenshots#logical:2"
+      ],
+      "transitionsTo": [
+        "app-store-screenshots#scene:PREPARE:2"
+      ]
+    },
+    {
+      "id": "app-store-screenshots#scene:PREPARE:2",
+      "scene": "PREPARE",
+      "sceneGoal": "Scaffold Next.js project with html-to-image dependency and font configuration",
+      "summary": "Scaffold Next.js project with html-to-image dependency and font configuration",
+      "containsLogicalIds": [
+        "app-store-screenshots#logical:3",
+        "app-store-screenshots#logical:4"
+      ],
+      "transitionsTo": [
+        "app-store-screenshots#scene:REASON:3"
+      ]
+    },
+    {
+      "id": "app-store-screenshots#scene:REASON:3",
+      "scene": "REASON",
+      "sceneGoal": "Plan slide composition, visual style, and device targets from collected answers",
+      "summary": "Plan slide composition, visual style, and device targets from collected answers",
+      "containsLogicalIds": [
+        "app-store-screenshots#logical:5"
+      ],
+      "transitionsTo": [
+        "app-store-screenshots#scene:ACT:4"
+      ]
+    },
+    {
+      "id": "app-store-screenshots#scene:ACT:4",
+      "scene": "ACT",
+      "sceneGoal": "Build page.tsx with slide factory functions and export screenshots via html-to-image double-call",
+      "summary": "Build page.tsx with slide factory functions and export screenshots via html-to-image double-call",
+      "containsLogicalIds": [
+        "app-store-screenshots#logical:6",
+        "app-store-screenshots#logical:7"
+      ],
+      "transitionsTo": []
+    }
+  ],
+  "logical": [
+    {
+      "id": "app-store-screenshots#logical:1",
+      "actionRef": "EMIT_TO_MEMORY",
+      "action": "EMIT",
+      "resources": ["MEMORY"],
+      "resourceTarget": "user_requirements",
+      "summary": "Emit required questions to gather app assets and brand identity",
+      "effects": ["user_requirements_collected"]
+    },
+    {
+      "id": "app-store-screenshots#logical:2",
+      "actionRef": "INFER_FROM_MEMORY",
+      "action": "INFER",
+      "resources": ["MEMORY"],
+      "resourceTarget": "design_decisions",
+      "summary": "Infer background style, decorative elements, typography, and RTL behavior from user answers",
+      "effects": ["design_decisions_resolved"]
+    },
+    {
+      "id": "app-store-screenshots#logical:3",
+      "actionRef": "CALL_LOCAL_SCRIPT",
+      "action": "CALL_TOOL",
+      "resources": ["LOCAL_FS"],
+      "resourceTarget": "create-next-app",
+      "summary": "Scaffold Next.js project with Tailwind, TypeScript, and html-to-image",
+      "effects": ["nextjs_project_created", "html_to_image_installed"]
+    },
+    {
+      "id": "app-store-screenshots#logical:4",
+      "actionRef": "WRITE_LOCAL_FILE",
+      "action": "WRITE",
+      "resources": ["LOCAL_FS"],
+      "resourceTarget": "src/app/layout.tsx",
+      "summary": "Write layout.tsx with font configuration",
+      "effects": ["font_configured"]
+    },
+    {
+      "id": "app-store-screenshots#logical:5",
+      "actionRef": "INFER_FROM_MEMORY",
+      "action": "INFER",
+      "resources": ["MEMORY"],
+      "resourceTarget": "slide_plan",
+      "summary": "Plan slide count, order, messages, and device frame composition per platform",
+      "effects": ["slide_plan_ready"]
+    },
+    {
+      "id": "app-store-screenshots#logical:6",
+      "actionRef": "WRITE_LOCAL_FILE",
+      "action": "WRITE",
+      "resources": ["LOCAL_FS"],
+      "resourceTarget": "src/app/page.tsx",
+      "summary": "Write page.tsx with slide factory functions, device frames, theme presets, and base64 image preloader",
+      "effects": ["screenshot_page_built"]
+    },
+    {
+      "id": "app-store-screenshots#logical:7",
+      "actionRef": "CALL_LOCAL_SCRIPT",
+      "action": "CALL_TOOL",
+      "resources": ["LOCAL_FS"],
+      "resourceTarget": "html-to-image-export",
+      "summary": "Export screenshots via html-to-image double-call pattern at required resolutions",
+      "effects": ["screenshot_png_files_exported"]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "app-store-screenshots#decision:1",
+      "scopeRef": "app-store-screenshots#scene:REASON:1",
+      "question": "Which app stores are being targeted?",
+      "branches": [
+        {
+          "when": "Apple App Store only",
+          "then": "Generate iPhone (and optionally iPad) screenshots only"
+        },
+        {
+          "when": "Google Play only",
+          "then": "Generate Android phone, tablet, and Feature Graphic as needed"
+        },
+        {
+          "when": "Both stores",
+          "then": "Use platform-based directory structure (apple/ + android/) and generate all required device sizes"
+        }
+      ],
+      "fallback": "Default to iPhone-only structure until confirmed otherwise"
+    },
+    {
+      "id": "app-store-screenshots#decision:2",
+      "scopeRef": "app-store-screenshots#scene:REASON:1",
+      "question": "Are screenshots needed in multiple languages?",
+      "branches": [
+        {
+          "when": "Localization requested",
+          "then": "Add locale subdirectories and mirror RTL layout for ar/he/fa/ur locales"
+        }
+      ],
+      "fallback": "Omit locale folder; use flat screenshot paths"
+    }
+  ],
+  "interactions": [
+    {
+      "id": "app-store-screenshots#interaction:1",
+      "scopeRef": "app-store-screenshots#scene:REASON:1",
+      "prompt": "Before writing any code, I need to ask you several questions: (1) app screenshot file paths, (2) app icon path, (3) brand colors, (4) font preference, (5) feature list in priority order, (6) desired slide count, (7) visual style direction.",
+      "expectedResponseType": "free-text"
+    }
+  ],
+  "evidence": [],
+  "protocols": [],
+  "warnings": []
+}

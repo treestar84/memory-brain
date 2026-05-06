@@ -1,0 +1,94 @@
+{
+  "sslVersion": "0.3.0",
+  "sourceSkillPath": ".claude/skills/app-store-screenshots/SKILL.md",
+  "sourceSha256": "69cc79a20801c7efccd3dfe202a3998b3189b7c7bf394cbe74a9b9c11141f13f",
+  "generatedAt": "2026-05-06T16:10:26.532Z",
+  "generatedBy": "heuristic",
+  "scheduling": {
+    "id": "app-store-screenshots#scheduling",
+    "skillName": "app-store-screenshots",
+    "skillGoal": "Use when building App Store or Google Play screenshot pages, generating exportable marketing screenshots for iOS and/or Android apps, or creating programmatic screenshot generators with Next.js",
+    "intentSignature": "Use when building App Store or Google Play screenshot pages, generating exportable marketing screenshots for iOS and/or Android apps, or creating programmatic screenshot generators with Next.js",
+    "intentSignatures": [
+      "Use when building App Store or Google Play screenshot pages, generating exportable marketing screenshots for iOS and/or Android apps, or creating programmatic screenshot generators with Next.js",
+      "Triggers on app store, play store, screenshots, marketing assets, html-to-image, phone mockup, android screenshots, feature graphic"
+    ],
+    "triggerPatterns": [
+      "building App Store or Google Play screenshot pages, generating exportable marketing screenshots for iOS and/or Android apps, or creating programmatic screenshot generators with Next",
+      "needs both Apple and Android screenshots, use a platform-based structure so every device's images are clearly separated:",
+      "confirms they're targeting Android as well"
+    ],
+    "expectedInputs": [],
+    "expectedOutputs": [],
+    "dependencies": [
+      "html-to-image",
+      "LOCALES",
+      "base",
+      "ResizeObserver",
+      "isTablet",
+      "html2canvas",
+      "src",
+      "toPng",
+      "fixed",
+      "device"
+    ],
+    "controlFlowFeatures": [
+      "branching",
+      "loop",
+      "network_access",
+      "long_running",
+      "stateful"
+    ],
+    "ioContract": {
+      "inputsRaw": "",
+      "outputsRaw": ""
+    },
+    "preconditions": []
+  },
+  "structural": [
+    {
+      "id": "app-store-screenshots#scene:REASON:1",
+      "scene": "REASON",
+      "sceneGoal": "Derived from answers (do NOT ask — decide yourself)",
+      "summary": "Derived from answers (do NOT ask — decide yourself)",
+      "containsLogicalIds": [],
+      "transitionsTo": [
+        "app-store-screenshots#scene:PREPARE:2"
+      ]
+    },
+    {
+      "id": "app-store-screenshots#scene:PREPARE:2",
+      "scene": "PREPARE",
+      "sceneGoal": "Font Setup",
+      "summary": "Font Setup",
+      "containsLogicalIds": [],
+      "transitionsTo": [
+        "app-store-screenshots#scene:REASON:3"
+      ]
+    },
+    {
+      "id": "app-store-screenshots#scene:REASON:3",
+      "scene": "REASON",
+      "sceneGoal": "Step 3: Plan the Slides",
+      "summary": "Step 3: Plan the Slides",
+      "containsLogicalIds": [],
+      "transitionsTo": [
+        "app-store-screenshots#scene:ACT:4"
+      ]
+    },
+    {
+      "id": "app-store-screenshots#scene:ACT:4",
+      "scene": "ACT",
+      "sceneGoal": "Export Implementation",
+      "summary": "Export Implementation",
+      "containsLogicalIds": [],
+      "transitionsTo": []
+    }
+  ],
+  "logical": [],
+  "warnings": [
+    "scheduling.expectedInputs empty (LLM fill needed)",
+    "scheduling.expectedOutputs empty (LLM fill needed)",
+    "no actions inferred from body (LLM fill needed)"
+  ]
+}
