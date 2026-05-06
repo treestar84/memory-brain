@@ -50,8 +50,8 @@ describe("SearchIndex", () => {
     idx.close();
   });
 
-  test("초기 — schema_version 메타 2 (PR-V3.14 ssl_skills 추가)", () => {
-    expect(idx.getMeta("schema_version")).toBe("2");
+  test("초기 — schema_version 메타 3 (PR-V3.19 kg_nodes/kg_edges 추가)", () => {
+    expect(idx.getMeta("schema_version")).toBe("3");
     expect(idx.getMeta("rebuilt_at")).toBeNull();
   });
 

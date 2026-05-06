@@ -40,6 +40,9 @@ export interface RebuildResult {
   wikiCount: number;
   claimCount: number;
   skillCount?: number;
+  nodeCount: number;
+  edgeCount: number;
+  danglingEdgeCount: number;
   durationMs: number;
 }
 

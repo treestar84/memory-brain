@@ -2,6 +2,7 @@ import { Database } from "bun:sqlite";
 import type { WikiPage } from "../wiki/types";
 import type { ClaimCandidate } from "../claim/types";
 import type { SSLDocument } from "../ontology/ssl";
+import type { KGNode, KGEdge } from "./KGProjector";
 import type {
   WikiSearchHit,
   ClaimSearchHit,
@@ -11,7 +12,7 @@ import type {
   SkillSearchOpts,
 } from "./types";
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 const SCHEMA_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS meta (
@@ -48,6 +49,31 @@ const SCHEMA_STATEMENTS = [
     logical_text,
     tokenize='unicode61'
   )`,
+  `CREATE TABLE IF NOT EXISTS kg_nodes (
+    node_id    TEXT PRIMARY KEY,
+    node_type  TEXT NOT NULL,
+    skill_slug TEXT NOT NULL,
+    scene      TEXT,
+    action     TEXT,
+    label      TEXT NOT NULL,
+    properties TEXT NOT NULL
+  ) STRICT`,
+  `CREATE INDEX IF NOT EXISTS idx_kg_nodes_skill ON kg_nodes(skill_slug)`,
+  `CREATE INDEX IF NOT EXISTS idx_kg_nodes_type  ON kg_nodes(node_type)`,
+  `CREATE TABLE IF NOT EXISTS kg_edges (
+    from_id    TEXT NOT NULL,
+    to_id      TEXT NOT NULL,
+    relation   TEXT NOT NULL,
+    from_skill TEXT NOT NULL,
+    to_skill   TEXT,
+    resolved   INTEGER NOT NULL DEFAULT 1,
+    properties TEXT,
+    PRIMARY KEY (from_id, to_id, relation)
+  ) STRICT`,
+  `CREATE INDEX IF NOT EXISTS idx_kg_edges_to        ON kg_edges(to_id, relation)`,
+  `CREATE INDEX IF NOT EXISTS idx_kg_edges_relation  ON kg_edges(relation)`,
+  `CREATE INDEX IF NOT EXISTS idx_kg_edges_from_skill ON kg_edges(from_skill)`,
+  `CREATE INDEX IF NOT EXISTS idx_kg_edges_to_skill   ON kg_edges(to_skill)`,
 ];
 
 // Paper §4.1: rich SSL fields > raw text. Scheduling carries highest weight
@@ -245,6 +271,26 @@ export class SearchIndex {
     }));
   }
 
+  replaceKG(nodes: KGNode[], edges: KGEdge[]): void {
+    const tx = this.db.transaction(() => {
+      this.db.run("DELETE FROM kg_edges");
+      this.db.run("DELETE FROM kg_nodes");
+      const nodeStmt = this.db.prepare(
+        "INSERT OR REPLACE INTO kg_nodes (node_id, node_type, skill_slug, scene, action, label, properties) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      );
+      for (const n of nodes) {
+        nodeStmt.run(n.nodeId, n.nodeType, n.skillSlug, n.scene ?? null, n.action ?? null, n.label, n.properties);
+      }
+      const edgeStmt = this.db.prepare(
+        "INSERT OR REPLACE INTO kg_edges (from_id, to_id, relation, from_skill, to_skill, resolved, properties) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      );
+      for (const e of edges) {
+        edgeStmt.run(e.fromId, e.toId, e.relation, e.fromSkill, e.toSkill ?? null, e.resolved ? 1 : 0, e.properties ?? null);
+      }
+    });
+    tx();
+  }
+
   getMeta(key: string): string | null {
     const row = this.db
       .query("SELECT value FROM meta WHERE key = ?")
@@ -281,7 +327,10 @@ function flattenSSL(doc: SSLDocument): {
   structural: string;
   logical: string;
 } {
-  const slug = doc.scheduling.id.split("#")[0];
+  const rawId = doc.scheduling.id;
+  const slug = rawId && rawId.includes("#")
+    ? rawId.split("#")[0]
+    : doc.scheduling.skillName.toLowerCase().replace(/\s+/g, "-");
   const scheduling = [
     doc.scheduling.skillName,
     doc.scheduling.intentSignature,

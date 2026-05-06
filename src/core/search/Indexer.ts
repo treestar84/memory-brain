@@ -3,6 +3,7 @@ import type { ClaimStore } from "../claim/ClaimStore";
 import type { SearchIndex } from "./SearchIndex";
 import type { SSLReader } from "./SSLReader";
 import type { RebuildResult } from "./types";
+import { KGProjector } from "./KGProjector";
 
 const WIKI_SUBDIRS = ["projects", "concepts", "decisions"];
 
@@ -43,11 +44,17 @@ export class Indexer {
 
     this.searchIndex.rebuild({ wikiPages, claims, skills: sslResult.docs });
 
+    const { nodes, edges, danglingCount } = new KGProjector().projectAll(sslResult.docs);
+    this.searchIndex.replaceKG(nodes, edges);
+
     const durationMs = Math.round(performance.now() - start);
     return {
       wikiCount: wikiPages.length,
       claimCount: claims.length,
       skillCount: sslResult.docs.length,
+      nodeCount: nodes.length,
+      edgeCount: edges.length,
+      danglingEdgeCount: danglingCount,
       durationMs,
     };
   }
