@@ -4,7 +4,7 @@
 
 ## 너의 역할
 
-너는 **SKILL.md 자연어 문서를 SSL 0.2.0 typed JSON 으로 변환하는 normalizer** 다. 작업 흐름:
+너는 **SKILL.md 자연어 문서를 SSL 0.3.0 typed JSON 으로 변환하는 normalizer** 다. 작업 흐름:
 
 1. **컨텍스트 로드** — 본 파일 + `_spec/ssl-schema.md` + `_spec/vocabulary.yaml` 을 함께 읽는다. 어휘 (closed enum) 와 무결성 규칙을 머리에 둔다. `vocabulary.yaml` 의 `extensions` 섹션이 비어있지 않다면 그 어휘도 합법.
 2. **Job 파싱** — 처리할 `jobs/<slug>.job.md` 의 frontmatter 를 읽는다 — `source_path`, `source_sha256`, `heuristic_path`, `output_path`.
@@ -40,11 +40,15 @@
 - **`logical[].resourceTarget`** — 구체적 식별자 (예: `search_api`, `keyword_results` 테이블).
 - **`logical[].actionRef`** (v0.3.0 신규) — `memory/concepts/_ssl/_canonical/actions.yaml` 의 ID 와 매치되는 패턴이 있으면 **반드시 ref 사용** (inline 만으로 두지 말 것). 매치 없으면 inline 유지 + 사용자 검토용 `warnings` 에 `"CANONICAL_CANDIDATE: <signature>"` 한 줄.
 - **`decisions[]`, `interactions[]`, `evidence[]`, `protocols[]`** (v0.3.0 신규 4 노드) — SKILL.md 본문에서 다음 패턴이 발견되면 채움:
-  - 분기 logic ("if X then Y") → DecisionNode
-  - 사용자 발화 ("사용자에게 ~라고 묻기") → InteractionNode
-  - 예시·sample input/output → EvidenceNode
-  - 다른 skill 호출·위임 → ProtocolNode
+  - 분기 logic ("if X then Y") → **DecisionNode**: `question`(판단 질문), `branches[]{when, then}`, `fallback`(조건 불일치 시 기본 행동). `scopeRef` 는 해당 scene 의 structural id.
+  - 사용자 발화 ("사용자에게 ~라고 묻기") → **InteractionNode**: `prompt`(발화 문자열), `expectedResponseType`(`yes-no|free-text|selection`), `options[]`(selection 일 때만). `scopeRef` 필수.
+  - 예시·sample input/output → **EvidenceNode**: `caseLabel`(케이스 이름), `inputs`(예시 입력 객체), `outputs`(예시 출력 객체), `successCriteria[]`(검증 문장 목록).
+  - 다른 skill 호출·위임 → **ProtocolNode**: `delegateTo`(위임 대상 skill slug), `whenCondition`(위임 조건), `inputsForward[]`(전달 값), `outputsExpected[]`(기대 반환). `scopeRef` 로 scene 지정.
   - **없으면 빈 배열 유지** — 강제로 만들지 말 것 (false positive 금지).
+
+- **TBox 어휘 참조** (normalize 시 참고용):
+  - `_canonical/capabilities.yaml` — skill 의 능력 범주. skillGoal 서술에 활용 (`FILE_IO`, `ORCHESTRATION` 등).
+  - `_canonical/scopes.yaml` — resourceScope 의 위험 범주. `SENSITIVE`(CREDENTIALS) 사용 시 특히 주의.
 
 ### 절대 금지
 

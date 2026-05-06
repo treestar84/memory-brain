@@ -157,7 +157,15 @@
 1. ~~**시드 9 효과 측정**~~ ✅ **완료 (2026-05-06, 623ef92)** — 87.2% → **96%** (120/125), 785/785 pass
 2. ~~**운영 품질 최소셋**~~ ✅ **완료 (2026-05-06, d412ba4)** — README quickstart + CHANGELOG 초판
 3. ~~**V3.5 claim ledger 이관**~~ ✅ **완료 (2026-05-06, d72fbfe)** — `memory/claims/ledger.jsonl` git-tracked, 785/785 pass
-4. **V3.18 ExecutionBindingNode** 검토 — SSL 그래프 실행 가능 KG 화 (큰 결정, 사용자 합의 필요)
+4. ~~**V3.18 ExecutionBindingNode**~~ ✅ **완료 (2026-05-06)** — Workflow Capture + SSL-guided Replay 로 재설계. `cfgm-learn` + `cfgm-replay`. 804/804 pass
+5. ~~**V3.19 Cross-skill 엣지 물질화**~~ ✅ **완료 (2026-05-06)** — `KGProjector` + `KGGraph` + `cfgm-graph-query`. kg_nodes/kg_edges SQLite 테이블. DELEGATES_TO 타입 엣지. 80X/80X pass
+
+### 다음 단계 후보 (V3.21+)
+- ~~**V3.20**: R-COMPOSE 추론~~ ✅ **완료 (2026-05-06)** — `KGComposer` + `cfgm-compose`. COMPOSES 트리플 도출 + 사이클 감지. 843/843 pass
+- ~~**V3.21**: `cfgm-replay --chain`~~ ✅ **완료 (2026-05-06)** — BFS 체인 순회 + COMPOSES 트리플 활용. 계층적 chain replay plan 생성. 850/850 pass
+- ~~**V3.22**: 공유 LogicalNode~~ ✅ **완료 (2026-05-06)** — `KGSharedNodeDetector` + `cfgm-dedup-actions`. inChain/crossSkill 중복 탐지. 858/858 pass
+- ~~**V3.23**: `cfgm-find-chain --goal "..."`~~ ✅ **완료 (2026-05-06)** — FTS5+KGComposer 수직 통합. goal→체인 발견. 866/866 pass
+- ~~**TBox 확장**~~ ✅ **완료 (2026-05-06)** — `capabilities.yaml` + `scopes.yaml` (IS_A 추론 없음, 어휘 정의만). `cfgm-find-chain --replay` 연동. PAI spec 0.3.0 갱신. 866/866 pass
 
 ### 사용자 확정 정체성 / 정책
 - `docs/RULES.md` 5 원칙 (MCP X / 구독 auth / OMC X / production / 분리 PAI 세션)

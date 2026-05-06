@@ -10,7 +10,13 @@
     "install:brain": "bun run bin/install-brain.ts",
     "uninstall:brain": "bun run bin/uninstall-brain.ts",
     "viewer": "bun run bin/cfgm-viewer.ts",
-    "viewer:ssl": "bun run bin/cfgm-ssl-viewer.ts"
+    "viewer:ssl": "bun run bin/cfgm-ssl-viewer.ts",
+    "learn": "bun run bin/cfgm-learn.ts",
+    "replay": "bun run bin/cfgm-replay.ts",
+    "enqueue": "bun run bin/cfgm-ssl-enqueue.ts",
+    "compose": "bun run bin/cfgm-compose.ts",
+    "dedup-actions": "bun run bin/cfgm-dedup-actions.ts",
+    "find-chain": "bun run bin/cfgm-find-chain.ts"
   },
   "devDependencies": {
     "typescript": "^5.8.0",

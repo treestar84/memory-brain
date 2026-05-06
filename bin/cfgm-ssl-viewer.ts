@@ -1,12 +1,16 @@
 #!/usr/bin/env bun
 import index from "./cfgm-ssl-viewer.html";
+import workflowPage from "./cfgm-workflow-viewer.html";
 import { Glob } from "bun";
 import { resolve } from "node:path";
 import { stat } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { Database } from "bun:sqlite";
 import { SearchIndex } from "../src/core/search/SearchIndex";
 import { SSLReader } from "../src/core/search/SSLReader";
 import { SSLRiskDetector } from "../src/core/governance/reports/SSLRiskDetector";
 import { SSL_VERSION, type SSLDocument } from "../src/core/ontology/ssl";
+import { resolveStorageRoot } from "../src/hooks/bootstrap";
 
 /**
  * cfgm-ssl-viewer — KG-Brain 대시보드.
@@ -25,6 +29,15 @@ import { SSL_VERSION, type SSLDocument } from "../src/core/ontology/ssl";
  *   GET /api/queue                pending normalize queue 상태
  *   GET /api/risk                 SSL risk detector 전체 출력
  */
+
+interface WorkflowAction {
+  id: string;
+  action: string;
+  actionRef: string | null;
+  description: string;
+  resourceTarget: string | null;
+  effects: string[];
+}
 
 const REPO_ROOT = process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
 const PORT = Number(process.env.CFGM_SSL_VIEWER_PORT ?? 4041);
@@ -187,6 +200,214 @@ const server = Bun.serve({
         claims: [], wikiPages: [], skills: docs, now: new Date().toISOString(),
       });
       return json(report);
+    },
+
+    "/workflow": workflowPage,
+
+    "/api/workflow/:slug": async (req) => {
+      const slug = req.params.slug;
+      const dbPath = resolve(resolveStorageRoot(), "indexes/search.sqlite");
+
+      if (!existsSync(dbPath)) {
+        return json({ error: "index not found — run cfgm-rebuild-index first" }, { status: 404 });
+      }
+
+      const db = new Database(dbPath, { readonly: true });
+      try {
+        // 1. Scheduling node → skillName, skillGoal, intentSignature
+        const schedulingRow = db
+          .query<{ properties: string }, [string]>(
+            "SELECT properties FROM kg_nodes WHERE node_type = 'scheduling' AND skill_slug = ? LIMIT 1"
+          )
+          .get(slug);
+
+        let skillName = slug;
+        let skillGoal = "";
+        let intentSignature = "";
+        if (schedulingRow) {
+          try {
+            const p = JSON.parse(schedulingRow.properties) as Record<string, unknown>;
+            skillName = (p.skillName as string) ?? slug;
+            skillGoal = (p.skillGoal as string) ?? "";
+            intentSignature = (p.intentSignature as string) ?? "";
+          } catch { /* malformed JSON — use defaults */ }
+        }
+
+        // 2. Structural nodes (scenes)
+        const structuralRows = db
+          .query<
+            { node_id: string; scene: string; properties: string },
+            [string]
+          >(
+            "SELECT node_id, scene, properties FROM kg_nodes WHERE node_type = 'structural' AND skill_slug = ?"
+          )
+          .all(slug);
+
+        // 3. TRANSITIONS_TO edges for topological sort
+        const transitionEdges = db
+          .query<{ from_id: string; to_id: string }, [string]>(
+            "SELECT from_id, to_id FROM kg_edges WHERE relation = 'TRANSITIONS_TO' AND from_skill = ?"
+          )
+          .all(slug);
+
+        // 4. CONTAINS edges (scene → action nodes)
+        const containsEdges = db
+          .query<{ from_id: string; to_id: string }, [string]>(
+            "SELECT from_id, to_id FROM kg_edges WHERE relation = 'CONTAINS' AND from_skill = ?"
+          )
+          .all(slug);
+
+        // 5. DELEGATES_TO edges
+        const delegateEdges = db
+          .query<{ from_id: string; to_id: string; resolved: number; properties: string }, [string]>(
+            "SELECT from_id, to_id, resolved, properties FROM kg_edges WHERE relation = 'DELEGATES_TO' AND from_skill = ?"
+          )
+          .all(slug);
+
+        // Topological sort of scenes via BFS
+        const sceneMap = new Map(structuralRows.map((r) => [r.node_id, r]));
+        const adjOut = new Map<string, string[]>();
+        const inDegree = new Map<string, number>();
+        for (const r of structuralRows) {
+          adjOut.set(r.node_id, []);
+          inDegree.set(r.node_id, 0);
+        }
+        for (const e of transitionEdges) {
+          if (!adjOut.has(e.from_id) || !sceneMap.has(e.to_id)) continue;
+          adjOut.get(e.from_id)!.push(e.to_id);
+          inDegree.set(e.to_id, (inDegree.get(e.to_id) ?? 0) + 1);
+        }
+
+        let sortedSceneIds: string[];
+        if (transitionEdges.length === 0) {
+          // fallback: alphabetical
+          sortedSceneIds = structuralRows.map((r) => r.node_id).sort();
+        } else {
+          const queue: string[] = [];
+          for (const [id, deg] of inDegree) {
+            if (deg === 0) queue.push(id);
+          }
+          queue.sort(); // deterministic tie-break
+          sortedSceneIds = [];
+          const visited = new Set<string>();
+          while (queue.length > 0) {
+            const id = queue.shift()!;
+            if (visited.has(id)) continue;
+            visited.add(id);
+            sortedSceneIds.push(id);
+            const neighbors = (adjOut.get(id) ?? []).slice().sort();
+            for (const nid of neighbors) {
+              const newDeg = (inDegree.get(nid) ?? 1) - 1;
+              inDegree.set(nid, newDeg);
+              if (newDeg === 0) queue.push(nid);
+            }
+          }
+          // append any unvisited (cycle members or disconnected)
+          for (const r of structuralRows) {
+            if (!visited.has(r.node_id)) sortedSceneIds.push(r.node_id);
+          }
+        }
+
+        // Collect logical node IDs per scene from CONTAINS edges
+        const sceneToActionIds = new Map<string, string[]>();
+        for (const e of containsEdges) {
+          if (!sceneToActionIds.has(e.from_id)) sceneToActionIds.set(e.from_id, []);
+          sceneToActionIds.get(e.from_id)!.push(e.to_id);
+        }
+
+        // Fetch all logical nodes in one query
+        const allActionIds = containsEdges.map((e) => e.to_id);
+        let logicalRows: Array<{ node_id: string; action: string; properties: string }> = [];
+        if (allActionIds.length > 0) {
+          const placeholders = allActionIds.map(() => "?").join(",");
+          logicalRows = db
+            .query<{ node_id: string; action: string; properties: string }, string[]>(
+              `SELECT node_id, action, properties FROM kg_nodes WHERE node_id IN (${placeholders})`
+            )
+            .all(...allActionIds);
+        }
+        const logicalMap = new Map(logicalRows.map((r) => [r.node_id, r]));
+
+        // Build scenes array
+        const scenes = sortedSceneIds.map((sceneId, order) => {
+          const sceneRow = sceneMap.get(sceneId)!;
+          let sceneGoal = "";
+          try {
+            const p = JSON.parse(sceneRow.properties) as Record<string, unknown>;
+            sceneGoal = (p.sceneGoal as string) ?? (p.goal as string) ?? "";
+          } catch { /* ignore */ }
+
+          const actionIds = sceneToActionIds.get(sceneId) ?? [];
+          const actions = actionIds.map((aid) => {
+            const aRow = logicalMap.get(aid);
+            if (!aRow) return null;
+            let actionRef: string | null = null;
+            let description = "";
+            let resourceTarget: string | null = null;
+            let effects: string[] = [];
+            try {
+              const p = JSON.parse(aRow.properties) as Record<string, unknown>;
+              actionRef = (p.actionRef as string) ?? null;
+              description = (p.description as string) ?? (p.label as string) ?? "";
+              resourceTarget = (p.resourceTarget as string) ?? null;
+              effects = Array.isArray(p.effects) ? (p.effects as string[]) : [];
+            } catch { /* ignore */ }
+            return {
+              id: aid,
+              action: aRow.action ?? "",
+              actionRef,
+              description,
+              resourceTarget,
+              effects,
+            };
+          }).filter(Boolean) as WorkflowAction[];
+
+          const transitionsTo = (adjOut.get(sceneId) ?? []);
+
+          return {
+            id: sceneId,
+            scene: sceneRow.scene ?? "",
+            sceneGoal,
+            order,
+            actions,
+            transitionsTo,
+          };
+        });
+
+        // Build delegations
+        const delegations = delegateEdges.map((e) => {
+          let whenCondition: string | null = null;
+          try {
+            const p = JSON.parse(e.properties) as Record<string, unknown>;
+            whenCondition = (p.whenCondition as string) ?? null;
+          } catch { /* ignore */ }
+          return {
+            fromProtocolId: e.from_id,
+            toSkill: e.to_id.split("#")[0],
+            toNodeId: e.to_id,
+            resolved: e.resolved === 1,
+            whenCondition,
+          };
+        });
+
+        const danglingDelegations = delegations.filter((d) => !d.resolved).length;
+
+        return json({
+          slug,
+          skillName,
+          skillGoal,
+          intentSignature,
+          scenes,
+          delegations,
+          stats: {
+            sceneCount: scenes.length,
+            actionCount: scenes.reduce((s, sc) => s + sc.actions.length, 0),
+            danglingDelegations,
+          },
+        });
+      } finally {
+        db.close();
+      }
     },
   },
   fetch() {
