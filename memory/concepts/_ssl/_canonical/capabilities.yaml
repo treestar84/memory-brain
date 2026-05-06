@@ -1,0 +1,51 @@
+# Canonical Capabilities — skill 이 "무엇을 할 수 있는가"의 어휘 사전
+#
+# 역할: SSL Scheduling.controlFlowFeatures / Logical.actionRef 를 읽는
+#       사람 / PAI 가 skill 의 능력 범주를 빠르게 파악할 수 있도록 돕는다.
+#       IS-A 추론 없음 — 어휘 정의만.
+#
+# 참조 규칙:
+#   - SKILL.md / SSL JSON 에 직접 기재하지 않음 (derived vocabulary).
+#   - PAI normalize 시 참고용: logical.actionRef 를 보고 이 파일의
+#     category 를 scheduling.skillGoal 서술에 활용.
+#   - 코드 변경 없이 새 category 추가 가능.
+
+version: "1.0.0"
+
+categories:
+  FILE_IO:
+    label: "로컬 파일 입출력"
+    includes_actions: [READ_LOCAL_FILE, WRITE_LOCAL_FILE, BRANCH_ON_LOCAL_FILE]
+    description: "로컬 파일시스템을 읽거나 쓰는 능력."
+
+  MEMORY_PROCESSING:
+    label: "메모리 내 처리"
+    includes_actions: [INFER_FROM_MEMORY, EMIT_TO_MEMORY, BRANCH_ON_MEMORY, TRANSFORM_IN_MEMORY, READ_FROM_MEMORY]
+    description: "외부 I/O 없이 in-process 상태를 추론·변환·분기하는 능력."
+
+  SCRIPT_EXECUTION:
+    label: "로컬 스크립트 실행"
+    includes_actions: [CALL_LOCAL_SCRIPT]
+    description: "외부 바이너리·스크립트를 호출하는 능력."
+
+  ORCHESTRATION:
+    label: "워크플로우 조율"
+    description: >
+      여러 skill 을 순서대로 위임·조율하는 능력.
+      ProtocolNode.delegateTo 가 있으면 이 category 에 해당.
+    signal_nodes: [ProtocolNode]
+
+  USER_INTERACTION:
+    label: "사용자 발화"
+    description: >
+      사용자에게 질문하거나 응답을 기다리는 능력.
+      InteractionNode 가 있으면 이 category 에 해당.
+    signal_nodes: [InteractionNode]
+
+  CONDITIONAL_BRANCHING:
+    label: "조건 분기"
+    description: >
+      런타임 조건에 따라 실행 경로를 선택하는 능력.
+      DecisionNode 또는 BRANCH 계열 actionRef 가 있으면 해당.
+    signal_nodes: [DecisionNode]
+    includes_actions: [BRANCH_ON_MEMORY, BRANCH_ON_LOCAL_FILE]

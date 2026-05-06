@@ -1,0 +1,46 @@
+# Canonical Resource Scopes — SSL resourceScope 어휘 사전
+#
+# 역할: SSL RESOURCE_SCOPES closed enum 의 category 분류.
+#       IS-A 추론 없음 — 사람 / PAI 가 scope 의 의미를 이해하는 용도.
+#
+# 참조 규칙:
+#   - logical.resourceScope 는 SSL ontology 의 RESOURCE_SCOPES enum 값을 그대로 씀.
+#   - 이 파일은 그 enum 값들이 어떤 category 에 속하는지 설명한다.
+#   - 거버넌스: SSLRiskDetector 가 CREDENTIALS scope 를 critical 로 분류하는 것과 일관.
+
+version: "1.0.0"
+
+categories:
+  EPHEMERAL:
+    label: "일시적 (세션 내)"
+    scopes: [MEMORY]
+    description: >
+      세션이 끝나면 사라지는 자원. 부작용 없음.
+      MEMORY scope 가 유일. 가장 안전한 범주.
+
+  PERSISTENT_LOCAL:
+    label: "영속적 (로컬)"
+    scopes: [LOCAL_FS, DATABASE]
+    description: >
+      로컬 파일시스템 또는 로컬 DB 에 영속. 재실행 시 부작용 가능.
+      SSLRiskDetector: WRITE + LOCAL_FS 조합은 warning 기준.
+
+  EXTERNAL:
+    label: "외부 통신"
+    scopes: [NETWORK]
+    description: >
+      외부 서비스 호출. 멱등성 보장 불가. governance 검토 권장.
+      SSLRiskDetector: WRITE + NETWORK = warning.
+
+  SENSITIVE:
+    label: "민감 자원"
+    scopes: [CREDENTIALS]
+    description: >
+      비밀 키·토큰·패스워드. 접근 자체가 critical 위험 신호.
+      SSLRiskDetector: CREDENTIALS → critical risk.
+
+  ASYNC:
+    label: "비동기 큐"
+    scopes: [QUEUE]
+    description: >
+      메시지 큐·이벤트 버스. 지연 실행 가능. 멱등성 설계 필요.
