@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>memory-brain · Workflow Viewer</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface-2: #273549;
+    --border: #334155;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--text);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    height: 100%;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ── Header ── */
+  header {
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .header-back { font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .header-title-block { flex: 1; min-width: 200px; }
+  .header-title-block h1 { margin: 0; font-size: 18px; font-weight: 700; line-height: 1.2; }
+  .header-goal { margin: 2px 0 0; font-size: 12px; color: var(--muted); font-family: var(--mono); }
+  .slug-form { display: flex; gap: 8px; align-items: center; }
+  .slug-form label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .slug-form input {
+    padding: 6px 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font: inherit;
+    width: 220px;
+  }
+  .slug-form input:focus { outline: none; border-color: var(--accent); }
+  .slug-form button {
+    padding: 6px 14px;
+    background: var(--accent);
+    color: #0f172a;
+    border: none;
+    border-radius: 6px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .slug-form button:hover { opacity: 0.85; }
+
+  /* ── Page body ── */
+  .page {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 57px);
+  }
+
+  /* ── Spinner ── */
+  .spinner-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Message / error ── */
+  .msg {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 14px;
+    text-align: center;
+    padding: 40px;
+    line-height: 1.8;
+  }
+  .msg.error { color: #f87171; }
+
+  /* ── Diagram area ── */
+  .diagram-wrap {
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: auto;
+    padding: 28px 32px 52px;
+  }
+  .diagram {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 0;
+    min-width: max-content;
+  }
+
+  /* ── Arrow connector ── */
+  .connector {
+    display: flex;
+    align-items: center;
+    padding: 0 2px;
+    margin-top: 34px;
+  }
+  .connector svg { display: block; }
+
+  /* ── Scene card ── */
+  .scene-card {
+    width: 220px;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .scene-card:hover { border-color: var(--accent); }
+  .scene-card-header {
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .scene-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: #f1f5f9;
+    font-family: var(--mono);
+    letter-spacing: 0.04em;
+  }
+  .scene-goal {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+  .scene-actions {
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .action-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 5px;
+    transition: background 0.12s, opacity 0.12s;
+  }
+  .action-row:hover { background: var(--surface-2); opacity: 0.9; }
+  .action-badge {
+    flex-shrink: 0;
+    font-size: 9px;
+    font-weight: 700;
+    font-family: var(--mono);
+    padding: 2px 5px;
+    border-radius: 4px;
+    color: #fff;
+    letter-spacing: 0.04em;
+    margin-top: 1px;
+  }
+  .action-badge.BRANCH { color: #0f172a !important; }
+  .action-desc {
+    font-size: 11px;
+    color: var(--text);
+    line-height: 1.4;
+    flex: 1;
+    word-break: break-word;
+  }
+
+  /* ── Delegation box ── */
+  .delegation-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0 10px 10px;
+  }
+  .delegation-box {
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .delegation-target {
+    font-family: var(--mono);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .delegation-when {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* ── Detail panel (slide-in from right) ── */
+  .detail-panel {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: 360px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.2s ease;
+    z-index: 100;
+  }
+  .detail-panel.open { transform: translateX(0); }
+  .detail-panel-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .detail-panel-header .action-badge { font-size: 10px; padding: 3px 7px; }
+  .detail-panel-title {
+    flex: 1;
+    font-weight: 600;
+    font-size: 13px;
+    font-family: var(--mono);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .detail-close {
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 0 4px;
+    background: none;
+    border: none;
+    color: var(--muted);
+  }
+  .detail-close:hover { color: var(--text); }
+  .detail-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+  }
+  .detail-kv { display: grid; grid-template-columns: 110px 1fr; gap: 8px 12px; font-size: 12px; }
+  .detail-kv dt { color: var(--muted); font-family: var(--mono); padding-top: 1px; }
+  .detail-kv dd { margin: 0; word-break: break-word; }
+  .detail-section { margin-top: 16px; }
+  .detail-section-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .effect-chip {
+    display: inline-block;
+    background: var(--surface-2);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-family: var(--mono);
+    margin: 2px 3px 2px 0;
+  }
+
+  /* ── Stats bar ── */
+  .stats-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 36px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 20px;
+    font-size: 12px;
+    color: var(--muted);
+    z-index: 50;
+  }
+  .stats-bar b { color: var(--text); margin-right: 3px; }
+  .stats-sep { color: var(--border); }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="header-back"><a href="/">← skill list</a></span>
+
+  <div class="header-title-block">
+    <h1 id="skillName">Workflow Viewer</h1>
+    <p class="header-goal" id="skillGoal"></p>
+  </div>
+
+  <div class="slug-form">
+    <label for="slugInput">slug</label>
+    <input id="slugInput" type="text" placeholder="bmad-brainstorming" autocomplete="off" />
+    <button id="goBtn">Go</button>
+  </div>
+</header>
+
+<div class="page" id="page">
+  <div class="msg" id="initMsg">
+    <span>?slug=&lt;skill-name&gt; 파라미터를 전달하거나<br>위 입력란에 slug를 입력하세요.</span>
+  </div>
+</div>
+
+<!-- Detail panel -->
+<div class="detail-panel" id="detailPanel">
+  <div class="detail-panel-header">
+    <span class="action-badge" id="detailBadge"></span>
+    <span class="detail-panel-title" id="detailTitle"></span>
+    <button class="detail-close" id="detailClose" title="닫기">×</button>
+  </div>
+  <div class="detail-body" id="detailBody"></div>
+</div>
+
+<!-- Stats bar -->
+<div class="stats-bar" id="statsBar" hidden>
+  <span><b id="statScenes">0</b>scenes</span>
+  <span class="stats-sep">·</span>
+  <span><b id="statActions">0</b>actions</span>
+  <span id="statDanglingWrap"></span>
+  <span id="statIntent" style="margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted);"></span>
+</div>
+
+<script>
+// ── XSS-safe DOM helpers (matches codebase pattern) ──────────────────────
+function el(tag, attrs, ...children) {
+  const n = document.createElement(tag);
+  if (attrs) {
+    for (const [k, v] of Object.entries(attrs)) {
+      if (v == null || v === false) continue;
+      if (k === "class") n.className = v;
+      else if (k === "style") n.style.cssText = v;
+      else if (k === "dataset") for (const [dk, dv] of Object.entries(v)) n.dataset[dk] = dv;
+      else if (k.startsWith("on") && typeof v === "function") n.addEventListener(k.slice(2), v);
+      else n.setAttribute(k, v);
+    }
+  }
+  for (const c of children.flat()) {
+    if (c == null || c === false) continue;
+    n.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  }
+  return n;
+}
+function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+
+// ── Action type → color ───────────────────────────────────────────────────
+const ACTION_COLORS = {
+  READ:      "#3b82f6",
+  WRITE:     "#f97316",
+  BRANCH:    "#eab308",
+  EMIT:      "#22c55e",
+  INFER:     "#a855f7",
+  TRANSFORM: "#14b8a6",
+  SCHEDULE:  "#6b7280",
+};
+function actionColor(type) {
+  return ACTION_COLORS[String(type).toUpperCase()] ?? "#94a3b8";
+}
+function makeBadge(type) {
+  const upper = String(type || "").toUpperCase();
+  const badge = el("span", { "class": "action-badge " + upper });
+  badge.style.background = actionColor(upper);
+  badge.textContent = upper || "?";
+  return badge;
+}
+
+// ── Arrow SVG ─────────────────────────────────────────────────────────────
+function makeArrow() {
+  const wrap = el("div", { "class": "connector" });
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("width", "36");
+  svg.setAttribute("height", "20");
+  svg.setAttribute("viewBox", "0 0 36 20");
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  line.setAttribute("x1", "0"); line.setAttribute("y1", "10");
+  line.setAttribute("x2", "28"); line.setAttribute("y2", "10");
+  line.setAttribute("stroke", "#475569"); line.setAttribute("stroke-width", "2");
+  const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+  poly.setAttribute("points", "28,5 36,10 28,15");
+  poly.setAttribute("fill", "#475569");
+  svg.append(line, poly);
+  wrap.append(svg);
+  return wrap;
+}
+
+// ── Detail panel ──────────────────────────────────────────────────────────
+const detailPanel = document.getElementById("detailPanel");
+const detailBadge = document.getElementById("detailBadge");
+const detailTitle = document.getElementById("detailTitle");
+const detailBody  = document.getElementById("detailBody");
+
+document.getElementById("detailClose").addEventListener("click", closePanel);
+
+function closePanel() { detailPanel.classList.remove("open"); }
+
+function openDetail(action) {
+  const type = String(action.action || action.actionRef || "").toUpperCase();
+  detailBadge.textContent = type || "?";
+  detailBadge.style.background = actionColor(type);
+  detailBadge.className = "action-badge " + type;
+  detailTitle.textContent = action.actionRef || action.action || "(unknown)";
+
+  clear(detailBody);
+  const dl = el("dl", { "class": "detail-kv" });
+
+  function addRow(label, value) {
+    dl.append(el("dt", {}, label), el("dd", {}, value != null && value !== "" ? value : el("span", { "style": "color:var(--muted)" }, "(없음)")));
+  }
+  addRow("id",             action.id);
+  addRow("action",         action.action);
+  addRow("ref",            action.actionRef);
+  addRow("resourceTarget", action.resourceTarget);
+  addRow("description",   action.description);
+  detailBody.append(dl);
+
+  if (action.effects && action.effects.length > 0) {
+    const sec = el("div", { "class": "detail-section" });
+    sec.append(el("div", { "class": "detail-section-label" }, "Effects"));
+    const chips = el("div");
+    for (const e of action.effects) chips.append(el("span", { "class": "effect-chip" }, e));
+    sec.append(chips);
+    detailBody.append(sec);
+  }
+
+  detailPanel.classList.add("open");
+}
+
+// ── Render workflow ───────────────────────────────────────────────────────
+function renderWorkflow(data) {
+  const page = document.getElementById("page");
+  clear(page);
+
+  document.getElementById("skillName").textContent = data.skillName || data.slug || "Workflow";
+  document.getElementById("skillGoal").textContent = data.skillGoal || "";
+
+  if (!data.scenes || data.scenes.length === 0) {
+    page.append(el("div", { "class": "msg" }, "이 스킬에 Scene 데이터가 없습니다."));
+    updateStats(data);
+    return;
+  }
+
+  const sorted = [...data.scenes].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  // Delegations bucketed by fromProtocolId (scene id match) or "global"
+  const delegByScene = {};
+  for (const d of (data.delegations || [])) {
+    const key = d.fromProtocolId || "__global";
+    (delegByScene[key] ||= []).push(d);
+  }
+  const sceneIds = new Set(sorted.map((s) => s.id));
+  const globalDelegations = (data.delegations || []).filter(
+    (d) => !d.fromProtocolId || !sceneIds.has(d.fromProtocolId)
+  );
+
+  const diagWrap = el("div", { "class": "diagram-wrap" });
+  const diag = el("div", { "class": "diagram" });
+
+  sorted.forEach((scene, i) => {
+    if (i > 0) diag.append(makeArrow());
+
+    const card = el("div", { "class": "scene-card" });
+
+    // Header
+    const cardHead = el("div", { "class": "scene-card-header" });
+    cardHead.append(el("div", { "class": "scene-name" }, scene.scene || scene.id || "SCENE"));
+    if (scene.sceneGoal) cardHead.append(el("div", { "class": "scene-goal" }, scene.sceneGoal));
+    card.append(cardHead);
+
+    // Actions
+    const actionsWrap = el("div", { "class": "scene-actions" });
+    for (const action of (scene.actions || [])) {
+      const type = String(action.action || action.actionRef || "").toUpperCase();
+      const row = el("div", { "class": "action-row", onclick: () => openDetail(action) },
+        makeBadge(type),
+        el("span", { "class": "action-desc" },
+          action.description || action.actionRef || action.action || "(no desc)"),
+      );
+      actionsWrap.append(row);
+    }
+    card.append(actionsWrap);
+
+    // Per-scene delegations
+    const sceneDelegations = delegByScene[scene.id] || [];
+    if (sceneDelegations.length > 0) {
+      const dgGroup = el("div", { "class": "delegation-group" });
+      for (const d of sceneDelegations) {
+        const box = el("div", { "class": "delegation-box" });
+        box.append("→ ", el("span", { "class": "delegation-target" }, d.toSkill || d.resolved || "(unknown)"));
+        if (d.whenCondition) box.append(el("div", { "class": "delegation-when" }, "when: " + d.whenCondition));
+        dgGroup.append(box);
+      }
+      card.append(dgGroup);
+    }
+
+    diag.append(card);
+  });
+
+  // Global delegations card (those not tied to a specific scene)
+  if (globalDelegations.length > 0) {
+    diag.append(makeArrow());
+    const delegCard = el("div", { "class": "scene-card" });
+    delegCard.append(el("div", { "class": "scene-card-header" },
+      el("div", { "class": "scene-name" }, "DELEGATES_TO"),
+    ));
+    const dgGroup = el("div", { "class": "delegation-group" });
+    for (const d of globalDelegations) {
+      const box = el("div", { "class": "delegation-box" });
+      box.append("→ ", el("span", { "class": "delegation-target" }, d.toSkill || d.resolved || "(unknown)"));
+      if (d.whenCondition) box.append(el("div", { "class": "delegation-when" }, "when: " + d.whenCondition));
+      dgGroup.append(box);
+    }
+    delegCard.append(dgGroup);
+    diag.append(delegCard);
+  }
+
+  diagWrap.append(diag);
+  page.append(diagWrap);
+  updateStats(data, sorted);
+}
+
+function updateStats(data, sorted) {
+  const statsBar = document.getElementById("statsBar");
+  statsBar.hidden = false;
+  document.getElementById("statScenes").textContent = (data.stats?.sceneCount ?? (sorted ? sorted.length : 0)) + " ";
+  document.getElementById("statActions").textContent = (data.stats?.actionCount ?? 0) + " ";
+  const dangling = data.stats?.danglingDelegations ?? 0;
+  const dWrap = document.getElementById("statDanglingWrap");
+  clear(dWrap);
+  if (dangling > 0) {
+    dWrap.append(
+      el("span", { "class": "stats-sep" }, "·"),
+      " ",
+      el("b", {}, String(dangling)),
+      " dangling delegations",
+    );
+  }
+  const intentEl = document.getElementById("statIntent");
+  intentEl.textContent = data.intentSignature ? "intent: " + data.intentSignature : "";
+}
+
+// ── Loading states ────────────────────────────────────────────────────────
+function showSpinner() {
+  const page = document.getElementById("page");
+  clear(page);
+  page.append(el("div", { "class": "spinner-wrap" }, el("div", { "class": "spinner" })));
+  document.getElementById("statsBar").hidden = true;
+}
+
+function showError(msg) {
+  const page = document.getElementById("page");
+  clear(page);
+  page.append(el("div", { "class": "msg error" }, msg));
+  document.getElementById("statsBar").hidden = true;
+}
+
+// ── Fetch ─────────────────────────────────────────────────────────────────
+async function loadWorkflow(slug) {
+  closePanel();
+  showSpinner();
+  try {
+    const res = await fetch("/api/workflow/" + encodeURIComponent(slug));
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error("HTTP " + res.status + (body ? ": " + body : ""));
+    }
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    renderWorkflow(data);
+  } catch (e) {
+    showError(String(e?.message ?? e));
+  }
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────
+const slugInput = document.getElementById("slugInput");
+
+function navigateTo(slug) {
+  if (!slug) return;
+  const url = new URL(location.href);
+  url.searchParams.set("slug", slug);
+  history.pushState({}, "", url.toString());
+  slugInput.value = slug;
+  loadWorkflow(slug);
+}
+
+document.getElementById("goBtn").addEventListener("click", () => {
+  const s = slugInput.value.trim();
+  if (s) navigateTo(s);
+});
+
+slugInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    const s = slugInput.value.trim();
+    if (s) navigateTo(s);
+  }
+});
+
+window.addEventListener("popstate", () => {
+  const slug = new URLSearchParams(location.search).get("slug") || "";
+  if (slug) { slugInput.value = slug; loadWorkflow(slug); }
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────
+const initialSlug = new URLSearchParams(location.search).get("slug") || "";
+if (initialSlug) {
+  slugInput.value = initialSlug;
+  loadWorkflow(initialSlug);
+}
+</script>
+</body>
+</html>
