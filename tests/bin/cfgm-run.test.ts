@@ -1,12 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import { resolve } from "node:path";
-import { existsSync } from "node:fs";
 
 const CLI = resolve(import.meta.dir, "../../bin/cfgm-run.ts");
-const SSL_JSON = resolve(
-  import.meta.dir,
-  "../../memory/concepts/_ssl/app-store-screenshots.json"
-);
 
 describe("cfgm-run CLI", () => {
   test("exits 3 with no args", async () => {
@@ -24,7 +19,6 @@ describe("cfgm-run CLI", () => {
   });
 
   test("plan-generator mode outputs markdown plan", async () => {
-    if (!existsSync(SSL_JSON)) return; // skip if file missing
     const proc = Bun.spawn(
       ["bun", CLI, "--skill", "app-store-screenshots"],
       { stdout: "pipe", stderr: "pipe" }
@@ -37,7 +31,6 @@ describe("cfgm-run CLI", () => {
   });
 
   test("--json flag outputs valid JSON", async () => {
-    if (!existsSync(SSL_JSON)) return;
     const proc = Bun.spawn(
       ["bun", CLI, "--skill", "app-store-screenshots", "--json"],
       { stdout: "pipe", stderr: "pipe" }

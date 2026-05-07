@@ -5,9 +5,6 @@ import * as readline from "node:readline";
 import { SSLRunner } from "../src/core/runner/SSLRunner";
 import type { SSLDocument } from "../src/core/ontology/ssl";
 import type {
-  ExecuteStep,
-  CollectStep,
-  BranchStep,
   RunResult,
 } from "../src/core/runner/SSLRunner";
 
@@ -51,6 +48,12 @@ const opts = parseArgs(args);
 
 if (!opts.skill) {
   console.error("usage: bun cfgm-run --skill <slug> [--interactive] [--json]");
+  process.exit(3);
+}
+
+// Validate slug to prevent path traversal
+if (!/^[a-z0-9][a-z0-9_-]*$/i.test(opts.skill)) {
+  console.error(`error: invalid --skill slug — must match [a-z0-9][a-z0-9_-]*`);
   process.exit(3);
 }
 
@@ -103,33 +106,30 @@ function renderPlan(runResult: RunResult): string {
     stepNum++;
 
     if (step.kind === "collect") {
-      const s = step as CollectStep;
       lines.push(`### [STEP ${stepNum}] COLLECT — User Input Required`);
       lines.push("");
-      lines.push(`> ${s.interactionNode.prompt}`);
+      lines.push(`> ${step.interactionNode.prompt}`);
       lines.push(
-        `> Expected response: **${s.interactionNode.expectedResponseType}**`
+        `> Expected response: **${step.interactionNode.expectedResponseType}**`
       );
       lines.push("");
     } else if (step.kind === "branch") {
-      const s = step as BranchStep;
       lines.push(`### [STEP ${stepNum}] BRANCH — Decision Point`);
       lines.push("");
-      lines.push(`**Question:** ${s.decisionNode.question}`);
+      lines.push(`**Question:** ${step.decisionNode.question}`);
       lines.push("");
-      s.decisionNode.branches.forEach((b, i) => {
+      step.decisionNode.branches.forEach((b, i) => {
         lines.push(`- ${i + 1}. **${b.when}** → ${b.then}`);
       });
-      if (s.decisionNode.fallback) {
-        lines.push(`- _default_ → ${s.decisionNode.fallback}`);
+      if (step.decisionNode.fallback) {
+        lines.push(`- _default_ → ${step.decisionNode.fallback}`);
       }
       lines.push("");
-    } else {
-      const s = step as ExecuteStep;
-      const parallelLabel = s.parallel ? " *(parallel)*" : "";
+    } else if (step.kind === "execute") {
+      const parallelLabel = step.parallel ? " *(parallel)*" : "";
       lines.push(`### [STEP ${stepNum}] EXECUTE${parallelLabel}`);
       lines.push("");
-      for (const node of s.logicalNodes) {
+      for (const node of step.logicalNodes) {
         lines.push(`**${node.id}** — \`${node.action}\``);
         if (node.instructions) {
           lines.push("");
@@ -140,6 +140,9 @@ function renderPlan(runResult: RunResult): string {
         }
         lines.push("");
       }
+    } else {
+      const _exhaustive: never = step;
+      throw new Error(`unhandled step kind: ${(_exhaustive as {kind: string}).kind}`);
     }
   }
 
@@ -176,52 +179,58 @@ for (const step of result.steps) {
   stepNumI++;
 
   if (step.kind === "collect") {
-    const s = step as CollectStep;
     console.log(`\n[STEP ${stepNumI}] COLLECT`);
-    console.log(`Scene: ${s.sceneGoal}`);
-    console.log(`\n> ${s.interactionNode.prompt}`);
+    console.log(`Scene: ${step.sceneGoal}`);
+    console.log(`\n> ${step.interactionNode.prompt}`);
     const answer = await ask("Your answer: ");
-    state.inputs[s.interactionNode.id] = answer;
-    replayLines.push(`## Collect — ${s.interactionNode.id}`);
+    state.inputs[step.interactionNode.id] = answer;
+    replayLines.push(`## Collect — ${step.interactionNode.id}`);
     replayLines.push(`answer: ${answer}`);
     replayLines.push("");
   } else if (step.kind === "branch") {
-    const s = step as BranchStep;
     console.log(`\n[STEP ${stepNumI}] BRANCH`);
-    console.log(`Scene: ${s.sceneGoal}`);
-    console.log(`\n? ${s.decisionNode.question}`);
-    s.decisionNode.branches.forEach((b, i) =>
+    console.log(`Scene: ${step.sceneGoal}`);
+    console.log(`\n? ${step.decisionNode.question}`);
+    step.decisionNode.branches.forEach((b, i) =>
       console.log(`  ${i + 1}. ${b.when}`)
     );
-    if (s.decisionNode.fallback) {
-      console.log(`  0. (default) ${s.decisionNode.fallback}`);
+    if (step.decisionNode.fallback) {
+      console.log(`  0. (default) ${step.decisionNode.fallback}`);
     }
-    const choice = await ask("Choice (number): ");
+    const choice = await ask("Choice (number, 1–" + step.decisionNode.branches.length + "): ");
     const idx = parseInt(choice, 10) - 1;
     const selected =
-      s.decisionNode.branches[idx]?.when ?? s.decisionNode.fallback ?? "";
-    state.decisions[s.decisionNode.id] = selected;
-    replayLines.push(`## Branch — ${s.decisionNode.id}`);
+      Number.isInteger(idx) && idx >= 0 && idx < step.decisionNode.branches.length
+        ? step.decisionNode.branches[idx].when
+        : (step.decisionNode.fallback ?? "");
+    state.decisions[step.decisionNode.id] = selected;
+    replayLines.push(`## Branch — ${step.decisionNode.id}`);
     replayLines.push(`selected: ${selected}`);
     replayLines.push("");
-  } else {
-    const s = step as ExecuteStep;
-    const parallelLabel = s.parallel ? " (run in parallel)" : "";
+  } else if (step.kind === "execute") {
+    const parallelLabel = step.parallel ? " (run in parallel)" : "";
     console.log(`\n[STEP ${stepNumI}] EXECUTE${parallelLabel}`);
-    console.log(`Scene: ${s.sceneGoal}`);
-    for (const node of s.logicalNodes) {
+    console.log(`Scene: ${step.sceneGoal}`);
+    for (const node of step.logicalNodes) {
       console.log(`\n  • ${node.id} [${node.action}]`);
       if (node.instructions) console.log(`    ${node.instructions}`);
     }
     const done = await ask("Done? (y/n): ");
     if (done.toLowerCase() === "y") {
-      const effects = s.logicalNodes.flatMap((n) => n.effects);
+      const effects = step.logicalNodes.flatMap((n) => n.effects);
       state.completedEffects.push(...effects);
-      replayLines.push(`## Execute — ${s.logicalNodes.map((n) => n.id).join(", ")}`);
+      replayLines.push(`## Execute — ${step.logicalNodes.map((n) => n.id).join(", ")}`);
       replayLines.push(`completed: true`);
       replayLines.push(`effects: ${effects.join(", ")}`);
       replayLines.push("");
+    } else {
+      replayLines.push(`## Execute — ${step.logicalNodes.map((n) => n.id).join(", ")}`);
+      replayLines.push(`skipped: true`);
+      replayLines.push("");
     }
+  } else {
+    const _exhaustive: never = step;
+    throw new Error(`unhandled step kind: ${(_exhaustive as {kind: string}).kind}`);
   }
 }
 
