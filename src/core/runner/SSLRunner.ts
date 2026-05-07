@@ -43,6 +43,11 @@ export interface RunResult {
 }
 
 export class SSLRunner {
+  /**
+   * Traverse an SSLDocument and produce an ordered Step[].
+   * Precondition: doc must pass validateSSL before being passed here.
+   * Dangling transitionsTo IDs or cyclic graphs will throw at runtime.
+   */
   run(doc: SSLDocument): RunResult {
     const ordered = this.sortScenes(doc.structural);
     const steps: Step[] = [];
@@ -118,7 +123,8 @@ export class SSLRunner {
       }
     }
 
-    const remaining = structural.filter((s) => !result.find((r) => r.id === s.id));
+    const resultIds = new Set(result.map((r) => r.id));
+    const remaining = structural.filter((s) => !resultIds.has(s.id));
     if (remaining.length > 0) {
       throw new Error(
         `SSLRunner: cycle detected in structural graph. Nodes: ${remaining.map((s) => s.id).join(", ")}`
@@ -128,6 +134,12 @@ export class SSLRunner {
     return result;
   }
 
+  /**
+   * Two nodes are parallel-safe when they do not share the same resourceTarget.
+   * resourceTarget is the specific conflict key (e.g., a file path or table name).
+   * Nodes with no resourceTarget are considered non-conflicting by design —
+   * the resource scope (resources[]) alone is not granular enough to detect conflicts.
+   */
   private isParallelSafe(nodes: LogicalNode[]): boolean {
     const targets = nodes.map((n) => n.resourceTarget).filter(Boolean);
     return new Set(targets).size === targets.length;

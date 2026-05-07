@@ -1,9 +1,10 @@
 import { describe, test, expect } from "bun:test";
 import { SSLRunner, type Step } from "../../../src/core/runner/SSLRunner";
 import type { SSLDocument } from "../../../src/core/ontology/ssl";
+import { SSL_VERSION } from "../../../src/core/ontology/ssl";
 
 const fixture: SSLDocument = {
-  sslVersion: "0.3.1" as any,
+  sslVersion: SSL_VERSION,
   sourceSkillPath: ".claude/skills/test/SKILL.md",
   sourceSha256: "abc123",
   generatedAt: "2026-05-08T00:00:00.000Z",
