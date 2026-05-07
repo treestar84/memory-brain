@@ -94,6 +94,7 @@ memory-brain 본체는 **oh-my-claudecode (OMC), OMX, 기타 외부 orchestratio
 - "MVP 라서 일단" 식의 단축 결정.
 - "사용자가 알아서 설정" 가정.
 - 검증되지 않은 closed-source dependency.
+- **Claude 행동 금지 — 스코프 축소 제안**: 설계·구현 단계에서 "MVP로 줄이자", "일단 최소한만", "나중에 추가하자" 식으로 기능 범위를 축소하도록 사용자에게 권고하지 않는다. 본 프로젝트는 production-grade OSS 이므로 처음부터 올바르게 설계한다. 단, 사용자가 먼저 "작게 시작하겠다"고 결정하면 따른다.
 
 ---
 
