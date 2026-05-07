@@ -343,7 +343,7 @@ function flattenSSL(doc: SSLDocument): {
     .map((s) => `${s.scene} ${s.summary}`)
     .join(" ");
   const logical = doc.logical
-    .map((l) => `${l.action} ${l.resources.join(" ")} ${l.description}`)
+    .map((l) => `${l.action} ${l.resources.join(" ")} ${l.description ?? ""}`)
     .join(" ");
   return { slug, scheduling, structural, logical };
 }
