@@ -44,8 +44,8 @@ function baseDoc(overrides: Partial<SSLDocument> = {}): SSLDocument {
 }
 
 describe("SSL v0.3.0 — 4 신규 노드 (PR-V3.17b)", () => {
-  test("SSL_VERSION = 0.3.0", () => {
-    expect(SSL_VERSION).toBe("0.3.0");
+  test("SSL_VERSION = 0.3.1", () => {
+    expect(SSL_VERSION).toBe("0.3.1");
   });
 
   test("4 노드 모두 빈 배열 default — back-compat", () => {
@@ -173,6 +173,6 @@ describe("SSL v0.3.0 — 4 신규 노드 (PR-V3.17b)", () => {
 
   test("SSLDocument 0.2.0 거부 (sslVersion mismatch)", () => {
     const doc = baseDoc({ sslVersion: "0.2.0" as never });
-    expect(validateSSL(doc).some((e) => /sslVersion mismatch/.test(e))).toBe(true);
+    expect(validateSSL(doc).some((e) => /sslVersion must be 0\.3/.test(e))).toBe(true);
   });
 });

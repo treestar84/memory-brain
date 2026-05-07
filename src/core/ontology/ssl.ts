@@ -16,8 +16,11 @@
 //     - interactions[] — 사용자 발화 템플릿
 //     - evidence[]     — input/output sample + success criteria
 //     - protocols[]    — 다른 skill 위임 규약
+//
+// v0.3.1 — instructions 필드 추가:
+//   - Logical: instructions? (LLM/user 실행 지시문, optional back-compat)
 
-export const SSL_VERSION = "0.3.0" as const;
+export const SSL_VERSION = "0.3.1" as const;
 
 export const SCENES = [
   "PREPARE",
@@ -131,6 +134,9 @@ export type LogicalNode = {
   /** Post-conditions / observable side-effects (paper 'effects[]') */
   effects: string[];
   evidenceClaimIds: string[];      // links to ClaimStore (PR-V3.5)
+  /** Executable directive — natural-language instruction for the LLM/user to follow.
+   *  Optional: back-compat with existing SSL JSON (no instructions = structural-only). */
+  instructions?: string;
 };
 
 // v0.3.0 신규 4 노드 — execution-capable graph
@@ -215,8 +221,8 @@ export type CanonicalActionLookup = {
 export function validateSSL(doc: SSLDocument, opts?: { canonicalActions?: CanonicalActionLookup }): string[] {
   const errors: string[] = [];
 
-  if (doc.sslVersion !== SSL_VERSION) {
-    errors.push(`sslVersion mismatch: ${doc.sslVersion} ≠ ${SSL_VERSION}`);
+  if (!doc.sslVersion?.startsWith("0.3")) {
+    errors.push(`sslVersion must be 0.3.x, got ${doc.sslVersion}`);
   }
 
   for (const cff of doc.scheduling?.controlFlowFeatures ?? []) {
@@ -277,10 +283,14 @@ export function validateSSL(doc: SSLDocument, opts?: { canonicalActions?: Canoni
     checkScopeRef("protocol", p.id, p.scopeRef);
   }
 
-  for (const l of doc.logical) {
+  for (const [i, l] of doc.logical.entries()) {
     if (!isAction(l.action)) errors.push(`logical ${l.id}: invalid action '${l.action}'`);
     for (const r of l.resources) {
       if (!isResourceScope(r)) errors.push(`logical ${l.id}: invalid resource '${r}'`);
+    }
+    // instructions 있으면 비어있지 않아야 함
+    if (l.instructions !== undefined && l.instructions.trim() === "") {
+      errors.push(`logical[${i}].instructions: must not be empty string`);
     }
     // PR-V3.17a — actionRef 검증.
     if (l.actionRef !== undefined) {
