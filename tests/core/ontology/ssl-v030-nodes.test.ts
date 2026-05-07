@@ -43,7 +43,7 @@ function baseDoc(overrides: Partial<SSLDocument> = {}): SSLDocument {
   };
 }
 
-describe("SSL v0.3.0 — 4 신규 노드 (PR-V3.17b)", () => {
+describe("SSL v0.3.1 — 4 신규 노드 (PR-V3.17b)", () => {
   test("SSL_VERSION = 0.3.1", () => {
     expect(SSL_VERSION).toBe("0.3.1");
   });
@@ -174,5 +174,28 @@ describe("SSL v0.3.0 — 4 신규 노드 (PR-V3.17b)", () => {
   test("SSLDocument 0.2.0 거부 (sslVersion mismatch)", () => {
     const doc = baseDoc({ sslVersion: "0.2.0" as never });
     expect(validateSSL(doc).some((e) => /sslVersion must be 0\.3/.test(e))).toBe(true);
+  });
+
+  test("LogicalNode — instructions 빈 문자열 거부", () => {
+    const doc = baseDoc({
+      logical: [{
+        id: "x#l:1", action: "READ", description: "x",
+        resources: ["LOCAL_FS"], effects: [], evidenceClaimIds: [],
+        instructions: "  ",
+      }],
+    });
+    const errors = validateSSL(doc);
+    expect(errors.some((e) => /instructions/.test(e))).toBe(true);
+  });
+
+  test("LogicalNode — instructions 유효한 값은 통과", () => {
+    const doc = baseDoc({
+      logical: [{
+        id: "x#l:1", action: "READ", description: "x",
+        resources: ["LOCAL_FS"], effects: [], evidenceClaimIds: [],
+        instructions: "Ask the user.",
+      }],
+    });
+    expect(validateSSL(doc)).toEqual([]);
   });
 });

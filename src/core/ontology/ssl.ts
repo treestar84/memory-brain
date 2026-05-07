@@ -283,14 +283,14 @@ export function validateSSL(doc: SSLDocument, opts?: { canonicalActions?: Canoni
     checkScopeRef("protocol", p.id, p.scopeRef);
   }
 
-  for (const [i, l] of doc.logical.entries()) {
+  for (const l of doc.logical) {
     if (!isAction(l.action)) errors.push(`logical ${l.id}: invalid action '${l.action}'`);
     for (const r of l.resources) {
       if (!isResourceScope(r)) errors.push(`logical ${l.id}: invalid resource '${r}'`);
     }
     // instructions 있으면 비어있지 않아야 함
     if (l.instructions !== undefined && l.instructions.trim() === "") {
-      errors.push(`logical[${i}].instructions: must not be empty string`);
+      errors.push(`logical ${l.id}: instructions must not be empty string`);
     }
     // PR-V3.17a — actionRef 검증.
     if (l.actionRef !== undefined) {
