@@ -165,4 +165,74 @@ describe("SSLRunner", () => {
     const runner = new SSLRunner();
     expect(() => runner.run(minimal)).not.toThrow();
   });
+
+  test("same resourceTarget nodes are not parallel", () => {
+    const conflicting: SSLDocument = {
+      ...fixture,
+      structural: [
+        {
+          id: "test#scene:ACT:conflict",
+          scene: "ACT",
+          sceneGoal: "Conflict scene",
+          summary: "Conflict scene",
+          containsLogicalIds: ["test#logical:c1", "test#logical:c2"],
+          transitionsTo: [],
+        },
+      ],
+      logical: [
+        {
+          id: "test#logical:c1",
+          action: "WRITE",
+          description: "Write",
+          resources: ["LOCAL_FS"],
+          resourceTarget: "same-file.txt",
+          effects: ["written"],
+          evidenceClaimIds: [],
+        },
+        {
+          id: "test#logical:c2",
+          action: "WRITE",
+          description: "Write",
+          resources: ["LOCAL_FS"],
+          resourceTarget: "same-file.txt",
+          effects: ["written_2"],
+          evidenceClaimIds: [],
+        },
+      ],
+      interactions: [],
+      decisions: [],
+    };
+    const runner = new SSLRunner();
+    const result = runner.run(conflicting);
+    const execStep = result.steps.find((s: Step) => s.kind === "execute") as any;
+    expect(execStep?.parallel).toBe(false);
+  });
+
+  test("throws on cyclic structural graph", () => {
+    const cyclic: SSLDocument = {
+      ...fixture,
+      structural: [
+        {
+          id: "test#scene:A",
+          scene: "ACT",
+          sceneGoal: "A",
+          summary: "A",
+          containsLogicalIds: [],
+          transitionsTo: ["test#scene:B"],
+        },
+        {
+          id: "test#scene:B",
+          scene: "ACT",
+          sceneGoal: "B",
+          summary: "B",
+          containsLogicalIds: [],
+          transitionsTo: ["test#scene:A"],
+        },
+      ],
+      interactions: [],
+      decisions: [],
+    };
+    const runner = new SSLRunner();
+    expect(() => runner.run(cyclic)).toThrow(/cycle detected/);
+  });
 });

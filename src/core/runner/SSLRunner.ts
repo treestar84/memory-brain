@@ -118,18 +118,18 @@ export class SSLRunner {
       }
     }
 
-    for (const s of structural) {
-      if (!result.find((r) => r.id === s.id)) result.push(s);
+    const remaining = structural.filter((s) => !result.find((r) => r.id === s.id));
+    if (remaining.length > 0) {
+      throw new Error(
+        `SSLRunner: cycle detected in structural graph. Nodes: ${remaining.map((s) => s.id).join(", ")}`
+      );
     }
 
     return result;
   }
 
   private isParallelSafe(nodes: LogicalNode[]): boolean {
-    const allEffects = new Set(nodes.flatMap((n) => n.effects));
-    for (const n of nodes) {
-      if (n.resourceTarget && allEffects.has(n.resourceTarget)) return false;
-    }
-    return true;
+    const targets = nodes.map((n) => n.resourceTarget).filter(Boolean);
+    return new Set(targets).size === targets.length;
   }
 }
