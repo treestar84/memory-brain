@@ -18,6 +18,14 @@ describe("cfgm-run CLI", () => {
     expect(proc.exitCode).toBe(2);
   });
 
+  test("exits 3 on path-traversal slug", async () => {
+    const proc = Bun.spawn(["bun", CLI, "--skill", "../../etc/passwd"], {
+      stderr: "pipe",
+    });
+    await proc.exited;
+    expect(proc.exitCode).toBe(3);
+  });
+
   test("plan-generator mode outputs markdown plan", async () => {
     const proc = Bun.spawn(
       ["bun", CLI, "--skill", "app-store-screenshots"],
