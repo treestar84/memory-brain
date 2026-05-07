@@ -87,6 +87,38 @@ SKILL.md 단독 대비 SSL-guided replay 이점:
 | 성공 기준 | 없음 | EvidenceNode successCriteria |
 | 위임 규약 | 없음 | ProtocolNode delegateTo |
 
+## Executable SSL — cfgm-run (V3.24)
+
+SSL JSON만으로 스킬을 실행하거나 단계별 안내를 받습니다. SKILL.md 없이 동작합니다.
+
+```bash
+# 실행 계획 출력 (plan-generator)
+bun run run:skill --skill app-store-screenshots
+
+# 단계별 interactive 실행
+bun run run:skill --skill app-store-screenshots --interactive
+
+# machine-readable JSON
+bun run run:skill --skill app-store-screenshots --json
+```
+
+`cfgm-run`은 SSL 그래프를 BFS topological order로 순회해 CollectStep / BranchStep / ExecuteStep 순서의 실행 계획을 생성합니다. Interactive 모드에서는 readline으로 사용자 입력을 수집하고 결과를 `memory/_pending/replay/<slug>.replay.md`에 저장합니다.
+
+### instructions 필드 작성 (V3.24)
+
+SSL JSON의 각 `logical[]` 노드에 `instructions` 문자열을 추가하면 실행 계획에 포함됩니다:
+
+```json
+{
+  "id": "my-skill#logical:1",
+  "action": "WRITE",
+  "instructions": "Write src/app/page.tsx with the slide factory functions...",
+  "effects": ["page_built"]
+}
+```
+
+`instructions` 없는 기존 SSL JSON도 그대로 동작합니다 (optional, back-compat).
+
 ## KG-Brain Graph (V3.19)
 
 Cross-skill 엣지가 물질화된 전역 지식 그래프. `cfgm-rebuild-index` 실행 후 사용 가능.

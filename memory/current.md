@@ -172,3 +172,18 @@
 - canonical 시드는 고정 X — yaml 만 편집해 확장 가능
 - skill md 절반 이상 SSL 대체가 목표 (V3.17 가 인프라, 실 측정으로 입증 진행 중)
 - 도메인 어휘 (BMAD 등) 본체 X, `extensions:` 영역만
+
+## V3.24 Executable SSL (2026-05-08) ✅
+
+- `ssl.ts v0.3.1` — `LogicalNode.instructions?` 추가. sslVersion `startsWith("0.3")` back-compat
+- `SSLRunner` — BFS topological sort → Step[] + parallel detection + cycle detection. 10 테스트
+- `cfgm-run` — plan-generator / interactive / JSON 3모드 CLI. path traversal 방어 + validateSSL 게이트. 5 테스트
+- `app-store-screenshots.json` — 7개 logical 노드 instructions 채움 (최초 완전 실행 가능 SSL)
+- schema drift 수정: description/evidenceClaimIds/variables optional화 + null-safe 소비 코드
+- 최종: **883 pass / 0 fail**
+
+## 다음 단계 후보
+
+- V3.25: cfgm-run `--interactive` 결과를 cfgm-replay 와 연동 (replay 파일 포맷 통일)
+- V3.26: SSL instructions 자동 채우기 (PAI 세션에서 LLM이 SKILL.md → instructions 생성)
+- V3.27: cfgm-run 다중 스킬 체인 실행 (cfgm-find-chain 결과를 순서대로 실행)

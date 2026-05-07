@@ -5,6 +5,21 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.9] — 2026-05-08
+
+### Added
+- **V3.24 Executable SSL** — SSL JSON이 실행 프로그램을 겸하도록 확장
+  - `LogicalNode.instructions?: string` — 자연어 실행 지시 슬롯 (optional, back-compat)
+  - `SSLRunner` (`src/core/runner/SSLRunner.ts`) — BFS topological sort → `Step[]` 생성. CollectStep / BranchStep / ExecuteStep 세 종류. 병렬 실행 감지 (resourceTarget conflict) + 사이클 감지
+  - `cfgm-run` CLI (`bin/cfgm-run.ts`) — plan-generator (기본) / `--interactive` / `--json` 세 모드. 슬러그 regex 검증 (path traversal 방어) + `validateSSL` 게이트
+  - `app-store-screenshots.json` — 7개 logical 노드에 instructions 채움 (최초 완전 실행 가능 SSL JSON)
+  - `bun run run:skill --skill <slug>` 단축 명령
+
+### Fixed
+- `LogicalNode.description`, `evidenceClaimIds`, `InteractionNode.variables` → optional (실제 JSON 아티팩트와 타입 계약 일치)
+- `isParallelSafe`: resourceTarget 없는 노드 → `parallel: false` (unknown = unsafe)
+- `SearchIndex`: `l.description ?? ""` (undefined 오염 방지)
+
 ## [0.3.8] — 2026-05-06
 
 ### Added
