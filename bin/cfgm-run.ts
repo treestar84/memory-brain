@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import * as readline from "node:readline";
 import { SSLRunner } from "../src/core/runner/SSLRunner";
 import type { SSLDocument } from "../src/core/ontology/ssl";
+import { validateSSL } from "../src/core/ontology/ssl";
 import type {
   RunResult,
 } from "../src/core/runner/SSLRunner";
@@ -75,6 +76,13 @@ try {
   doc = (await Bun.file(sslPath).json()) as SSLDocument;
 } catch (e) {
   console.error(`error: invalid JSON — ${(e as Error).message}`);
+  process.exit(2);
+}
+
+const sslErrors = validateSSL(doc);
+if (sslErrors.length > 0) {
+  console.error(`error: SSL validation failed — ${sslPath}`);
+  sslErrors.forEach((e) => console.error(`  • ${e}`));
   process.exit(2);
 }
 

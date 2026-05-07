@@ -120,7 +120,8 @@ export type StructuralNode = {
 export type LogicalNode = {
   id: string;                      // <slug>#logical:<n>
   action: Action;
-  description: string;
+  /** Human-readable description. Optional: actual JSON artifacts use 'summary' field. */
+  description?: string;
   resources: ResourceScope[];
   /**
    * Optional reference to a canonical action pattern (PR-V3.17a).
@@ -133,7 +134,8 @@ export type LogicalNode = {
   resourceTarget?: string;
   /** Post-conditions / observable side-effects (paper 'effects[]') */
   effects: string[];
-  evidenceClaimIds: string[];      // links to ClaimStore (PR-V3.5)
+  /** Links to ClaimStore (PR-V3.5). Optional: may be absent in generated JSON. */
+  evidenceClaimIds?: string[];
   /** Executable directive — natural-language instruction for the LLM/user to follow.
    *  Optional: back-compat with existing SSL JSON (no instructions = structural-only). */
   instructions?: string;
@@ -160,7 +162,8 @@ export type InteractionNode = {
   id: string;                        // <slug>#interaction:N
   prompt: string;                    // 자연어 발화 템플릿 ({var} 형식 변수 허용)
   expectedResponseType: ExpectedResponseType;
-  variables: string[];               // 템플릿 안의 {var} 식별자 목록
+  /** 템플릿 안의 {var} 식별자 목록. Optional: may be absent in generated JSON. */
+  variables?: string[];
   options?: string[];                // expectedResponseType="selection" 일 때 선택지
   scopeRef?: string;
 };

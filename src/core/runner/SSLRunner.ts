@@ -135,13 +135,13 @@ export class SSLRunner {
   }
 
   /**
-   * Two nodes are parallel-safe when they do not share the same resourceTarget.
-   * resourceTarget is the specific conflict key (e.g., a file path or table name).
-   * Nodes with no resourceTarget are considered non-conflicting by design —
-   * the resource scope (resources[]) alone is not granular enough to detect conflicts.
+   * Two nodes are parallel-safe when they all declare distinct, known resourceTargets.
+   * Nodes with no resourceTarget are treated as unsafe (unknown = unsafe):
+   * without a specific conflict key we cannot rule out resource contention.
    */
   private isParallelSafe(nodes: LogicalNode[]): boolean {
-    const targets = nodes.map((n) => n.resourceTarget).filter(Boolean);
-    return new Set(targets).size === targets.length;
+    const targets = nodes.map((n) => n.resourceTarget);
+    if (targets.some((t) => !t)) return false;
+    return new Set(targets as string[]).size === targets.length;
   }
 }
