@@ -16,7 +16,8 @@
     "enqueue": "bun run bin/cfgm-ssl-enqueue.ts",
     "compose": "bun run bin/cfgm-compose.ts",
     "dedup-actions": "bun run bin/cfgm-dedup-actions.ts",
-    "find-chain": "bun run bin/cfgm-find-chain.ts"
+    "find-chain": "bun run bin/cfgm-find-chain.ts",
+    "run:skill": "bun bin/cfgm-run.ts"
   },
   "devDependencies": {
     "typescript": "^5.8.0",
