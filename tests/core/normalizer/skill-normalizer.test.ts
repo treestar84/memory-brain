@@ -73,7 +73,7 @@ describe("SkillNormalizer (PR-V3.12 1차, heuristic)", () => {
     expect(actions).toContain("WRITE");
     expect(actions).toContain("CALL_TOOL"); // Bash
 
-    const bashLogical = doc.logical.find((l: LogicalNode) => /Bash/.test(l.description));
+    const bashLogical = doc.logical.find((l: LogicalNode) => /Bash/.test(l.description ?? ""));
     expect(bashLogical?.resources).toContain("LOCAL_FS");
   });
 

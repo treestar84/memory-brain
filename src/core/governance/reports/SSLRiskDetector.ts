@@ -39,7 +39,7 @@ export class SSLRiskDetector implements GovernanceDetector {
             severity: "critical",
             subject: `${skillName}::${logical.id}`,
             message: `Logical action ${logical.action} touches CREDENTIALS scope`,
-            evidence: [logical.description, `resources: ${logical.resources.join(",")}`],
+            evidence: [logical.description ?? "", `resources: ${logical.resources.join(",")}`],
           });
         }
 
@@ -48,7 +48,7 @@ export class SSLRiskDetector implements GovernanceDetector {
             severity: "warning",
             subject: `${skillName}::${logical.id}`,
             message: "WRITE × NETWORK combo — 잠재 data exfiltration 경로",
-            evidence: [logical.description, `resources: ${logical.resources.join(",")}`],
+            evidence: [logical.description ?? "", `resources: ${logical.resources.join(",")}`],
           });
         }
 
@@ -59,7 +59,7 @@ export class SSLRiskDetector implements GovernanceDetector {
               severity: "warning",
               subject: `${skillName}::${logical.id}`,
               message: `WRITE 가 Scene ${scene} 에서 발생 — ACT/RECOVER/FINALIZE 외 mutation`,
-              evidence: [logical.description, `scene: ${scene}`],
+              evidence: [logical.description ?? "", `scene: ${scene}`],
             });
           }
         }

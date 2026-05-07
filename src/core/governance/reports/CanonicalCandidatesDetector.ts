@@ -49,7 +49,7 @@ export class CanonicalCandidatesDetector implements GovernanceDetector {
         buckets.get(sig)!.push({
           skill: skill.scheduling.skillName,
           logicalId: l.id,
-          description: l.description.slice(0, 80),
+          description: (l.description ?? "").slice(0, 80),
         });
       }
     }
