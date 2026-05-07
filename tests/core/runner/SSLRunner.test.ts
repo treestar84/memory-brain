@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { SSLRunner } from "../../../src/core/runner/SSLRunner";
+import { SSLRunner, type Step } from "../../../src/core/runner/SSLRunner";
 import type { SSLDocument } from "../../../src/core/ontology/ssl";
 
 const fixture: SSLDocument = {
@@ -96,7 +96,7 @@ describe("SSLRunner", () => {
   test("produces steps for each scene in order", () => {
     const runner = new SSLRunner();
     const result = runner.run(fixture);
-    const sceneIds = result.steps.map((s) => s.sceneId);
+    const sceneIds = result.steps.map((s: Step) => s.sceneId);
     expect(sceneIds[0]).toBe("test#scene:REASON:1");
     expect(sceneIds[sceneIds.length - 1]).toBe("test#scene:ACT:2");
   });
@@ -104,7 +104,7 @@ describe("SSLRunner", () => {
   test("emits collect step for InteractionNode", () => {
     const runner = new SSLRunner();
     const result = runner.run(fixture);
-    const collectSteps = result.steps.filter((s) => s.kind === "collect");
+    const collectSteps = result.steps.filter((s: Step) => s.kind === "collect");
     expect(collectSteps.length).toBe(1);
     expect((collectSteps[0] as any).interactionNode.prompt).toBe(
       "Please provide input_a:"
@@ -114,7 +114,7 @@ describe("SSLRunner", () => {
   test("emits branch step for DecisionNode", () => {
     const runner = new SSLRunner();
     const result = runner.run(fixture);
-    const branchSteps = result.steps.filter((s) => s.kind === "branch");
+    const branchSteps = result.steps.filter((s: Step) => s.kind === "branch");
     expect(branchSteps.length).toBe(1);
     expect((branchSteps[0] as any).decisionNode.question).toBe(
       "Should we proceed?"
@@ -124,8 +124,8 @@ describe("SSLRunner", () => {
   test("marks independent same-scene logical nodes as parallel", () => {
     const runner = new SSLRunner();
     const result = runner.run(fixture);
-    const execSteps = result.steps.filter((s) => s.kind === "execute");
-    const actStep = execSteps.find((s) => s.sceneId === "test#scene:ACT:2") as any;
+    const execSteps = result.steps.filter((s: Step) => s.kind === "execute");
+    const actStep = execSteps.find((s: Step) => s.sceneId === "test#scene:ACT:2") as any;
     expect(actStep).toBeDefined();
     expect(actStep.parallel).toBe(true);
     expect(actStep.logicalNodes.length).toBe(2);
@@ -134,9 +134,9 @@ describe("SSLRunner", () => {
   test("single logical node in scene is not parallel", () => {
     const runner = new SSLRunner();
     const result = runner.run(fixture);
-    const execSteps = result.steps.filter((s) => s.kind === "execute");
+    const execSteps = result.steps.filter((s: Step) => s.kind === "execute");
     const reasonStep = execSteps.find(
-      (s) => s.sceneId === "test#scene:REASON:1"
+      (s: Step) => s.sceneId === "test#scene:REASON:1"
     ) as any;
     expect(reasonStep).toBeDefined();
     expect(reasonStep.parallel).toBe(false);
