@@ -53,14 +53,17 @@ if (!opts.skill) {
 }
 
 // Validate slug to prevent path traversal
-if (!/^[a-z0-9][a-z0-9_-]*$/i.test(opts.skill)) {
-  console.error(`error: invalid --skill slug — must match [a-z0-9][a-z0-9_-]*`);
+if (!/^[a-z0-9][a-z0-9_-]{0,62}$/.test(opts.skill)) {
+  console.error(`error: invalid --skill slug — must match [a-z0-9][a-z0-9_-]{0,62} (lowercase)`);
   process.exit(3);
 }
 
+const repoRoot = process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+const REPLAY_DIR = resolve(repoRoot, "memory/_pending/replay");
+
 // SSL JSON 탐색: memory/concepts/_ssl/<slug>.json
 const sslPath = resolve(
-  process.cwd(),
+  repoRoot,
   "memory/concepts/_ssl",
   `${opts.skill}.json`
 );
@@ -89,32 +92,27 @@ if (sslErrors.length > 0) {
 const runner = new SSLRunner();
 const result = runner.run(doc);
 
-// ── JSON 모드 ──────────────────────────────────────────────
 if (opts.json) {
   console.log(JSON.stringify(result, null, 2));
   process.exit(0);
 }
 
-// ── Plan-generator 모드 ────────────────────────────────────
 function renderPlan(runResult: RunResult): string {
   const lines: string[] = [];
   lines.push(`# Execution Plan: ${runResult.skillSlug}`);
   lines.push("");
 
-  let stepNum = 0;
   let currentScene = "";
 
-  for (const step of runResult.steps) {
+  for (const [idx, step] of runResult.steps.entries()) {
     if (step.sceneId !== currentScene) {
       currentScene = step.sceneId;
       lines.push(`## Scene — ${step.sceneGoal}`);
       lines.push("");
     }
 
-    stepNum++;
-
     if (step.kind === "collect") {
-      lines.push(`### [STEP ${stepNum}] COLLECT — User Input Required`);
+      lines.push(`### [STEP ${idx + 1}] COLLECT — User Input Required`);
       lines.push("");
       lines.push(`> ${step.interactionNode.prompt}`);
       lines.push(
@@ -122,7 +120,7 @@ function renderPlan(runResult: RunResult): string {
       );
       lines.push("");
     } else if (step.kind === "branch") {
-      lines.push(`### [STEP ${stepNum}] BRANCH — Decision Point`);
+      lines.push(`### [STEP ${idx + 1}] BRANCH — Decision Point`);
       lines.push("");
       lines.push(`**Question:** ${step.decisionNode.question}`);
       lines.push("");
@@ -135,7 +133,7 @@ function renderPlan(runResult: RunResult): string {
       lines.push("");
     } else if (step.kind === "execute") {
       const parallelLabel = step.parallel ? " *(parallel)*" : "";
-      lines.push(`### [STEP ${stepNum}] EXECUTE${parallelLabel}`);
+      lines.push(`### [STEP ${idx + 1}] EXECUTE${parallelLabel}`);
       lines.push("");
       for (const node of step.logicalNodes) {
         lines.push(`**${node.id}** — \`${node.action}\``);
@@ -161,15 +159,12 @@ if (!opts.interactive) {
   const plan = renderPlan(result);
   console.log(plan);
 
-  // replay 파일로도 저장
-  const outDir = resolve(process.cwd(), "memory/_pending/replay");
-  const outPath = join(outDir, `${opts.skill}.run-plan.md`);
+  const outPath = join(REPLAY_DIR, `${opts.skill}.run-plan.md`);
   await Bun.write(outPath, plan);
   console.error(`\n→ plan saved: ${outPath}`);
   process.exit(0);
 }
 
-// ── Interactive 모드 ───────────────────────────────────────
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
@@ -181,13 +176,10 @@ function ask(prompt: string): Promise<string> {
 
 const state = result.state;
 const replayLines: string[] = [`# Replay: ${result.skillSlug}`, ""];
-let stepNumI = 0;
 
-for (const step of result.steps) {
-  stepNumI++;
-
+for (const [idx, step] of result.steps.entries()) {
   if (step.kind === "collect") {
-    console.log(`\n[STEP ${stepNumI}] COLLECT`);
+    console.log(`\n[STEP ${idx + 1}] COLLECT`);
     console.log(`Scene: ${step.sceneGoal}`);
     console.log(`\n> ${step.interactionNode.prompt}`);
     const answer = await ask("Your answer: ");
@@ -196,7 +188,7 @@ for (const step of result.steps) {
     replayLines.push(`answer: ${answer}`);
     replayLines.push("");
   } else if (step.kind === "branch") {
-    console.log(`\n[STEP ${stepNumI}] BRANCH`);
+    console.log(`\n[STEP ${idx + 1}] BRANCH`);
     console.log(`Scene: ${step.sceneGoal}`);
     console.log(`\n? ${step.decisionNode.question}`);
     step.decisionNode.branches.forEach((b, i) =>
@@ -206,10 +198,10 @@ for (const step of result.steps) {
       console.log(`  0. (default) ${step.decisionNode.fallback}`);
     }
     const choice = await ask("Choice (number, 1–" + step.decisionNode.branches.length + "): ");
-    const idx = parseInt(choice, 10) - 1;
+    const choiceIdx = parseInt(choice, 10) - 1;
     const selected =
-      Number.isInteger(idx) && idx >= 0 && idx < step.decisionNode.branches.length
-        ? step.decisionNode.branches[idx].when
+      Number.isInteger(choiceIdx) && choiceIdx >= 0 && choiceIdx < step.decisionNode.branches.length
+        ? step.decisionNode.branches[choiceIdx].when
         : (step.decisionNode.fallback ?? "");
     state.decisions[step.decisionNode.id] = selected;
     replayLines.push(`## Branch — ${step.decisionNode.id}`);
@@ -217,7 +209,7 @@ for (const step of result.steps) {
     replayLines.push("");
   } else if (step.kind === "execute") {
     const parallelLabel = step.parallel ? " (run in parallel)" : "";
-    console.log(`\n[STEP ${stepNumI}] EXECUTE${parallelLabel}`);
+    console.log(`\n[STEP ${idx + 1}] EXECUTE${parallelLabel}`);
     console.log(`Scene: ${step.sceneGoal}`);
     for (const node of step.logicalNodes) {
       console.log(`\n  • ${node.id} [${node.action}]`);
@@ -244,8 +236,6 @@ for (const step of result.steps) {
 
 rl.close();
 
-// replay 파일 저장
-const outDir = resolve(process.cwd(), "memory/_pending/replay");
-const outPath = join(outDir, `${opts.skill}.replay.md`);
+const outPath = join(REPLAY_DIR, `${opts.skill}.replay.md`);
 await Bun.write(outPath, replayLines.join("\n"));
 console.log(`\n✓ replay saved: ${outPath}`);
