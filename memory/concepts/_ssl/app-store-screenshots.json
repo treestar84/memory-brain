@@ -112,7 +112,8 @@
       "resources": ["MEMORY"],
       "resourceTarget": "user_requirements",
       "summary": "Emit required questions to gather app assets and brand identity",
-      "effects": ["user_requirements_collected"]
+      "effects": ["user_requirements_collected"],
+      "instructions": "Ask the user these 7 questions in order before writing any code:\n1. App screenshot file paths (PNG)\n2. App icon path\n3. Brand colors (accent, text, background)\n4. Font name\n5. Feature list in priority order\n6. Desired slide count (Apple max 10, Play max 8)\n7. Style direction (e.g. warm/minimal/dark) + any reference screenshots"
     },
     {
       "id": "app-store-screenshots#logical:2",
@@ -121,7 +122,8 @@
       "resources": ["MEMORY"],
       "resourceTarget": "design_decisions",
       "summary": "Infer background style, decorative elements, typography, and RTL behavior from user answers",
-      "effects": ["design_decisions_resolved"]
+      "effects": ["design_decisions_resolved"],
+      "instructions": "From the answers, decide (without asking): background style (gradient direction, colors), decorative elements (blobs/glows/none), dark vs light slide ratio, typography treatment, RTL behavior for ar/he/fa/ur locales, theme preset names."
     },
     {
       "id": "app-store-screenshots#logical:3",
@@ -130,7 +132,8 @@
       "resources": ["LOCAL_FS"],
       "resourceTarget": "create-next-app",
       "summary": "Scaffold Next.js project with Tailwind, TypeScript, and html-to-image",
-      "effects": ["nextjs_project_created", "html_to_image_installed"]
+      "effects": ["nextjs_project_created", "html_to_image_installed"],
+      "instructions": "Detect package manager (bun > pnpm > yarn > npm). Run scaffold command, e.g.:\n  bunx create-next-app@latest . --typescript --tailwind --app --src-dir --no-eslint --import-alias '@/*'\n  bun add html-to-image\nCopy mockup.png from skill directory to public/."
     },
     {
       "id": "app-store-screenshots#logical:4",
@@ -139,7 +142,8 @@
       "resources": ["LOCAL_FS"],
       "resourceTarget": "src/app/layout.tsx",
       "summary": "Write layout.tsx with font configuration",
-      "effects": ["font_configured"]
+      "effects": ["font_configured"],
+      "instructions": "Write src/app/layout.tsx with the user's chosen font via next/font. Set metadata.title to the app name."
     },
     {
       "id": "app-store-screenshots#logical:5",
@@ -148,7 +152,8 @@
       "resources": ["MEMORY"],
       "resourceTarget": "slide_plan",
       "summary": "Plan slide count, order, messages, and device frame composition per platform",
-      "effects": ["slide_plan_ready"]
+      "effects": ["slide_plan_ready"],
+      "instructions": "Plan: slide count per platform, slide order (feature priority), headline text per slide, which slides are dark vs light, which device frames appear (iPhone/iPad/Android phone/tablet/Feature Graphic). Output a slide table before writing code."
     },
     {
       "id": "app-store-screenshots#logical:6",
@@ -157,7 +162,8 @@
       "resources": ["LOCAL_FS"],
       "resourceTarget": "src/app/page.tsx",
       "summary": "Write page.tsx with slide factory functions, device frames, theme presets, and base64 image preloader",
-      "effects": ["screenshot_page_built"]
+      "effects": ["screenshot_page_built"],
+      "instructions": "Write src/app/page.tsx as a single file containing: (1) theme preset system, (2) base64 image preloader (all PNGs → data URIs on mount), (3) slide factory functions — one per slide type, (4) device frame components (iPhone uses mockup.png; Android/iPad use CSS-only frames), (5) export button wired to html-to-image. Use canvas dimensions matching the largest required device resolution."
     },
     {
       "id": "app-store-screenshots#logical:7",
@@ -166,7 +172,8 @@
       "resources": ["LOCAL_FS"],
       "resourceTarget": "html-to-image-export",
       "summary": "Export screenshots via html-to-image double-call pattern at required resolutions",
-      "effects": ["screenshot_png_files_exported"]
+      "effects": ["screenshot_png_files_exported"],
+      "instructions": "Export via html-to-image's toPng(). IMPORTANT: call toPng() twice — the first call warms up resources (fonts, images), the second produces clean output. Save each PNG at the exact required resolution: iPhone 1290×2796, iPad 2048×2732, Android phone 1080×1920, Feature Graphic 1024×500."
     }
   ],
   "decisions": [
