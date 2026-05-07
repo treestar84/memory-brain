@@ -1,12 +1,13 @@
 import { describe, test, expect } from "bun:test";
 import { KGProjector } from "../../../src/core/search/KGProjector";
+import { SSL_VERSION } from "../../../src/core/ontology/ssl";
 import type { SSLDocument } from "../../../src/core/ontology/ssl";
 
 // ─── fixture helper ────────────────────────────────────────────────────────────
 
 function makeSSL(slug: string, overrides: Partial<SSLDocument> = {}): SSLDocument {
   const base: SSLDocument = {
-    sslVersion: "0.3.0",
+    sslVersion: SSL_VERSION,
     sourceSkillPath: `skills/${slug}/SKILL.md`,
     sourceSha256: "abc123",
     generatedAt: "2026-05-01T00:00:00Z",

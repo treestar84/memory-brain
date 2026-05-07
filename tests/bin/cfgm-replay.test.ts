@@ -3,11 +3,12 @@ import { mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { SSL_VERSION } from "../../src/core/ontology/ssl";
 import type { SSLDocument } from "../../src/core/ontology/ssl";
 
 function makeSSL(slug: string, overrides: Partial<SSLDocument> = {}): SSLDocument {
   const base: SSLDocument = {
-    sslVersion: "0.3.0",
+    sslVersion: SSL_VERSION,
     sourceSkillPath: `.claude/skills/${slug}/SKILL.md`,
     sourceSha256: "a".repeat(64),
     generatedAt: "2026-01-01T00:00:00.000Z",

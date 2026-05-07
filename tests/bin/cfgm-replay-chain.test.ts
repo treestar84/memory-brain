@@ -4,6 +4,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { buildChainReplayPlan } from "../../bin/cfgm-replay";
+import { SSL_VERSION } from "../../src/core/ontology/ssl";
 
 const KG_SCHEMA = `
   CREATE TABLE IF NOT EXISTS kg_edges (
@@ -33,7 +34,7 @@ function addDelegation(db: Database, from: string, to: string) {
 
 function minimalSSL(slug: string, skillName: string) {
   return {
-    sslVersion: "0.3.0",
+    sslVersion: SSL_VERSION,
     scheduling: {
       id: `${slug}#sched`,
       skillName,
