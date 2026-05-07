@@ -5,7 +5,6 @@ import * as readline from "node:readline";
 import { SSLRunner } from "../src/core/runner/SSLRunner";
 import type { SSLDocument } from "../src/core/ontology/ssl";
 import type {
-  Step,
   ExecuteStep,
   CollectStep,
   BranchStep,
