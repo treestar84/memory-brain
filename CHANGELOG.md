@@ -5,6 +5,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added — V3.31 사용성·설치·확장성 (2026-07-22)
+- **통합 CLI `cfgm`** (`bin/cfgm.ts`) — 52개 개별 스크립트의 단일 진입점. `cfgm help` (그룹별 목록), `cfgm <command> [args]` dispatch, 미등록 이름도 `bin/cfgm-<name>.ts` 존재 시 실행 (registry 누락 무해). package.json `bin` 필드 → `bun link` 로 전역 `cfgm` 등록
+- **`cfgm doctor`** — 설치·환경 자가진단: Bun 버전 · 의존성 · memory/ 레이아웃 · 인덱스 존재/신선도 (WAL mtime 보정) · SSL 큐 stale · Brain 프로파일 · LME 데이터. 실패 항목마다 실행 가능한 조치 명령 제시
+- **`docs/EXTENDING.md`** — 확장 계약 8종 문서화 (Embedder 주입 · fusion 전략 · dateWindow · Router 매핑 · SSL 어휘 · OKF · host-위임 큐 패턴 · 벤치 케이스)
+- **README Quick Start 개편** — deprecated `bin/install.ts` 안내 제거, `cfgm doctor` 중심 온보딩
+
+### Fixed — V3.31
+- doctor 인덱스 경로가 `resolveStorageRoot()` 와 불일치하던 문제 (rebuild 는 `~/.claude-brain/...` 에 쓰는데 진단은 repo 로컬을 봄) — 동일 해석 사용
+- WAL 모드에서 인덱스 신선도가 본 파일 mtime 만 보고 오판하던 문제 — `-wal`/`-shm` 포함 최신 mtime 사용
+
 ### Added — V3.30 LongMemEval Retrieval Tuning (2026-07-22, 워크플로우 진단 기반)
 6-agent 워크플로우 (유형별 miss 진단 3 + 독립 설계 2 + 합성 1) 가 R@3 실패 29건에서 도출한 설계를 P1→P4 단계별 격리 측정으로 구현:
 - **P1 Content 쿼리** — `toContentFtsQuery`: 영어 폐쇄류 stopword + 상대시간 어휘 제거 + 경량 스테밍 (`trips* OR trip*`). `queryFtsWithFallback` 3단 체인 (raw → content → loose). 일반동사 (like/want/need) 는 preference 내용어라 보존 (실측 근거 주석)

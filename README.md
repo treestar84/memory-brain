@@ -10,9 +10,28 @@ Persistent memory engine for Claude Code. Tracks skills as SSL (Scheduling–Str
 ## Quick Start
 
 ```bash
+git clone <repo> && cd memory-brain
 bun install
-bun run bin/install.ts
+bun link                 # 전역 `cfgm` 명령 등록 (선택)
+cfgm doctor              # 설치·환경 자가진단 — 부족한 항목과 조치를 알려줌
+cfgm rebuild-index --embeddings
 ```
+
+Claude Code 훅 통합(세션 영구 메모리)까지 원하면 `./install.sh` 를 추가 실행합니다. 훅 없이도 모든 CLI 는 단독 동작합니다.
+
+## 통합 CLI — `cfgm`
+
+52개 스크립트의 단일 진입점입니다. `cfgm help` 로 그룹별 전체 목록을 봅니다:
+
+```bash
+cfgm doctor              # 자가진단 (bun 버전·의존성·인덱스 신선도·큐 stale·조치 안내)
+cfgm bench               # 내부 memory quality benchmark
+cfgm bench-lme           # LongMemEval 외부 벤치마크
+cfgm ssl-status          # SSL 큐 상태
+cfgm viewer              # KG-Brain 대시보드 (localhost:4041)
+```
+
+전역 등록(`bun link`) 없이 쓰려면 `bun run bin/cfgm.ts <command>`. 등록되지 않은 이름도 `bin/cfgm-<name>.ts` 가 존재하면 실행됩니다. 확장 방법(Embedder 주입·fusion 전략·Router 매핑·어휘·host-위임 큐)은 [`docs/EXTENDING.md`](./docs/EXTENDING.md) 참조.
 
 ## Uninstall
 

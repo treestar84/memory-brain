@@ -212,6 +212,13 @@
 - **알려진 퇴행**: preference R@5 86.7→80.0 / MRR 0.630→0.561 (n=30) — 정직 보고. 회복은 held-out split 도입 후 (벤치 과적합 방지).
 - **검증**: 978/978 pass · typecheck OK · 내부 마이크로벤치 회귀 없음 (wiki fts R@5 37.5→87.5% 부수 개선).
 
+## V3.31 사용성·설치·확장성 (2026-07-22) ✅
+
+- **통합 CLI `cfgm`**: 52개 스크립트 단일 진입점 (help/dispatch/미등록 fallback) + `bun link` 전역 등록. **`cfgm doctor`**: 7항목 자가진단 + 조치 명령 제시 (경로 불일치·WAL mtime 버그 2건을 개발 중 스스로 발견·수정)
+- **docs/EXTENDING.md**: 확장 seam 8종 계약 문서화
+- **README Quick Start**: deprecated install.ts 제거, doctor 중심 온보딩
+- V3.28~30 은 commit `9973307` 로 커밋 완료
+
 ## 다음 단계 후보
 
 - V3.25: cfgm-run `--interactive` 결과를 cfgm-replay 와 연동 (replay 파일 포맷 통일)
