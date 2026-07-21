@@ -29,6 +29,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - `LongMemEval` 어댑터 (`src/core/bench/LongMemEval.ts`) — 질문별 haystack 세션 인덱싱 → `answer_session_ids` 대비 session-level Recall@K + MRR (논문 §4.2 프로토콜). fts/hybrid 비교, question type 별 분해, haystack 중복 세션 id dedupe
   - `cfgm-lme-retrieval` CLI (`bun run bench:lme`) → `memory/reports/longmemeval-retrieval.md`
   - **첫 실측 (LongMemEval_S 500문항)**: R@1 55.2% · R@3 85.9% · **R@5 91.7% · R@10 94.5% · MRR 0.909** (89초, LLM 0회)
+- **② 풀 QA 트랙 실측 (2026-07-22)**: Sonnet 위임 실행으로 500/500 답변 + LLM judge 500 판정 → **공식 QA accuracy 86.2%** (retrieval R@10 96.2% 가 상한). type 별: assistant 100% / user 98.6% / knowledge-update 93.6% / temporal 88.0% / multi-session 77.4% / preference 43.3% (retrieval 약점 전파)
 - **② 풀 QA 트랙** (host-위임 — 원칙 2 준수)
   - `LmeQa` (`src/core/bench/LmeQa.ts`) — answer job (ground truth 미포함, 누출 방지) / judge job (truth 포함) / SQuAD-style token-F1 proxy / judge accuracy 집계
   - `cfgm-lme-enqueue` (retrieval top-k 컨텍스트 포함 job 생성) + `cfgm-lme-score` (proxy 채점 · `--judge-enqueue` · `--collect`)

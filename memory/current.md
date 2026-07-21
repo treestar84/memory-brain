@@ -200,7 +200,7 @@
 사용자 승인 순서: ① LongMemEval retrieval-only → ② 풀 QA (host-위임) → ③ skill retrieval.
 
 - **① 완료** — `cfgm-lme-retrieval` (`bun run bench:lme`). 공식 프로토콜 (session-level Recall@K vs `answer_session_ids`), LLM 0회. **실측 (S, 500문항): R@1 55.2% / R@3 85.9% / R@5 91.7% / R@10 94.5% / MRR 0.909** (89초). 약점 type: single-session-preference MRR 0.630, temporal-reasoning MRR 0.867 (튜닝 후보).
-- **② 파이프라인 완료** — `cfgm-lme-enqueue` → PAI 세션 → `cfgm-lme-score` (proxy EM/F1 + `--judge-enqueue`/`--collect` 공식 judge accuracy). end-to-end smoke 검증. **실제 500문항 처리는 PAI 세션 실행 대기** (원칙 5 — 메인 세션 처리 금지).
+- **② 완료 (2026-07-22)** — 사용자 지시로 Sonnet 에이전트 위임 실행 (Workflow 미사용 — 사용자 토큰 정책). 500/500 답변 + 500 judge 판정. **공식 QA accuracy 86.2%** (assistant 100 / user 98.6 / knowledge-update 93.6 / temporal 88.0 / multi-session 77.4 / preference 43.3%). preference 는 retrieval 약점 전파 — 기존 튜닝 대상과 일치. 리포트: `memory/reports/longmemeval-qa.md`.
 - **③ scoped** — benchflow-ai/skillsbench (87 tasks + 229 matched skills) 를 ground truth 로 `searchSkills` 평가. 다음 사이클.
 - **핵심 발견**: RRF 동등 융합이 긴 문서에서 BM25 정밀도 파괴 (R@1 96→64%) → hybrid 기본 전략을 **rescue** 로 전환 (양쪽 벤치 최고치 동시 달성). 데이터셋 265MB 는 `data/` gitignore.
 

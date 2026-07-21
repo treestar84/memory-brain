@@ -32,6 +32,8 @@ Claude Code · Codex · Gemini CLI 같은 **host CLI 위에서 동작**하는 �
 | 튜닝 전 (V3.29) | 55.2% | 85.9% | 91.7% | 94.5% | 0.909 |
 | **현재 (V3.30)** | **56.6%** | **87.2%** | **92.2%** | **96.2%** | **0.927** |
 
+**풀 QA 트랙 실측** (2026-07-22, host-위임 Sonnet 답변 생성 + LLM judge, 500/500): **QA accuracy 86.2%** — single-session-assistant 100% · user 98.6% · knowledge-update 93.6% · temporal 88.0% · multi-session 77.4% · preference 43.3% (retrieval 약점이 그대로 전파 — 알려진 튜닝 대상). 상세: `memory/reports/longmemeval-qa.md`
+
 ```bash
 # 재현 (데이터셋 265MB — repo 미포함, MIT)
 mkdir -p data/longmemeval && cd data/longmemeval
