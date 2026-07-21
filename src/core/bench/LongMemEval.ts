@@ -75,12 +75,19 @@ export interface LmeRetrievalResult {
 
 const DEFAULT_KS = [1, 3, 5, 10];
 
+// question_id 는 파일 경로 (jobs/<id>.job.md, answers/<id>.json) 에 그대로
+// 쓰인다 — 외부 데이터셋이 입력이므로 path traversal 방어로 slug 형식 강제.
+const SAFE_ID_RE = /^[A-Za-z0-9_-]+$/;
+
 export function parseLmeQuestions(raw: unknown): LmeQuestion[] {
   if (!Array.isArray(raw)) throw new Error("LongMemEval data: root must be an array");
   return raw.map((q, i) => {
     const r = q as Record<string, unknown>;
     if (typeof r.question_id !== "string" || typeof r.question !== "string") {
       throw new Error(`LongMemEval data: entry ${i} missing question_id/question`);
+    }
+    if (!SAFE_ID_RE.test(r.question_id)) {
+      throw new Error(`LongMemEval data: entry ${i} unsafe question_id (path traversal 방어): ${JSON.stringify(r.question_id)}`);
     }
     if (!Array.isArray(r.haystack_sessions) || !Array.isArray(r.haystack_session_ids)) {
       throw new Error(`LongMemEval data: entry ${i} missing haystack fields`);

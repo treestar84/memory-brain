@@ -25,6 +25,15 @@ export interface LmeAnswerJobInput {
   answersDir: string;
 }
 
+// frontmatter 값 주입 방어 — id/type 류 필드는 slug 문자만 허용 (개행·콜론
+// 등 YAML 구분자 완전 제거 → 파일 경로로도 안전). question_id 는
+// parseLmeQuestions 의 SAFE_ID_RE 로 이미 보장되지만, 다른 호출 경로로
+// 만들어진 객체에도 안전하도록 여기서도 정화한다.
+function fmSafe(v: string): string {
+  const safe = v.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^[-.]+|[-.]+$/g, "");
+  return safe.length > 0 ? safe : "unnamed";
+}
+
 /** answer job 파일 내용 생성. ground truth 미포함. */
 export function buildAnswerJob(input: LmeAnswerJobInput): string {
   const q = input.question;
@@ -37,15 +46,16 @@ export function buildAnswerJob(input: LmeAnswerJobInput): string {
     })
     .filter((s): s is string => s !== null);
 
+  const qid = fmSafe(q.question_id);
   return [
     `---`,
-    `job_id: lme-answer-${q.question_id}`,
+    `job_id: lme-answer-${qid}`,
     `status: pending`,
     `attempts: 0`,
     `max_attempts: 3`,
-    `question_id: ${q.question_id}`,
-    `question_type: ${q.question_type}`,
-    `output_path: ${input.answersDir}/${q.question_id}.json`,
+    `question_id: ${qid}`,
+    `question_type: ${fmSafe(q.question_type)}`,
+    `output_path: ${input.answersDir}/${qid}.json`,
     `---`,
     ``,
     `# LongMemEval answer job — \`${q.question_id}\``,
@@ -140,14 +150,15 @@ export function scoreAnswerProxy(q: LmeQuestion, answer: string): LmeProxyScore 
 /** judge job — 여기에만 ground truth 포함. host LLM 이 yes/no 판정. */
 export function buildJudgeJob(q: LmeQuestion, answer: string, judgmentsDir: string): string {
   const truth = typeof q.answer === "string" ? q.answer : JSON.stringify(q.answer ?? "");
+  const qid = fmSafe(q.question_id);
   return [
     `---`,
-    `job_id: lme-judge-${q.question_id}`,
+    `job_id: lme-judge-${qid}`,
     `status: pending`,
     `attempts: 0`,
     `max_attempts: 3`,
-    `question_id: ${q.question_id}`,
-    `output_path: ${judgmentsDir}/${q.question_id}.json`,
+    `question_id: ${qid}`,
+    `output_path: ${judgmentsDir}/${qid}.json`,
     `---`,
     ``,
     `# LongMemEval judge job — \`${q.question_id}\``,

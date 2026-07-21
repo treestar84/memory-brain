@@ -105,9 +105,13 @@ export function buildOkfBundle(pages: WikiPage[], opts: OkfExportOptions = {}): 
   return files;
 }
 
+// wiki frontmatter id 는 외부 입력일 수 있다 — 파일명으로 쓰이므로 path
+// traversal 방어: 경로 구분자·상위 참조를 무해한 문자로 치환, 선행 dot 제거.
 function slugOf(id: string): string {
   const dot = id.indexOf(".");
-  return dot >= 0 ? id.slice(dot + 1) : id;
+  const raw = dot >= 0 ? id.slice(dot + 1) : id;
+  const safe = raw.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/\.\.+/g, ".").replace(/^\.+/, "");
+  return safe.length > 0 ? safe : "unnamed";
 }
 
 /**

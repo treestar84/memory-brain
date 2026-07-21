@@ -43,6 +43,11 @@ const files = buildOkfBundle(pages, { includeAllStatuses: !activeOnly });
 
 for (const f of files) {
   const full = resolve(outDir, f.relPath);
+  // 심층 방어 — slugOf 정화를 통과했더라도 outDir 경계 밖 쓰기는 거부
+  if (full !== outDir && !full.startsWith(outDir + "/")) {
+    console.error(`skip (outDir 경계 밖): ${f.relPath}`);
+    continue;
+  }
   await mkdir(dirname(full), { recursive: true });
   await Bun.write(full, f.content);
 }

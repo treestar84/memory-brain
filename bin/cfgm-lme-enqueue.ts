@@ -64,7 +64,10 @@ let created = 0;
 let skippedExisting = 0;
 
 for (const q of pool) {
+  // question_id 는 parseLmeQuestions 의 SAFE_ID_RE 로 slug 보장 — 심층 방어로
+  // 경계 재확인 (다른 파서 경로 대비)
   const jobPath = resolve(jobsDir, `${q.question_id}.job.md`);
+  if (!jobPath.startsWith(jobsDir + "/")) continue;
   if (await Bun.file(jobPath).exists()) {
     skippedExisting++;
     continue;

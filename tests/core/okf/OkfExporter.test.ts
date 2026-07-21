@@ -95,6 +95,15 @@ describe("OkfExporter (V3.28, OKF v0.1)", () => {
     expect(files.some((f) => f.relPath === "concepts/memory-routing.md")).toBe(true);
   });
 
+  test("path traversal 방어 — 악성 id 가 outDir 밖 경로를 만들지 못함", () => {
+    const evil = page({ id: "concept.../../../etc/passwd" }, "# Evil\n\ncontent");
+    const doc = toOkfDocument(evil, new Set());
+    expect(doc.relPath.startsWith("concepts/")).toBe(true);
+    expect(doc.relPath).not.toContain("..");
+    const slash = page({ id: "concept.a/b/c" }, "# S\n\ncontent");
+    expect(toOkfDocument(slash, new Set()).relPath).not.toContain("a/b");
+  });
+
   test("bundle — 결정론적 정렬 (id 사전순)", () => {
     const a = buildOkfBundle([OSS, ROUTING]).map((f) => f.relPath);
     const b = buildOkfBundle([ROUTING, OSS]).map((f) => f.relPath);

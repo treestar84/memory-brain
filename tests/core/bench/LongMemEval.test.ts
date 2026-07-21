@@ -41,6 +41,18 @@ describe("LongMemEval adapter (V3.29 ①)", () => {
     expect(parsed.length).toBe(1);
     expect(parsed[0]!.question_type).toBe("multi-session");
     expect(() => parseLmeQuestions("nope")).toThrow();
+    // path traversal 방어 — question_id 는 slug 만 허용
+    expect(() =>
+      parseLmeQuestions([
+        {
+          question_id: "../../etc/passwd",
+          question: "q",
+          haystack_session_ids: ["s1"],
+          haystack_sessions: [[{ role: "user", content: "hi" }]],
+          answer_session_ids: ["s1"],
+        },
+      ]),
+    ).toThrow(/unsafe question_id/);
     expect(() => parseLmeQuestions([{ question: "no id" }])).toThrow();
     expect(() =>
       parseLmeQuestions([
