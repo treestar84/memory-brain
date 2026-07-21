@@ -161,6 +161,77 @@ bun run compose --no-report
 예: A → B → C 위임 체인이 있으면 `A COMPOSES [B, C]` 트리플이 도출됩니다.
 사이클(A → B → A)은 `memory/reports/skill-cycles.md` 에 기록됩니다.
 
+## Hybrid Search — opt-in (V3.28)
+
+FTS5 BM25 랭킹에 의존성 0 의 결정론적 n-gram 벡터 랭킹을 RRF 로 융합합니다. 오타·형태소 변형 쿼리("openclow incorporeted")를 구제합니다. LLM API 호출 없음 (`docs/RULES.md` 원칙 2).
+
+```bash
+bun run bin/cfgm-rebuild-index.ts --embeddings   # 벡터 포함 재인덱싱 (opt-in)
+```
+
+벡터 없이 빌드된 인덱스에서 hybrid 검색을 호출하면 FTS 결과로 안전하게 fallback 합니다. 실제 embedding 모델을 쓰려면 `Embedder` 인터페이스(`src/core/search/Embedder.ts`)를 구현해 주입하세요.
+
+## Memory Quality Benchmark (V3.28)
+
+코드 정확성(`bun test`)과 별개로 **메모리 품질**(라우팅 적중률, 검색 recall)을 정량 측정합니다.
+
+```bash
+bun run bench          # 실행 + memory/reports/benchmark-latest.md 저장
+bun run bench --json   # machine-readable
+```
+
+측정 항목: router lane hit rate / macro precision·recall, wiki·skill 검색 recall@1/3/5 + MRR (fts vs hybrid 비교). 기대값은 `fixtures/bench/cases.json` — memory/ 페이지 개편 시 함께 갱신하세요. Miss 케이스는 리포트에 그대로 노출됩니다 (튜닝 대상 목록).
+
+## LongMemEval Benchmark (V3.29)
+
+유명 외부 벤치마크 [LongMemEval](https://github.com/xiaowu0162/LongMemEval) (ICLR 2025, MIT) 로 memory-brain의 retrieval 품질을 측정합니다. 데이터셋은 repo에 포함되지 않습니다:
+
+```bash
+mkdir -p data/longmemeval && cd data/longmemeval
+curl -LO https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_s_cleaned.json
+```
+
+**Retrieval-only 트랙** (LLM 호출 0 — 원칙 2 준수, 논문 §4.2 session-level Recall@K 프로토콜):
+
+```bash
+bun run bench:lme                    # 전체 500 문항 → memory/reports/longmemeval-retrieval.md
+bun run bench:lme -- --limit 25      # smoke
+```
+
+실측 (2026-07-22, LongMemEval_S 500문항, V3.30 튜닝 후): **R@1 56.6% · R@3 87.2% · R@5 92.2% · R@10 96.2% · MRR 0.927** (튜닝 전 55.2 / 85.9 / 91.7 / 94.5 / 0.909).
+
+**풀 QA 트랙** (host-위임 — SDK 직접 호출 없음):
+
+```bash
+bun run lme:enqueue                  # answer job 생성 (retrieval top-k 컨텍스트 포함)
+# → PAI 세션이 job 처리 (CLAUDE_CONFIG_DIR=.claude-pai claude)
+bun run lme:score                    # proxy 채점 (EM/contains/token-F1)
+bun run lme:score -- --judge-enqueue # 공식 semantic 판정 job 생성
+# → PAI 세션이 judge job 처리
+bun run lme:score -- --collect       # 공식 지표 (judge accuracy) 집계
+```
+
+## OKF Export (V3.28)
+
+L3 wiki 를 Google [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/tree/main/okf) v0.1 번들로 export 합니다. wiki 스키마가 truth-source — OKF 는 파생물입니다.
+
+```bash
+bun run okf:export                 # dist/okf 에 번들 생성
+bun run okf:export -- --out <dir> --active-only
+```
+
+## Queue Failure Semantics (V3.28)
+
+host LLM 이 job 을 점유한 채 세션이 죽으면 job 이 고아가 됩니다. lease 기반 회수 계약:
+
+```bash
+bun run bin/cfgm-ssl-status.ts     # stale (lease 만료 in_progress) 카운트 표시
+bun run reap                       # orphan → pending 재큐 또는 failed (max_attempts 도달)
+bun run reap -- --dry-run          # 판정만
+```
+
+claim 시 `attempts` 증가 + `lease_expires_at` 기록 (기본 60분, 재시도 한도 3회). 상세 계약은 `memory/_pending/normalize/_spec/prompt.md`.
+
 ## Key CLI Reference
 
 | 명령 | 설명 |
@@ -170,8 +241,11 @@ bun run compose --no-report
 | `cfgm-ssl-enqueue` | skills → pending normalize jobs 생성 (`--force` 재처리) |
 | `cfgm-ssl-validate <path>` | SSL JSON 스키마 검증 |
 | `cfgm-ssl-stats` | canonical 사용률 · 4 신규 노드 채움률 등 지표 |
-| `cfgm-ssl-status` | pending/done/failed 큐 통계 |
-| `cfgm-rebuild-index` | wiki + claim + SSL 전체 인덱스 재생성 |
+| `cfgm-ssl-status` | pending/done/failed/stale 큐 통계 |
+| `cfgm-ssl-reap` | orphan in_progress job 회수 (`--dry-run` / `--ttl-minutes` / `--max-attempts`) |
+| `cfgm-rebuild-index` | wiki + claim + SSL 전체 인덱스 재생성 (`--embeddings` hybrid opt-in) |
+| `cfgm-bench` | memory quality benchmark — router 적중률 + 검색 recall (fts vs hybrid) |
+| `cfgm-okf-export` | L3 wiki → OKF v0.1 번들 (`--out` / `--active-only`) |
 | `cfgm-graph-query` | KG 그래프 쿼리 (`neighbors` / `reverse-delegators` / `reachable` / `dangling` / `stats`) |
 | `cfgm-find-chain` | goal 문자열로 skill 체인 발견 (`--goal "..."` / `--top N` / `--json`) |
 | `cfgm-compose` | R-COMPOSE 추론: COMPOSES 트리플 + 사이클 감지 (`--json` / `--no-report`) |

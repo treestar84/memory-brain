@@ -65,3 +65,9 @@ credentials/
 request.md
 docs/_codex_plan_check.md
 docs/journal/
+
+# External benchmark datasets (download via curl — see bin/cfgm-lme-retrieval.ts)
+data/
+
+# LongMemEval QA 파이프라인 아티팩트 (대용량 — 재생성 가능, bin/cfgm-lme-enqueue.ts)
+memory/_pending/lme/

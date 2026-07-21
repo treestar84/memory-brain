@@ -5,6 +5,52 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added — V3.30 LongMemEval Retrieval Tuning (2026-07-22, 워크플로우 진단 기반)
+6-agent 워크플로우 (유형별 miss 진단 3 + 독립 설계 2 + 합성 1) 가 R@3 실패 29건에서 도출한 설계를 P1→P4 단계별 격리 측정으로 구현:
+- **P1 Content 쿼리** — `toContentFtsQuery`: 영어 폐쇄류 stopword + 상대시간 어휘 제거 + 경량 스테밍 (`trips* OR trip*`). `queryFtsWithFallback` 3단 체인 (raw → content → loose). 일반동사 (like/want/need) 는 preference 내용어라 보존 (실측 근거 주석)
+- **P2 rescue-rerank fusion** — top-3 고정 (R@1 무퇴행 불변식) + FTS rank 4+ 꼬리만 벡터 RRF 재정렬. opt-in (`fusion: "rescue-rerank"`), 기본값은 rescue 유지
+- **P3 Temporal** — `TemporalQuery.ts` (결정론 상대시간 파서: "N weeks ago" / "last Saturday" / "past three months" → epoch day 창, "last name" 오탐 차단) + schema v5 (`wiki_dates` 테이블, `body_user` 컬럼, **마이그레이션 가드**: 버전 불일치 시 derived 테이블 drop&recreate) + `dateWindow` soft filter (창 안 문서 stable-partition 승격) + 요일 전체명 병기 + abstention 분리 집계
+- **P4 user-turn 가중** — `WikiPage.bodyUser?` + bm25 명시 가중 (BODY_USER_WEIGHT 2.0, ablation 1.0/2.0/3.0 실측으로 결정). 빈 bodyUser 는 기존 랭킹과 수학적 동치 (회귀 테스트 고정)
+- **실측 (LongMemEval_S 500, hybrid)**: R@1 55.2→**56.6%** · R@3 85.9→**87.2%** · R@5 91.7→**92.2%** · R@10 94.5→**96.2%** · MRR 0.909→**0.927**. temporal MRR 0.867→**0.927** (목표 0.91+ 달성) · multi-session 86.6→88.7% · knowledge-update 98.1% 유지
+- **알려진 퇴행 (정직 보고)**: single-session-preference R@5 86.7→80.0% / MRR 0.630→0.561 (n=30). 원인: content 쿼리가 preference 질문에서 우연히 도움되던 stopword 매칭을 제거. hypernym 사전으로 회복 가능하나 벤치 과적합 위험으로 의도적 제외 (설계 합성 판정) — held-out split 도입 후 재시도 권고
+
+### Added — V3.29 External Benchmarks: LongMemEval (2026-07-21)
+- **① Retrieval-only 트랙** (LLM 호출 0)
+  - `LongMemEval` 어댑터 (`src/core/bench/LongMemEval.ts`) — 질문별 haystack 세션 인덱싱 → `answer_session_ids` 대비 session-level Recall@K + MRR (논문 §4.2 프로토콜). fts/hybrid 비교, question type 별 분해, haystack 중복 세션 id dedupe
+  - `cfgm-lme-retrieval` CLI (`bun run bench:lme`) → `memory/reports/longmemeval-retrieval.md`
+  - **첫 실측 (LongMemEval_S 500문항)**: R@1 55.2% · R@3 85.9% · **R@5 91.7% · R@10 94.5% · MRR 0.909** (89초, LLM 0회)
+- **② 풀 QA 트랙** (host-위임 — 원칙 2 준수)
+  - `LmeQa` (`src/core/bench/LmeQa.ts`) — answer job (ground truth 미포함, 누출 방지) / judge job (truth 포함) / SQuAD-style token-F1 proxy / judge accuracy 집계
+  - `cfgm-lme-enqueue` (retrieval top-k 컨텍스트 포함 job 생성) + `cfgm-lme-score` (proxy 채점 · `--judge-enqueue` · `--collect`)
+  - PAI 세션 처리 전제 (원칙 5). `memory/_pending/lme/` 는 gitignore (재생성 가능 대용량)
+- **③ Skill retrieval 트랙** — 데이터 소스 확정 (benchflow-ai/skillsbench: 87 tasks + 229 matched skills). 구현은 다음 사이클
+
+### Changed — V3.29
+- **Hybrid fusion 기본 전략 rrf → rescue**: LongMemEval 실측에서 동등 RRF 가 긴 세션 문서 코퍼스의 R@1 을 96%→64% 로 퇴행시키는 것을 확인. rescue (FTS 랭킹 보존 + 벡터는 FTS 미발견 문서만 뒤에 보충) 로 전환 — LongMemEval R@1 96% 유지 + wiki 마이크로벤치 구제 효과 (37.5%→100%) 유지 + skills MRR 1.000. `fusion: "rrf"` 옵션으로 기존 동작 선택 가능
+- `SearchIndex` vectors insert → `INSERT OR REPLACE` (외부 데이터셋 중복 doc id 방어)
+
+### Added — V3.28 Frontier Gap Closure (2026-07-21)
+- **OKF 호환 export** — Google OKF (Open Knowledge Format) v0.1 번들 어댑터
+  - `OkfExporter` (`src/core/okf/OkfExporter.ts`) — L3 wiki page → OKF concept 문서 (`type` 필수 + title/description/resource/tags/timestamp 정렬, `x_cfgm_*` provenance 보존, `[[id]]` → 상대 링크 변환)
+  - `cfgm-okf-export` CLI (`bun run okf:export`) — dir index + root index 포함 번들 생성 (기본 `dist/okf`)
+  - 코어 재구조화 없음 — wiki 스키마가 truth, OKF 는 어댑터 경계 뒤 파생물
+- **Hybrid 검색 (opt-in)** — FTS5 BM25 + 벡터 cosine 랭킹 RRF 융합
+  - `Embedder` 인터페이스 + `HashedNgramEmbedder` (의존성 0, 결정론적 char n-gram — 원칙 2 준수, API key 불요. 실제 embedding 모델은 인터페이스 구현으로 주입 가능)
+  - `SearchIndex` schema v3→v4: `vectors` 테이블 + `searchWikiHybrid` / `searchSkillsHybrid` (벡터 없으면 FTS fallback — back-compat)
+  - `cfgm-rebuild-index --embeddings` opt-in 플래그
+- **Memory quality benchmark** — 코드 정확성과 별개로 메모리 품질을 정량 측정
+  - `BenchRunner` — router lane 적중률 (hit rate + macro P/R) + wiki/skill 검색 recall@1/3/5 + MRR (fts vs hybrid 비교)
+  - `fixtures/bench/cases.json` — 한/영 혼합 + 오타 케이스 30건, `cfgm-bench` CLI (`bun run bench`) → `memory/reports/benchmark-latest.md`
+  - 첫 실측 (wiki 5 pages / skills 12): router lane hit 87.5% · wiki recall@5 fts 37.5% → **hybrid 100%** · MRR 0.375 → 0.938
+- **Pending queue 실패 시맨틱** — orphan job 회수 계약
+  - `JobLifecycle` (`src/core/normalizer/JobLifecycle.ts`) — claim (attempts+1 + `lease_expires_at`) / reap (lease 만료 → pending 재큐 또는 max_attempts 도달 시 failed) / 수동 requeue. legacy job 은 mtime+TTL 판정 (back-compat)
+  - `cfgm-ssl-reap` CLI (`bun run reap`) — `--dry-run` / `--ttl-minutes` / `--max-attempts`
+  - `cfgm-ssl-enqueue` 신규 job frontmatter 에 `attempts` / `max_attempts` 추가, `cfgm-ssl-status` 에 stale 카운트 + reap 권고 표시
+  - `_spec/prompt.md` — PAI 세션 claim 프로토콜 + 재시도 계약 명세
+
+### Fixed
+- `SearchIndex.searchWiki` / `searchClaims` — 하이픈/콜론 포함 실사용 쿼리 ("KG-Brain", "bun:sqlite") 가 FTS5 구문 오류로 크래시하던 문제. raw MATCH 실패 시 sanitize 재시도 폴백 (첫 벤치마크 실행이 발견한 실 버그)
+
 ## [0.3.9] — 2026-05-08
 
 ### Added

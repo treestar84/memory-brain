@@ -7,14 +7,18 @@
 너는 **SKILL.md 자연어 문서를 SSL 0.3.0 typed JSON 으로 변환하는 normalizer** 다. 작업 흐름:
 
 1. **컨텍스트 로드** — 본 파일 + `_spec/ssl-schema.md` + `_spec/vocabulary.yaml` 을 함께 읽는다. 어휘 (closed enum) 와 무결성 규칙을 머리에 둔다. `vocabulary.yaml` 의 `extensions` 섹션이 비어있지 않다면 그 어휘도 합법.
-2. **Job 파싱** — 처리할 `jobs/<slug>.job.md` 의 frontmatter 를 읽는다 — `source_path`, `source_sha256`, `heuristic_path`, `output_path`.
+2. **Job 파싱 + claim (V3.28 실패 시맨틱)** — 처리할 `jobs/<slug>.job.md` 의 frontmatter 를 읽는다 — `source_path`, `source_sha256`, `heuristic_path`, `output_path`. **처리를 시작하기 전에** frontmatter 를 다음처럼 갱신해 job 을 점유(claim)한다:
+   - `status: in_progress`
+   - `attempts: <기존 값 + 1>` (없으면 `1`)
+   - `lease_expires_at: <현재 시각 + 60분, ISO-8601>`
+   - `status` 가 이미 `in_progress` 인 job 은 건드리지 말 것 (다른 세션이 점유 중). lease 가 만료된 orphan 회수는 `bun run bin/cfgm-ssl-reap.ts` 의 몫이다.
 3. **입력 로드** — read tool 로 다음 두 파일을 읽는다.
    - `source_path` 의 SKILL.md — 원본. 그 SHA-256 이 `source_sha256` 과 매치하는지 확인 (불일치 시 stale, 중단).
    - `heuristic_path` 의 `<slug>.heuristic.json` — heuristic 1차 결과 (warnings 포함).
 4. **SSL 작성** — heuristic 의 `warnings[]` 가 가리키는 hole 을 메운 enriched SSLDocument JSON 을 작성한다.
 5. **Output 저장** — 결과를 `output_path` 에 write tool 로 저장.
 6. **Validate** — `bun run bin/cfgm-ssl-validate.ts <output_path>` 를 호출.
-7. **Job 갱신** — exit 0 이면 frontmatter 의 `status: done`, exit ≠ 0 이면 `status: failed` + `failure_reason` 기록 후 stderr 일부 첨부.
+7. **Job 갱신** — exit 0 이면 frontmatter 의 `status: done`, exit ≠ 0 이면 `status: failed` + `failure_reason` 기록 후 stderr 일부 첨부. 성공/실패 어느 쪽이든 `lease_expires_at` 필드는 제거한다 (점유 해제).
 
 ## 작성 규칙
 
@@ -66,6 +70,13 @@
 - SHA mismatch (source 변경됨) → job 갱신: `status: failed`, `failure_reason: "source SHA mismatch — re-enqueue needed"`.
 - validate exit ≠ 0 → job 갱신: `status: failed`, `failure_reason: <stderr 첫 200 자>`. **output_path 의 잘못된 JSON 은 지우지 않는다** — 사람이 검토 가능하게.
 - 파싱 불가 / read 실패 → job 갱신: `status: failed`, `failure_reason: <error 메시지>`.
+
+### 재시도 계약 (V3.28)
+
+- `attempts` 는 claim 시점에만 증가시킨다 — 실패 기록 시 다시 증가시키지 말 것.
+- `attempts ≥ max_attempts` (기본 3) 인 job 은 재시도하지 않는다. 사람 검토 대상.
+- 세션이 죽어 `in_progress` 로 남은 orphan job 은 `cfgm-ssl-reap` 이 lease 만료 후 pending 재큐 (attempts 유지) 또는 failed (한도 도달) 로 회수한다.
+- 사용자가 명시적으로 실패 job 재시도를 원하면 frontmatter 를 `status: pending` + `attempts: 0` 으로 리셋한다.
 
 ## 마무리
 

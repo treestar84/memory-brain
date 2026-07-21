@@ -1,0 +1,39 @@
+{
+  "$comment": "Memory quality benchmark fixtures (V3.28). 기대값 source-of-truth — memory/ 페이지 개편 시 함께 갱신. 쿼리는 실사용 phrasing 을 모사 (한/영 혼합, 오타 케이스 포함). 실패 케이스를 숨기지 말 것 — miss 가 곧 튜닝 대상 목록이다.",
+  "router": [
+    { "id": "r-pr-status", "query": "PR-V3.28 진행 상황 알려줘", "expectLanes": ["current", "project"], "expectFiles": ["memory/current.md", "memory/projects/memory-brain.md"] },
+    { "id": "r-phase", "query": "phase 3 다음 단계가 뭐야", "expectLanes": ["current", "project"] },
+    { "id": "r-adr", "query": "ADR-12 결정 근거 보여줘", "expectLanes": ["decision"] },
+    { "id": "r-vision-ko", "query": "비전 문서 요약해줘", "expectLanes": ["concept"], "expectFiles": ["memory_system_improvement_prompt.md"] },
+    { "id": "r-honcho", "query": "Honcho 패턴을 어떻게 계승했지", "expectLanes": ["decision", "research"] },
+    { "id": "r-oss-ko", "query": "오픈소스 도입 결정 이유", "expectLanes": ["decision", "research"] },
+    { "id": "r-claim", "query": "claim 에 evidence 붙이는 규칙", "expectLanes": ["decision", "concept"] },
+    { "id": "r-persona", "query": "persona representation 파일 위치", "expectLanes": ["persona"] },
+    { "id": "r-bootloader", "query": "bootloader 와 7-layer 구조 설명", "expectLanes": ["concept"] },
+    { "id": "r-governance", "query": "stale 하고 contradiction report 생성해줘", "expectLanes": ["governance"] },
+    { "id": "r-search", "query": "search index rebuild 어떻게 해", "expectLanes": ["concept", "code"] },
+    { "id": "r-trigger", "query": "auto-trigger loop 상태 확인", "expectLanes": ["concept", "code"] },
+    { "id": "r-bun", "query": "bun:sqlite 사용 정책", "expectLanes": ["code"] },
+    { "id": "r-router", "query": "router lane 선택 정책 알려줘", "expectLanes": ["concept"] },
+    { "id": "r-paraphrase-evidence", "query": "이 주장의 출처가 뭐야", "expectLanes": ["decision"] },
+    { "id": "r-paraphrase-dup", "query": "중복된 기억 정리해줘", "expectLanes": ["governance"] }
+  ],
+  "wikiSearch": [
+    { "id": "w-routing-ko", "query": "요청 분류하고 lane 선택하는 정책", "relevant": ["concept.memory-routing"] },
+    { "id": "w-routing-limit", "query": "canonical page 동시 조회 제한", "relevant": ["concept.memory-routing"] },
+    { "id": "w-oss", "query": "Honcho OpenClaw 도입 결정", "relevant": ["decision.oss-incorporation"] },
+    { "id": "w-oss-typo", "query": "openclow incorporeted honco 결정", "relevant": ["decision.oss-incorporation"] },
+    { "id": "w-ssl-repr", "query": "scheduling structural logical 스킬 표현", "relevant": ["concept.ssl-skill-representation"] },
+    { "id": "w-kg-brain", "query": "KG-Brain schema 채택 결정", "relevant": ["decision.ssl-kg-brain"] },
+    { "id": "w-project", "query": "memory-brain 프로젝트 현재 상태", "relevant": ["project.memory-brain"] },
+    { "id": "w-morph", "query": "라우팅하는 정책들의 제한사항", "relevant": ["concept.memory-routing"] }
+  ],
+  "skillSearch": [
+    { "id": "k-screenshot", "query": "app store 스크린샷 생성", "relevant": ["app-store-screenshots"] },
+    { "id": "k-brainstorm", "query": "brainstorming session facilitation", "relevant": ["bmad-brainstorming"] },
+    { "id": "k-shard", "query": "large markdown document split into sections", "relevant": ["bmad-shard-doc"] },
+    { "id": "k-help", "query": "which bmad skill should I use next", "relevant": ["bmad-help"] },
+    { "id": "k-edge", "query": "edge case hunting review", "relevant": ["bmad-review-edge-case-hunter"] },
+    { "id": "k-typo", "query": "brainstromed ideation sesion", "relevant": ["bmad-brainstorming"] }
+  ]
+}

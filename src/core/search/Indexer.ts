@@ -2,6 +2,7 @@ import type { WikiReader } from "../wiki/WikiReader";
 import type { ClaimStore } from "../claim/ClaimStore";
 import type { SearchIndex } from "./SearchIndex";
 import type { SSLReader } from "./SSLReader";
+import type { Embedder } from "./Embedder";
 import type { RebuildResult } from "./types";
 import { KGProjector } from "./KGProjector";
 
@@ -24,6 +25,8 @@ export class Indexer {
     private readonly claimStore: ClaimStore,
     private readonly searchIndex: SearchIndex,
     private readonly sslReader?: SSLReader,
+    /** opt-in (V3.28): 주입 시 hybrid 검색용 벡터를 함께 인덱싱 */
+    private readonly embedder?: Embedder,
   ) {}
 
   async rebuild(): Promise<RebuildResult> {
@@ -42,7 +45,7 @@ export class Indexer {
 
     const sslResult = this.sslReader ? await this.sslReader.readAll() : { docs: [], errors: [] };
 
-    this.searchIndex.rebuild({ wikiPages, claims, skills: sslResult.docs });
+    this.searchIndex.rebuild({ wikiPages, claims, skills: sslResult.docs, embedder: this.embedder });
 
     const { nodes, edges, danglingCount } = new KGProjector().projectAll(sslResult.docs);
     this.searchIndex.replaceKG(nodes, edges);

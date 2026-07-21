@@ -172,6 +172,8 @@ function renderJobFile(o: RenderJobOpts): string {
     `---`,
     `job_id: norm-${o.generatedAt.slice(0, 10)}-${o.slug}`,
     `status: pending`,
+    `attempts: 0`,
+    `max_attempts: 3`,
     `source_path: ${o.sourcePath}`,
     `source_sha256: ${o.sourceSha}`,
     `heuristic_path: ${o.heuristicPath}`,

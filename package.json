@@ -17,7 +17,13 @@
     "compose": "bun run bin/cfgm-compose.ts",
     "dedup-actions": "bun run bin/cfgm-dedup-actions.ts",
     "find-chain": "bun run bin/cfgm-find-chain.ts",
-    "run:skill": "bun bin/cfgm-run.ts"
+    "run:skill": "bun bin/cfgm-run.ts",
+    "bench": "bun run bin/cfgm-bench.ts",
+    "bench:lme": "bun run bin/cfgm-lme-retrieval.ts",
+    "lme:enqueue": "bun run bin/cfgm-lme-enqueue.ts",
+    "lme:score": "bun run bin/cfgm-lme-score.ts",
+    "okf:export": "bun run bin/cfgm-okf-export.ts",
+    "reap": "bun run bin/cfgm-ssl-reap.ts"
   },
   "devDependencies": {
     "typescript": "^5.8.0",

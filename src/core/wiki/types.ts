@@ -37,6 +37,11 @@ export interface WikiPage {
   frontmatter: WikiPageFrontmatter;
   /** frontmatter 제외 본문 markdown */
   body: string;
+  /**
+   * user 발화만 모은 보조 텍스트 (V3.30, optional) — 검색 시 bm25 가중으로
+   * assistant/장문 노이즈 대비 user 신호를 강조. 미지정 시 랭킹 영향 0.
+   */
+  bodyUser?: string;
   /** 본문에서 추출한 claim id 배열 (`<!-- claim:cl-... -->` 인라인) */
   claimIds: string[];
   /** "## Evidence" 섹션의 bullet 라인 (각 인용 1개) */

@@ -29,6 +29,11 @@ export interface WikiSearchOpts {
   type?: string;
   status?: string;
   limit?: number;
+  /**
+   * 날짜 창 soft filter (V3.30) — 창 안 문서를 FTS 상대순서 유지한 채 앞으로
+   * 승격. `wiki_dates` (body 선두 `[date: ...]` 파싱) 가 있는 문서에만 작용.
+   */
+  dateWindow?: { startEpochDay: number; endEpochDay: number };
 }
 
 export interface ClaimSearchOpts {

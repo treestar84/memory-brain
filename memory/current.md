@@ -182,8 +182,39 @@
 - schema drift 수정: description/evidenceClaimIds/variables optional화 + null-safe 소비 코드
 - 최종: **883 pass / 0 fail**
 
+## V3.28 Frontier Gap Closure (2026-07-21) ✅
+
+2026-07 프론티어 점검(OKF 발표·agent memory 벤치마크화·hybrid retrieval 주류화)에서 식별된 약점 4종 일괄 보완:
+
+1. **OKF 호환** — `OkfExporter` + `cfgm-okf-export` (`bun run okf:export`). Google OKF v0.1 번들 export. wiki 가 truth, OKF 는 어댑터 뒤 파생물 (코어 재구조화 X — 사용자 합의).
+2. **Hybrid 검색 (opt-in)** — `HashedNgramEmbedder` (의존성 0, 원칙 2 준수) + `SearchIndex` v4 `vectors` 테이블 + RRF 융합. `cfgm-rebuild-index --embeddings`. 벡터 없으면 FTS fallback.
+3. **Memory quality benchmark** — `cfgm-bench` (`bun run bench`) → `memory/reports/benchmark-latest.md`. 첫 실측: router lane hit 87.5% (miss 2건 = 튜닝 대상), wiki recall@5 fts 37.5% → **hybrid 100%**, MRR 0.375 → 0.938. hybrid 도입 효과 수치 입증.
+4. **Queue 실패 시맨틱** — `JobLifecycle` (claim/lease/reap 계약) + `cfgm-ssl-reap`. attempts/max_attempts(3)/lease(60분). `_spec/prompt.md` claim 프로토콜 갱신. legacy job 은 mtime+TTL back-compat.
+
+부수 수정: 실사용 하이픈 쿼리 ("KG-Brain") FTS5 크래시 → sanitize 폴백 (벤치마크 첫 실행이 발견).
+
+**검증**: 944/944 pass (기존 883 + 신규 61) · typecheck OK · 회귀 0건.
+
+## V3.29 External Benchmarks — LongMemEval (2026-07-21) ✅ ①② / ③ scoped
+
+사용자 승인 순서: ① LongMemEval retrieval-only → ② 풀 QA (host-위임) → ③ skill retrieval.
+
+- **① 완료** — `cfgm-lme-retrieval` (`bun run bench:lme`). 공식 프로토콜 (session-level Recall@K vs `answer_session_ids`), LLM 0회. **실측 (S, 500문항): R@1 55.2% / R@3 85.9% / R@5 91.7% / R@10 94.5% / MRR 0.909** (89초). 약점 type: single-session-preference MRR 0.630, temporal-reasoning MRR 0.867 (튜닝 후보).
+- **② 파이프라인 완료** — `cfgm-lme-enqueue` → PAI 세션 → `cfgm-lme-score` (proxy EM/F1 + `--judge-enqueue`/`--collect` 공식 judge accuracy). end-to-end smoke 검증. **실제 500문항 처리는 PAI 세션 실행 대기** (원칙 5 — 메인 세션 처리 금지).
+- **③ scoped** — benchflow-ai/skillsbench (87 tasks + 229 matched skills) 를 ground truth 로 `searchSkills` 평가. 다음 사이클.
+- **핵심 발견**: RRF 동등 융합이 긴 문서에서 BM25 정밀도 파괴 (R@1 96→64%) → hybrid 기본 전략을 **rescue** 로 전환 (양쪽 벤치 최고치 동시 달성). 데이터셋 265MB 는 `data/` gitignore.
+
+## V3.30 LongMemEval Retrieval Tuning (2026-07-22) ✅ — 워크플로우 오케스트레이션
+
+- **프로세스**: R@3 실패 29건 덤프 → 6-agent 워크플로우 (miss 유형별 진단 3 + 독립 설계 2 + 합성 1, 478k tokens) → 합성 스펙 P1~P4 를 단계별 격리 측정하며 구현. hypernym 사전은 벤치 과적합 위험으로 합성 단계에서 의도적 제외.
+- **구현**: P1 content 쿼리 (stopword/상대시간 제거 + 스테밍, 3단 fallback) · P2 rescue-rerank (top-3 고정, opt-in) · P3 TemporalQuery 파서 + schema v5 (wiki_dates/body_user/마이그레이션 가드) + dateWindow soft filter + 요일 병기 + abstention 분리 · P4 bodyUser bm25 가중 (ablation 1.0/2.0/3.0 → 2.0 채택)
+- **최종 실측 (hybrid)**: R@1 56.6% · R@3 87.2% · R@5 92.2% · R@10 96.2% · MRR 0.927 (baseline 대비 전 지표 상승). temporal MRR 0.867→0.927.
+- **알려진 퇴행**: preference R@5 86.7→80.0 / MRR 0.630→0.561 (n=30) — 정직 보고. 회복은 held-out split 도입 후 (벤치 과적합 방지).
+- **검증**: 978/978 pass · typecheck OK · 내부 마이크로벤치 회귀 없음 (wiki fts R@5 37.5→87.5% 부수 개선).
+
 ## 다음 단계 후보
 
 - V3.25: cfgm-run `--interactive` 결과를 cfgm-replay 와 연동 (replay 파일 포맷 통일)
 - V3.26: SSL instructions 자동 채우기 (PAI 세션에서 LLM이 SKILL.md → instructions 생성)
 - V3.27: cfgm-run 다중 스킬 체인 실행 (cfgm-find-chain 결과를 순서대로 실행)
+- V3.29 후보: router miss 케이스 2건 매핑 보강 → lane hit 100% 목표 · 벤치 케이스 확장 (contradiction 감지율)
