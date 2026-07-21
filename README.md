@@ -1,324 +1,193 @@
-# CFGM-OS (Causal Flow Gap Memory Operating System)
+# CFGM-OS — memory-brain
 
-Persistent memory engine for Claude Code. Tracks skills as SSL (Scheduling–Structural–Logical) knowledge graphs, detects gaps and duplicates, and surfaces them via a dashboard — without MCP, external APIs, or subscriptions.
+> **Claim-Grounded, Persona-Aware Memory Routing OS** — AI 에이전트의 기억을 "거대한 텍스트 덤프"가 아니라 **근거 기반·라우팅되는·실행 가능한 지식 그래프**로 관리하는 오픈소스 메모리 엔진.
 
-## Prerequisites
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg) ![Runtime: Bun](https://img.shields.io/badge/Runtime-Bun%20%E2%89%A5%201.1-black) ![LLM API calls: 0](https://img.shields.io/badge/LLM%20API%20calls-0-blue)
 
-- [Bun](https://bun.sh) ≥ 1.1
-- Claude Code CLI
+Claude Code · Codex · Gemini CLI 같은 **host CLI 위에서 동작**하는 영구 메모리 엔진입니다. MCP 서버도, API 키도, 추가 구독도 요구하지 않습니다 — 인터페이스는 파일과 자연어 명세뿐입니다.
+
+## 왜 만들었나 — 4가지 페인포인트
+
+| 페인포인트 | CFGM-OS 의 해법 |
+|---|---|
+| **컨텍스트 비대화** — `CLAUDE.md`/`MEMORY.md` 에 지식을 쌓으면 매 세션 통째로 주입 | bootloader + retrieval policy 라우팅: 요청 분류 → lane 선택 → 필요한 1~3개 파일만 조회 |
+| **메모리 부패** — 무조건 append 로 중복·모순·낡은 정보 누적 | upsert/merge/supersede + governance 리포트 (중복·stale·모순·decay) |
+| **근거 없는 기억** — LLM 추론이 검증된 사실처럼 저장 | claim/evidence 원장 — 모든 주장에 evidence pointer, 추론 persona 는 confidence 표기 + 별도 레이어 격리 |
+| **prose 스킬의 한계** — SKILL.md 는 실행 순서·분기·성공 기준이 암묵적 | SSL (Scheduling–Structural–Logical) 타입 지식 그래프 — 검색·리스크 게이트·학습/재실행·실행까지 |
+
+## 설계 원칙 5 ([`docs/RULES.md`](./docs/RULES.md))
+
+1. **MCP 미사용** — 파일 + 자연어 명세만. vendor-agnostic.
+2. **구독 auth 위임** — LLM SDK 직접 호출 금지. 엔진은 명세(prompt+schema)만 만들고 실제 LLM 호출은 host CLI 에 위임 → **사용자 추가 비용 0**.
+3. **외부 orchestration 도구 비의존** — `git clone` 만으로 단독 동작.
+4. **Production 품질** — 테스트 986개 · 신규 코드 커버리지 ≥90% · typecheck · 회귀 0 게이트.
+5. **분리 프로파일** — persona(추론)와 canonical knowledge(검증 사실)를 레이어로 분리, mutate 작업은 별도 PAI 세션에서.
+
+## 벤치마크 — 주장이 아니라 수치
+
+**외부 표준: [LongMemEval](https://github.com/xiaowu0162/LongMemEval)** (ICLR 2025) — session-level retrieval, 500문항, **LLM 호출 0회·89초·재현 스크립트 포함**:
+
+| | R@1 | R@3 | R@5 | R@10 | MRR |
+|---|---|---|---|---|---|
+| 튜닝 전 (V3.29) | 55.2% | 85.9% | 91.7% | 94.5% | 0.909 |
+| **현재 (V3.30)** | **56.6%** | **87.2%** | **92.2%** | **96.2%** | **0.927** |
+
+```bash
+# 재현 (데이터셋 265MB — repo 미포함, MIT)
+mkdir -p data/longmemeval && cd data/longmemeval
+curl -LO https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_s_cleaned.json
+cd ../.. && cfgm bench-lme
+```
+
+알려진 약점도 리포트에 그대로 노출합니다 (single-session-preference 유형, [CHANGELOG](./CHANGELOG.md) V3.30 참조). 내부 품질 벤치(`cfgm bench`)는 router lane 적중률·검색 recall 을 회귀 게이트로 측정합니다. 벤치 정답에서 역산한 상수를 검색 코드에 넣는 것은 과적합으로 금지합니다.
 
 ## Quick Start
 
+**Prerequisites**: [Bun](https://bun.sh) ≥ 1.1 (+ 훅 통합 시 Claude Code CLI)
+
 ```bash
-git clone <repo> && cd memory-brain
+git clone https://github.com/treestar84/memory-brain.git && cd memory-brain
 bun install
-bun link                 # 전역 `cfgm` 명령 등록 (선택)
-cfgm doctor              # 설치·환경 자가진단 — 부족한 항목과 조치를 알려줌
-cfgm rebuild-index --embeddings
+bun link                          # 전역 `cfgm` 명령 등록 (선택)
+cfgm doctor                       # 자가진단 — 부족한 항목과 조치 명령을 알려줌
+cfgm rebuild-index --embeddings   # 검색 인덱스 생성 (hybrid 포함)
 ```
 
-Claude Code 훅 통합(세션 영구 메모리)까지 원하면 `./install.sh` 를 추가 실행합니다. 훅 없이도 모든 CLI 는 단독 동작합니다.
+Claude Code 훅 통합(세션 영구 메모리)까지 원하면 `./install.sh` 를 추가 실행합니다. **훅 없이도 모든 CLI 는 단독 동작합니다.** 제거는 `cfgm uninstall`.
 
 ## 통합 CLI — `cfgm`
 
-52개 스크립트의 단일 진입점입니다. `cfgm help` 로 그룹별 전체 목록을 봅니다:
+52개 스크립트의 단일 진입점. `cfgm help` 로 그룹별 전체 목록:
 
 ```bash
-cfgm doctor              # 자가진단 (bun 버전·의존성·인덱스 신선도·큐 stale·조치 안내)
+cfgm doctor              # 설치·환경 자가진단 (7항목 + 조치 명령 제시)
 cfgm bench               # 내부 memory quality benchmark
 cfgm bench-lme           # LongMemEval 외부 벤치마크
-cfgm ssl-status          # SSL 큐 상태
+cfgm ssl-status          # SSL normalize 큐 상태 (+stale)
 cfgm viewer              # KG-Brain 대시보드 (localhost:4041)
+cfgm run --skill <slug>  # SSL 스킬 실행 계획 / --interactive
 ```
 
-전역 등록(`bun link`) 없이 쓰려면 `bun run bin/cfgm.ts <command>`. 등록되지 않은 이름도 `bin/cfgm-<name>.ts` 가 존재하면 실행됩니다. 확장 방법(Embedder 주입·fusion 전략·Router 매핑·어휘·host-위임 큐)은 [`docs/EXTENDING.md`](./docs/EXTENDING.md) 참조.
+전역 등록 없이 쓰려면 `bun run bin/cfgm.ts <command>`. registry 에 없는 이름도 `bin/cfgm-<name>.ts` 가 존재하면 실행됩니다.
 
-## Uninstall
+## Architecture — 7-layer
 
-```bash
-bun run bin/uninstall.ts
-```
+| Layer | 위치 | 역할 |
+|---|---|---|
+| L1 Bootloader | `CLAUDE.md` + `MEMORY.md` | 메모리 사용 규칙만 (지식 저장 금지) |
+| L2 Router | `memory/ROUTER.md` + `src/core/router/` | retrieval policy — 요청 분류 → lane → 파일 1~3개 |
+| L3 Wiki | `memory/{projects,concepts,decisions}/` | canonical knowledge (markdown + frontmatter) |
+| L4 Claim | `memory/claims/ledger.jsonl` | claim/evidence 원장 (append-only + projection) |
+| L5 Graph/Search | `.memory-brain/indexes/` (SQLite FTS5) | **파생물** — markdown 에서 rebuild 가능 |
+| L6 Persona | `memory/profile/*.jsonl` | 추론 프로파일 (confidence 표기, fact 와 격리) |
+| L7 Governance | `memory/reports/` | 중복·stale·모순·decay 리포트 |
 
-## Test
+코드 레벨: **Adapters** (platform JSON → CanonicalEvent) / **Core** (platform-free 순수 함수) / **Storage** (주입 가능 인터페이스). 결정 기록은 [`docs/adr/`](./docs/adr/).
 
-```bash
-bun test
-bun run typecheck
-```
+### PAI 세션 — 분리 영속 세션 (원칙 5)
 
-## SSL Normalize Flow (KG-Brain)
-
-Convert `.claude/skills/**` into typed SSL knowledge graphs:
-
-```bash
-# 1. Heuristic 1차 변환 + pending queue 생성
-bun run bin/cfgm-ssl-enqueue.ts
-
-# 2. Queue 상태 확인
-bun run bin/cfgm-ssl-status.ts
-
-# 3. PAI 세션에서 LLM 보강 처리 (아래 PAI 세션 섹션 참조)
-
-# 4. 결과 인덱스 갱신
-bun run bin/cfgm-rebuild-index.ts
-
-# 5. 지표 확인
-bun run bin/cfgm-ssl-stats.ts
-```
-
-### KG-Brain Dashboard
-
-```bash
-bun run viewer:ssl
-# → http://localhost:4041
-```
-
-Skill 목록 · SSL 3-layer 시각화 · 검색 · risk findings · queue 상태.
-
-## Workflow Learn & Replay (V3.18)
-
-세션에서 수행한 워크플로우를 SSL 지식 그래프로 저장하고, 다음 세션에서 재실행합니다.
-
-```bash
-# 1. 워크플로우 학습 ("학습해라")
-bun run learn --name ssl-normalize-workflow --goal "SSL normalize 후 index rebuild"
-
-# stdin 으로 단계 기술
-echo "1. cfgm-ssl-enqueue 실행\n2. PAI 세션 처리 대기\n3. cfgm-rebuild-index 실행" \
-  | bun run learn --name ssl-normalize-workflow --goal "SSL 전체 normalize 파이프라인"
-
-# 2. 다음 세션에서 재실행 ("수행해라")
-bun run replay --slug ssl-normalize-workflow       # slug 직접 지정
-bun run replay --query "ssl normalize"             # 검색어로 찾기
-bun run replay --list                              # 저장된 워크플로우 목록
-```
-
-`cfgm-learn` 은 `memory/workflows/<slug>.md` (SKILL.md 포맷) 를 생성하고 SSL normalize 큐에 enqueue 합니다.
-`cfgm-replay` 는 SSL 그래프를 Scene DAG 순서로 순회해 `memory/_pending/replay/<slug>.replay.md` 를 생성합니다. host LLM 이 이 파일을 읽고 단계별 실행합니다.
-
-SKILL.md 단독 대비 SSL-guided replay 이점:
-
-| 항목 | SKILL.md 단독 | SSL replay plan |
-|------|--------------|----------------|
-| 실행 순서 | prose 해석 의존 | Scene DAG 명시 |
-| 분기 처리 | 암묵적 | DecisionNode when/then |
-| 사용자 pause | 불명확 | InteractionNode 명시 |
-| 성공 기준 | 없음 | EvidenceNode successCriteria |
-| 위임 규약 | 없음 | ProtocolNode delegateTo |
-
-## Executable SSL — cfgm-run (V3.24)
-
-SSL JSON만으로 스킬을 실행하거나 단계별 안내를 받습니다. SKILL.md 없이 동작합니다.
-
-```bash
-# 실행 계획 출력 (plan-generator)
-bun run run:skill --skill app-store-screenshots
-
-# 단계별 interactive 실행
-bun run run:skill --skill app-store-screenshots --interactive
-
-# machine-readable JSON
-bun run run:skill --skill app-store-screenshots --json
-```
-
-`cfgm-run`은 SSL 그래프를 BFS topological order로 순회해 CollectStep / BranchStep / ExecuteStep 순서의 실행 계획을 생성합니다. Interactive 모드에서는 readline으로 사용자 입력을 수집하고 결과를 `memory/_pending/replay/<slug>.replay.md`에 저장합니다.
-
-### instructions 필드 작성 (V3.24)
-
-SSL JSON의 각 `logical[]` 노드에 `instructions` 문자열을 추가하면 실행 계획에 포함됩니다:
-
-```json
-{
-  "id": "my-skill#logical:1",
-  "action": "WRITE",
-  "instructions": "Write src/app/page.tsx with the slide factory functions...",
-  "effects": ["page_built"]
-}
-```
-
-`instructions` 없는 기존 SSL JSON도 그대로 동작합니다 (optional, back-compat).
-
-## KG-Brain Graph (V3.19)
-
-Cross-skill 엣지가 물질화된 전역 지식 그래프. `cfgm-rebuild-index` 실행 후 사용 가능.
-
-```bash
-# 인접 노드 조회
-bun run bin/cfgm-graph-query.ts neighbors <node_id> --relation DELEGATES_TO
-
-# 이 skill을 위임받는 모든 skill
-bun run bin/cfgm-graph-query.ts reverse-delegators <skill_slug>
-
-# N홉 도달 가능 노드
-bun run bin/cfgm-graph-query.ts reachable <node_id> --depth 2
-
-# dangling 엣지 (broken protocol delegation)
-bun run bin/cfgm-graph-query.ts dangling
-
-# 전체 통계
-bun run bin/cfgm-graph-query.ts stats
-```
-
-KG 구조: `CONTAINS` / `TRANSITIONS_TO` / `INSTANTIATES` / `DELEGATES_TO` / `SCOPED_TO` 5종 관계.
-`ProtocolNode.delegateTo`가 처음으로 타입 엣지(DELEGATES_TO)로 물질화됨 — cross-skill 체인 탐색의 기반.
-
-## R-COMPOSE Inference (V3.20)
-
-`cfgm-compose` 는 `DELEGATES_TO` 엣지의 전이 폐포를 계산해 `COMPOSES` 트리플을 도출하고, 순환 의존을 감지합니다.
-
-```bash
-# COMPOSES 트리플 출력 + 사이클이 있으면 memory/reports/skill-cycles.md 생성
-bun run compose
-
-# JSON 출력 (CI/파이프라인용)
-bun run compose --json
-
-# 보고서 파일 생성 없이 출력만
-bun run compose --no-report
-```
-
-예: A → B → C 위임 체인이 있으면 `A COMPOSES [B, C]` 트리플이 도출됩니다.
-사이클(A → B → A)은 `memory/reports/skill-cycles.md` 에 기록됩니다.
-
-## Hybrid Search — opt-in (V3.28)
-
-FTS5 BM25 랭킹에 의존성 0 의 결정론적 n-gram 벡터 랭킹을 RRF 로 융합합니다. 오타·형태소 변형 쿼리("openclow incorporeted")를 구제합니다. LLM API 호출 없음 (`docs/RULES.md` 원칙 2).
-
-```bash
-bun run bin/cfgm-rebuild-index.ts --embeddings   # 벡터 포함 재인덱싱 (opt-in)
-```
-
-벡터 없이 빌드된 인덱스에서 hybrid 검색을 호출하면 FTS 결과로 안전하게 fallback 합니다. 실제 embedding 모델을 쓰려면 `Embedder` 인터페이스(`src/core/search/Embedder.ts`)를 구현해 주입하세요.
-
-## Memory Quality Benchmark (V3.28)
-
-코드 정확성(`bun test`)과 별개로 **메모리 품질**(라우팅 적중률, 검색 recall)을 정량 측정합니다.
-
-```bash
-bun run bench          # 실행 + memory/reports/benchmark-latest.md 저장
-bun run bench --json   # machine-readable
-```
-
-측정 항목: router lane hit rate / macro precision·recall, wiki·skill 검색 recall@1/3/5 + MRR (fts vs hybrid 비교). 기대값은 `fixtures/bench/cases.json` — memory/ 페이지 개편 시 함께 갱신하세요. Miss 케이스는 리포트에 그대로 노출됩니다 (튜닝 대상 목록).
-
-## LongMemEval Benchmark (V3.29)
-
-유명 외부 벤치마크 [LongMemEval](https://github.com/xiaowu0162/LongMemEval) (ICLR 2025, MIT) 로 memory-brain의 retrieval 품질을 측정합니다. 데이터셋은 repo에 포함되지 않습니다:
-
-```bash
-mkdir -p data/longmemeval && cd data/longmemeval
-curl -LO https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_s_cleaned.json
-```
-
-**Retrieval-only 트랙** (LLM 호출 0 — 원칙 2 준수, 논문 §4.2 session-level Recall@K 프로토콜):
-
-```bash
-bun run bench:lme                    # 전체 500 문항 → memory/reports/longmemeval-retrieval.md
-bun run bench:lme -- --limit 25      # smoke
-```
-
-실측 (2026-07-22, LongMemEval_S 500문항, V3.30 튜닝 후): **R@1 56.6% · R@3 87.2% · R@5 92.2% · R@10 96.2% · MRR 0.927** (튜닝 전 55.2 / 85.9 / 91.7 / 94.5 / 0.909).
-
-**풀 QA 트랙** (host-위임 — SDK 직접 호출 없음):
-
-```bash
-bun run lme:enqueue                  # answer job 생성 (retrieval top-k 컨텍스트 포함)
-# → PAI 세션이 job 처리 (CLAUDE_CONFIG_DIR=.claude-pai claude)
-bun run lme:score                    # proxy 채점 (EM/contains/token-F1)
-bun run lme:score -- --judge-enqueue # 공식 semantic 판정 job 생성
-# → PAI 세션이 judge job 처리
-bun run lme:score -- --collect       # 공식 지표 (judge accuracy) 집계
-```
-
-## OKF Export (V3.28)
-
-L3 wiki 를 Google [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/tree/main/okf) v0.1 번들로 export 합니다. wiki 스키마가 truth-source — OKF 는 파생물입니다.
-
-```bash
-bun run okf:export                 # dist/okf 에 번들 생성
-bun run okf:export -- --out <dir> --active-only
-```
-
-## Queue Failure Semantics (V3.28)
-
-host LLM 이 job 을 점유한 채 세션이 죽으면 job 이 고아가 됩니다. lease 기반 회수 계약:
-
-```bash
-bun run bin/cfgm-ssl-status.ts     # stale (lease 만료 in_progress) 카운트 표시
-bun run reap                       # orphan → pending 재큐 또는 failed (max_attempts 도달)
-bun run reap -- --dry-run          # 판정만
-```
-
-claim 시 `attempts` 증가 + `lease_expires_at` 기록 (기본 60분, 재시도 한도 3회). 상세 계약은 `memory/_pending/normalize/_spec/prompt.md`.
-
-## Key CLI Reference
-
-| 명령 | 설명 |
-|------|------|
-| `cfgm-learn` | 워크플로우 학습 → `memory/workflows/<slug>.md` + SSL enqueue |
-| `cfgm-replay` | SSL-guided replay plan 생성 (`--slug` / `--query` / `--list`) |
-| `cfgm-ssl-enqueue` | skills → pending normalize jobs 생성 (`--force` 재처리) |
-| `cfgm-ssl-validate <path>` | SSL JSON 스키마 검증 |
-| `cfgm-ssl-stats` | canonical 사용률 · 4 신규 노드 채움률 등 지표 |
-| `cfgm-ssl-status` | pending/done/failed/stale 큐 통계 |
-| `cfgm-ssl-reap` | orphan in_progress job 회수 (`--dry-run` / `--ttl-minutes` / `--max-attempts`) |
-| `cfgm-rebuild-index` | wiki + claim + SSL 전체 인덱스 재생성 (`--embeddings` hybrid opt-in) |
-| `cfgm-bench` | memory quality benchmark — router 적중률 + 검색 recall (fts vs hybrid) |
-| `cfgm-okf-export` | L3 wiki → OKF v0.1 번들 (`--out` / `--active-only`) |
-| `cfgm-graph-query` | KG 그래프 쿼리 (`neighbors` / `reverse-delegators` / `reachable` / `dangling` / `stats`) |
-| `cfgm-find-chain` | goal 문자열로 skill 체인 발견 (`--goal "..."` / `--top N` / `--json`) |
-| `cfgm-compose` | R-COMPOSE 추론: COMPOSES 트리플 + 사이클 감지 (`--json` / `--no-report`) |
-| `cfgm-dedup-actions` | 체인 내 중복 actionRef 탐지 (`--chain-only` / `--json`) |
-| `cfgm-governance-report` | 중복·stale·contradiction 감지 보고서 |
-| `cfgm-viewer` | 전체 메모리 뷰어 (http://localhost:4040) |
-| `cfgm-ssl-viewer` | KG-Brain SSL 뷰어 (http://localhost:4041) |
-
-## Architecture
-
-7-layer: Bootloader → Router → Wiki → Claim → Graph/Search → Persona → Governance
-
-코드 레벨 3-layer:
-
-- **Adapters** (`src/adapters/`): Platform-specific JSON → CanonicalEvent
-- **Core** (`src/core/`): Platform-free pure functions
-- **Storage** (`src/core/storage/`): Injectable interface (Fs / Memory)
-
-자세한 아키텍처는 `docs/adr/` 참조.
-
-## Storage Paths
-
-- User-level: `~/.memory-brain/`
-- Project-level: `$PROJECT/.memory-brain/`
-
-## PAI Session — 분리 영속 세션 (`docs/RULES.md` 원칙 5)
-
-memory-brain 의 mutate 작업 (SSL normalize, governance, dedupe 등) 은 사용자의 **메인 세션** 이 아니라 **별도 PAI 세션** 에서 처리됩니다.
-
-```
-┌─ 메인 세션 (사용자 본업) ─────────────┐    ┌─ PAI 세션 (.claude-pai/) ──────┐
-│ 코딩 · 분석 · 일반 대화                  │    │ 영속 단일 세션                   │
-│ viewer 로 검색 · 확인                    │    │ SessionStart / UserPromptSubmit  │
-│ cfgm-ssl-enqueue (트리거)                │    │   hook 으로 큐 자동 인지          │
-│ 메모리 정리 작업 호출 X                   │    │ pending 작업 자율 처리            │
-└──────────────┬──────────────────────────┘    │ mutate (write SSL JSON)          │
-               │                                │ validate + job status 갱신        │
-               │ memory/ 파일 시스템             │                                  │
-               └────────────────────────────────┴──────────────────────────────────┘
-                              (양방향 read/write — 다른 통신 없음)
-```
-
-### PAI 세션 띄우기
+mutate 작업(SSL normalize, governance 등)은 메인 세션이 아니라 **별도 PAI 세션**이 처리합니다. 두 세션은 `memory/` 파일 시스템으로만 통신합니다:
 
 ```bash
 # 별도 터미널에서:
 CLAUDE_CONFIG_DIR=.claude-pai claude
-
-# (또는 alias 등록)
-alias claude-pai="CLAUDE_CONFIG_DIR=.claude-pai claude"
-claude-pai
 ```
 
-PAI 세션은 시작 직후 자기 정체성 (`.claude-pai/CLAUDE.md`) 과 큐 상태를 인지하고 처리를 시작합니다. 메인 세션에서 `cfgm-ssl-enqueue` 로 새 작업을 enqueue 하면 PAI 세션의 다음 hook 주입 시 자동 감지됩니다.
+메인 세션이 `cfgm ssl-enqueue` 로 작업을 큐에 넣으면, PAI 세션이 hook 주입 시 자동 감지해 처리합니다. 세션이 죽어 고아가 된 job 은 lease 기반으로 회수됩니다: `cfgm ssl-status` 가 stale 을 표시하고 `cfgm ssl-reap` 이 재큐/실패 처리합니다 (attempts/max_attempts=3/lease 60분 — 계약: `memory/_pending/normalize/_spec/prompt.md`).
+
+## 핵심 기능
+
+### KG-Brain — SKILL.md → SSL 지식 그래프
+
+`.claude/skills/**` 의 prose 스킬을 타입 그래프로 정규화합니다. SKILL.md 가 source-of-truth, SSL JSON 은 파생물입니다.
+
+```bash
+cfgm ssl-enqueue     # heuristic 1차 + hole 있는 스킬은 PAI 큐로
+cfgm ssl-status      # 큐 상태
+cfgm rebuild-index   # wiki + claim + SSL 인덱싱
+cfgm ssl-stats       # canonical 사용률 등 지표 (실측: 96%)
+cfgm viewer          # 대시보드 — 3-layer 시각화·검색·risk findings
+```
+
+### Workflow Learn & Replay
+
+세션에서 수행한 워크플로우를 SSL 로 저장하고 다음 세션에서 재실행합니다.
+
+```bash
+cfgm learn --name my-flow --goal "..."   # 학습 → memory/workflows/<slug>.md
+cfgm replay --query "ssl normalize"      # SSL Scene DAG 순서의 replay plan 생성
+cfgm replay --list
+```
+
+SKILL.md 단독 대비: 실행 순서(Scene DAG)·분기(DecisionNode)·사용자 pause(InteractionNode)·성공 기준(EvidenceNode)·위임 규약(ProtocolNode)이 전부 명시적입니다.
+
+### Executable SSL — `cfgm run`
+
+SSL JSON 만으로 스킬을 실행합니다 (SKILL.md 불필요):
+
+```bash
+cfgm run --skill app-store-screenshots               # 실행 계획
+cfgm run --skill app-store-screenshots --interactive # 단계별 실행
+```
+
+`logical[]` 노드의 `instructions` 필드가 실행 계획에 포함됩니다 (optional, back-compat).
+
+### KG Graph + 체인 추론
+
+cross-skill 엣지가 물질화된 전역 그래프 (`CONTAINS`/`TRANSITIONS_TO`/`INSTANTIATES`/`DELEGATES_TO`/`SCOPED_TO`):
+
+```bash
+cfgm graph-query neighbors <node_id> --relation DELEGATES_TO
+cfgm compose                        # DELEGATES_TO 전이 폐포 → COMPOSES 트리플 + 사이클 감지
+cfgm find-chain --goal "..."        # goal → 스킬 체인 발견 (--replay 연동)
+```
+
+### Hybrid 검색 (opt-in)
+
+FTS5 BM25 에 의존성 0 의 결정론적 n-gram 벡터를 융합합니다 — 오타·형태소 변형 쿼리 구제. 융합 전략 3종(`rescue` 기본 / `rescue-rerank` / `rrf`)은 전부 실측 근거로 선택됐습니다 ([EXTENDING.md §2](./docs/EXTENDING.md)). 벡터 없는 인덱스에서는 FTS 로 안전하게 fallback. 실제 embedding 모델은 `Embedder` 인터페이스 구현으로 주입합니다.
+
+### OKF Export
+
+L3 wiki 를 Google [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/tree/main/okf) v0.1 번들로 내보냅니다 (wiki 가 truth, OKF 는 어댑터 뒤 파생물):
+
+```bash
+cfgm okf-export --out dist/okf --active-only
+```
+
+### LongMemEval 풀 QA 트랙 (host-위임)
+
+공식 QA accuracy 까지 측정하려면 — SDK 호출 없이 PAI 세션에 위임:
+
+```bash
+cfgm lme-enqueue                    # answer job 생성 (retrieval top-k 컨텍스트)
+# → PAI 세션이 처리
+cfgm lme-score                      # proxy 채점 (EM/contains/token-F1)
+cfgm lme-score --judge-enqueue      # semantic 판정 job 생성 → PAI 처리
+cfgm lme-score --collect            # 공식 지표 (judge accuracy) 집계
+```
+
+## 문서 지도
+
+| 문서 | 내용 |
+|---|---|
+| [`docs/RULES.md`](./docs/RULES.md) | 아키텍처 원칙 5 + 위반 처리 (새 코드 전 필독) |
+| [`docs/EXTENDING.md`](./docs/EXTENDING.md) | 확장 seam 8종 계약 — Embedder·fusion·Router·어휘·host-위임 큐 |
+| [`memory/SCHEMA.md`](./memory/SCHEMA.md) | 디렉토리 트리 명세 |
+| [`memory/ROUTER.md`](./memory/ROUTER.md) | retrieval policy |
+| [`docs/adr/`](./docs/adr/) | Architecture Decision Records |
+| [`CHANGELOG.md`](./CHANGELOG.md) | 버전별 변경 + 실측 기록 (퇴행 포함 정직 보고) |
+
+## Test
+
+```bash
+bun test              # 986 tests
+bun run typecheck
+```
+
+## Storage Paths
+
+- 사용자 레벨: `~/.claude-brain/memory-brain/` (또는 `CFGM_HOME`)
+- 프로젝트 레벨: `$PROJECT/.memory-brain/` (`CFGM_PROJECT_ROOT` 지정 시)
 
 ## License
 
