@@ -55,6 +55,7 @@ export function buildAnswerJob(input: LmeAnswerJobInput): string {
     `max_attempts: 3`,
     `question_id: ${qid}`,
     `question_type: ${fmSafe(q.question_type)}`,
+    `prompt_version: v2`,
     `output_path: ${input.answersDir}/${qid}.json`,
     `---`,
     ``,
@@ -62,6 +63,7 @@ export function buildAnswerJob(input: LmeAnswerJobInput): string {
     ``,
     `아래 대화 기록 **만을 근거로** 질문에 답하라. 기록에 답이 없으면 정확히 \`"The information is not available"\` 이라고 답하라 (추측 금지).`,
     ``,
+    ...typeGuidance(q.question_type),
     `## 질문`,
     ``,
     `- 질문 시점: ${q.question_date ?? "(미상)"}`,
@@ -80,6 +82,38 @@ export function buildAnswerJob(input: LmeAnswerJobInput): string {
     `저장 후 본 파일 frontmatter 를 \`status: done\` 으로 갱신.`,
     ``,
   ].join("\n");
+}
+
+/**
+ * 유형별 답변 지침 (prompt v2, V3.32) — QA 86.2% vs retrieval 상한 96.2% 의
+ * 생성 단계 손실을 겨냥. 실측 최약 유형: multi-session 77.4% (세션 간 종합
+ * 실패), temporal 88.0% (날짜 산술 누락). 벤치 정답 특화 상수 없음 — 일반
+ * 추론 지시만.
+ */
+function typeGuidance(questionType: string): string[] {
+  const base: Record<string, string[]> = {
+    "multi-session": [
+      `## 유형별 지침 (multi-session)`,
+      ``,
+      `답하기 전에 질문과 관련된 **모든** 세션을 먼저 열거하고, 각 세션의 관련 사실을 한 줄씩 정리한 뒤 종합해서 답하라. 하나의 세션만 보고 답하지 말 것. 개수를 묻는 질문이면 세션별로 항목을 나열해 센 다음 합산 과정을 확인하라.`,
+    ],
+    "temporal-reasoning": [
+      `## 유형별 지침 (temporal-reasoning)`,
+      ``,
+      `각 세션 머리의 \`[date: ...]\` 와 질문 시점을 이용해 **날짜 산술을 명시적으로 수행**하라 (며칠 전인지, 어느 것이 먼저인지 계산). 사건 발생일은 세션 날짜가 아니라 발화 내용의 상대시간 표현("two weeks ago" 등)을 세션 날짜에 적용해 계산하라. 순서를 묻는 질문이면 각 사건의 계산된 날짜를 나열한 뒤 정렬하라.`,
+    ],
+    "knowledge-update": [
+      `## 유형별 지침 (knowledge-update)`,
+      ``,
+      `같은 사실이 여러 세션에서 다르게 언급되면 **가장 최신 세션의 값**이 정답이다. 관련 언급을 날짜순으로 나열해 최신 값을 확인하라.`,
+    ],
+    "single-session-preference": [
+      `## 유형별 지침 (preference)`,
+      ``,
+      `사용자가 대화에서 **명시한 소유물·취향·상황을 구체적으로 인용**해 그에 맞춘 답을 하라. 일반론적 추천이 아니라 기록된 사용자 정보(기기 모델, 언급한 작품, 취미 등)에 근거해야 정답으로 인정된다.`,
+    ],
+  };
+  return base[questionType] ? [...base[questionType]!, ``] : [];
 }
 
 export interface LmeAnswer {

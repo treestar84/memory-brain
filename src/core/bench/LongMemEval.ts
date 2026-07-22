@@ -42,6 +42,31 @@ export interface LmeRetrievalOpts {
   ks?: number[];
   /** 평가할 질문 수 상한 (smoke run 용) */
   limit?: number;
+  /**
+   * held-out split (V3.32 공신력 장치). 튜닝 결정은 dev 만 사용, test 는
+   * 최종 보고 전용. 미지정 시 전체 (기존 run 과의 추이 비교용).
+   */
+  split?: "dev" | "test";
+  /**
+   * 인덱싱 granularity (V3.32). "turn": 발화 단위 인덱싱 + 세션 max-pooling
+   * (LongMemEval 논문 round-level decomposition) — 긴 세션의 신호 희석 완화.
+   */
+  granularity?: "session" | "turn";
+  /** PRF (pseudo-relevance feedback) 쿼리 확장 — rescue 방식으로 원 쿼리 결과 뒤에 보충 */
+  prf?: boolean;
+}
+
+/**
+ * 결정론적 dev/test split — question_id 의 FNV-1a 해시 짝홀. 데이터 내용과
+ * 무관하게 재현 가능하며 사전 공표 가능 (cherry-picking 반박 장치).
+ */
+export function splitOf(questionId: string): "dev" | "test" {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < questionId.length; i++) {
+    hash ^= questionId.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0) % 2 === 0 ? "dev" : "test";
 }
 
 export interface LmeModeMetrics {
@@ -60,6 +85,8 @@ export interface LmeTypeBreakdown {
 
 export interface LmeRetrievalResult {
   dataset: string;
+  /** 측정 구성 (split/granularity/prf) — 리포트 공신력용 */
+  config?: string;
   evaluated: number;
   /** abstention (`_abs`) 등 근거 라벨이 없어 제외된 질문 수 */
   skippedNoEvidence: number;
@@ -146,13 +173,46 @@ interface PerQuestionRanks {
   evidenceCount: number;
 }
 
+// turn-level doc id 구분자 — session id 에 등장하지 않는 형태
+const TURN_SEP = "##t";
+
+// PRF 확장 시 제외할 저정보 어휘 (일반 영어 기능어 + 대화 role 토큰)
+const PRF_STOP = new Set([
+  "the", "and", "for", "you", "your", "with", "that", "this", "have", "has",
+  "are", "was", "were", "can", "could", "would", "should", "will", "not",
+  "but", "all", "any", "some", "there", "here", "what", "when", "where",
+  "how", "why", "which", "from", "into", "about", "also", "just", "like",
+  "they", "them", "their", "user", "assistant", "date", "great", "sure",
+  "help", "recommendations", "questions", "information", "here's", "some",
+]);
+
+/** feedback 문서에서 TF 상위 확장 어휘 추출 (질문 어휘·기능어 제외) — 표준 PRF */
+export function prfTerms(feedbackTexts: string[], query: string, n: number = 5): string[] {
+  const queryTokens = new Set(
+    query.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean),
+  );
+  const tf = new Map<string, number>();
+  for (const text of feedbackTexts) {
+    for (const t of text.toLowerCase().split(/[^\p{L}\p{N}]+/u)) {
+      if (t.length < 4 || PRF_STOP.has(t) || queryTokens.has(t) || /^\d+$/.test(t)) continue;
+      tf.set(t, (tf.get(t) ?? 0) + 1);
+    }
+  }
+  return Array.from(tf.entries())
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, n)
+    .map(([t]) => t);
+}
+
 export function evalLmeRetrieval(
   questions: LmeQuestion[],
   opts: LmeRetrievalOpts,
 ): LmeRetrievalResult {
   const ks = [...(opts.ks ?? DEFAULT_KS)].sort((a, b) => a - b);
   const depth = ks[ks.length - 1]!;
-  const pool = opts.limit ? questions.slice(0, opts.limit) : questions;
+  const granularity = opts.granularity ?? "session";
+  let pool = opts.limit ? questions.slice(0, opts.limit) : questions;
+  if (opts.split) pool = pool.filter((q) => splitOf(q.question_id) === opts.split);
 
   let skippedNoEvidence = 0;
   const perQuestion: PerQuestionRanks[] = [];
@@ -165,17 +225,37 @@ export function evalLmeRetrieval(
     // 실데이터에 haystack 내 중복 session id 존재 — 첫 등장만 인덱싱 (dedupe)
     const seen = new Set<string>();
     const pages: WikiPage[] = [];
+    const sessionText = new Map<string, string>();
     q.haystack_session_ids.forEach((sid, i) => {
       if (seen.has(sid)) return;
       seen.add(sid);
-      pages.push({
-        path: `sessions/${sid}.md`,
-        frontmatter: { id: sid, type: "concept", status: "active", updated_at: "2026-01-01" },
-        body: sessionToText(q.haystack_sessions[i] ?? [], q.haystack_dates?.[i]),
-        bodyUser: sessionToUserText(q.haystack_sessions[i] ?? []),
-        claimIds: [],
-        evidence: [],
-      });
+      const turns = q.haystack_sessions[i] ?? [];
+      const date = q.haystack_dates?.[i];
+      sessionText.set(sid, sessionToText(turns, date));
+      if (granularity === "turn") {
+        // round-level decomposition (논문 §4.2) — 발화 단위 인덱싱으로 희석 완화
+        const datePrefix = date ? `[date: ${expandWeekday(date)}] ` : "";
+        turns.forEach((t, ti) => {
+          if (typeof t.content !== "string" || t.content.length === 0) return;
+          pages.push({
+            path: `sessions/${sid}-${ti}.md`,
+            frontmatter: { id: `${sid}${TURN_SEP}${ti}`, type: "concept", status: "active", updated_at: "2026-01-01" },
+            body: `${datePrefix}${t.role}: ${t.content}`,
+            bodyUser: t.role === "user" ? t.content : "",
+            claimIds: [],
+            evidence: [],
+          });
+        });
+      } else {
+        pages.push({
+          path: `sessions/${sid}.md`,
+          frontmatter: { id: sid, type: "concept", status: "active", updated_at: "2026-01-01" },
+          body: sessionText.get(sid)!,
+          bodyUser: sessionToUserText(turns),
+          claimIds: [],
+          evidence: [],
+        });
+      }
     });
 
     const index = new SearchIndex(":memory:");
@@ -186,18 +266,61 @@ export function evalLmeRetrieval(
       ? parseTemporalWindow(q.question, q.question_date) ?? undefined
       : undefined;
 
+    // doc id 랭킹 → 세션 랭킹 (turn 은 max-pooling: 첫 등장 turn 이 세션 rank)
+    const toSessions = (ids: string[]): string[] => {
+      const out: string[] = [];
+      const s = new Set<string>();
+      for (const id of ids) {
+        const sid = granularity === "turn" ? id.split(TURN_SEP)[0]! : id;
+        if (s.has(sid)) continue;
+        s.add(sid);
+        out.push(sid);
+        if (out.length >= depth) break;
+      }
+      return out;
+    };
+    const fetchLimit = granularity === "turn" ? depth * 6 : depth;
+
+    const searchMode = (useHybrid: boolean, query: string): string[] => {
+      const ids = useHybrid
+        ? index
+            .searchWikiHybrid(query, opts.embedder, { limit: fetchLimit, dateWindow, fusion: "rescue-rerank" })
+            .map((h) => h.pageId)
+        : index.searchWiki(query, { limit: fetchLimit, dateWindow }).map((h) => h.pageId);
+      return toSessions(ids);
+    };
+
+    const withPrf = (useHybrid: boolean): string[] => {
+      const first = searchMode(useHybrid, q.question);
+      if (!opts.prf) return first;
+      // PRF: 1차 top-3 세션에서 확장 어휘 추출 → top-3 은 고정 (정밀도 보존),
+      // rank 4+ 꼬리만 원 랭킹×확장 랭킹 RRF 로 재정렬 + 확장-only 문서 보충
+      const feedback = first.slice(0, 3).map((sid) => sessionText.get(sid) ?? "");
+      const terms = prfTerms(feedback, q.question);
+      if (terms.length === 0) return first;
+      const expanded = searchMode(useHybrid, `${q.question} ${terms.join(" ")}`);
+      const pinned = first.slice(0, 3);
+      const pinnedSet = new Set(pinned);
+      const K = 60;
+      const score = new Map<string, number>();
+      first.forEach((sid, i) => {
+        if (pinnedSet.has(sid)) return;
+        score.set(sid, (score.get(sid) ?? 0) + 1 / (K + i + 1));
+      });
+      expanded.forEach((sid, i) => {
+        if (pinnedSet.has(sid)) return;
+        score.set(sid, (score.get(sid) ?? 0) + 1 / (K + i + 1));
+      });
+      const tail = Array.from(score.entries())
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([sid]) => sid);
+      return [...pinned, ...tail].slice(0, depth);
+    };
+
     const evidence = new Set(q.answer_session_ids);
     const ranksByMode = {
-      fts: ranksOf(
-        index.searchWiki(q.question, { limit: depth, dateWindow }).map((h) => h.pageId),
-        evidence,
-      ),
-      hybrid: ranksOf(
-        index
-          .searchWikiHybrid(q.question, opts.embedder, { limit: depth, dateWindow, fusion: "rescue-rerank" })
-          .map((h) => h.pageId),
-        evidence,
-      ),
+      fts: ranksOf(withPrf(false), evidence),
+      hybrid: ranksOf(withPrf(true), evidence),
     };
     index.close();
 
@@ -213,6 +336,7 @@ export function evalLmeRetrieval(
   const nonAbs = perQuestion.filter((p) => !p.isAbstention);
   return {
     dataset: "LongMemEval",
+    config: `split=${opts.split ?? "all"} granularity=${granularity} prf=${opts.prf ?? false}`,
     evaluated: perQuestion.length,
     skippedNoEvidence,
     abstentionCount: perQuestion.length - nonAbs.length,
@@ -267,6 +391,7 @@ export function renderLmeReport(result: LmeRetrievalResult, generatedAt: string)
     `# LongMemEval Retrieval Benchmark (session-level)`,
     ``,
     `> 생성: ${generatedAt} · 평가 ${result.evaluated} 문항 (근거 라벨 없는 ${result.skippedNoEvidence} 문항 제외, abstention ${result.abstentionCount} 문항 포함)`,
+    `> 구성: ${result.config ?? "(미기록)"}`,
     `> 프로토콜: 질문별 haystack 세션 인덱싱 → 질문 검색 → answer_session_ids 대비 Recall@K.`,
     `> LLM 호출 0 (retrieval-only 트랙). 실행: \`bun run bench:lme\``,
     `> harness V3.30: content 쿼리 + rescue-rerank + temporal 날짜창 + user-turn 가중 + 요일 병기`,

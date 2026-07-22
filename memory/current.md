@@ -219,6 +219,13 @@
 - **README Quick Start**: deprecated install.ts 제거, doctor 중심 온보딩
 - V3.28~30 은 commit `9973307` 로 커밋 완료
 
+## V3.32 벤치마크 공신력 + PRF (2026-07-22) ✅
+
+- **held-out split** 도입 (dev 245 튜닝 / test 255 확증 1회) — 과적합 반박 장치. `docs/BENCHMARK.md` 에 전체 규약 (데이터 SHA-256·튜닝 로그·재현 절차·한계).
+- **PRF 채택**: dev 92.8→94.3% (pref +11.1pp) → **test 확증 R@5 93.2%** (dev 와 1.1pp — 일반화 OK). 전체 500: R@5 93.7% / R@10 96.5%. **turn-level 은 측정 후 기각** (-3.1pp, 로그에 기록).
+- **prompt v2** (유형별 답변 지침) 구현 — QA 재실행 대기 (Sonnet ~25-30M 토큰, 사용자 승인 필요).
+- 남은 개선 스택: QA 재실행 (prompt v2 + 개선된 retrieval) → multi-session/preference QA 회복 기대. 예상 QA 88~90%대.
+
 ## 다음 단계 후보
 
 - V3.25: cfgm-run `--interactive` 결과를 cfgm-replay 와 연동 (replay 파일 포맷 통일)

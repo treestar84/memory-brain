@@ -5,6 +5,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added — V3.32 벤치마크 공신력 + PRF retrieval 개선 (2026-07-22)
+- **Held-out split** — `splitOf(question_id)` FNV 해시 분할 (dev 245 / test 255). 튜닝은 dev 전용, test 는 1회 확증. `--split dev|test` CLI 플래그. 리포트에 config 문자열 기록
+- **PRF 쿼리 확장 (채택)** — 1차 top-3 세션에서 TF 상위 확장 어휘 추출 → top-3 고정 + rank 4+ 꼬리 RRF 재정렬. 벤치 특화 상수 없는 표준 IR 기법. dev R@5 92.8→**94.3%** (preference +11.1pp), **test 확증 93.2%**, 전체 500 R@5 92.2→**93.7%** (multi-session 88.7→91.5, preference 80.0→86.7 회복)
+- **Turn-level granularity (측정 후 기각)** — dev R@5 -3.1pp 퇴행. `--granularity turn` 옵션은 남기되 기본 미사용, 튜닝 로그에 기각 사유 기록 (정직 보고)
+- **답변 prompt v2** — 유형별 지침 (multi-session 전 세션 열거 후 종합 / temporal 날짜 산술 명시 / knowledge-update 최신값 / preference 사용자 명시 정보 인용). QA 86.2% vs retrieval 상한 96.5% 의 생성 손실 겨냥. 재실행 대기
+- **`docs/BENCHMARK.md`** — 팩트체크 규약: 데이터셋 SHA-256, split 정책, 튜닝 로그 (기각 포함), judge 프로토콜, 재현 커맨드, 타사 비교 규칙, threats to validity
+
 ### Added — V3.31 사용성·설치·확장성 (2026-07-22)
 - **통합 CLI `cfgm`** (`bin/cfgm.ts`) — 52개 개별 스크립트의 단일 진입점. `cfgm help` (그룹별 목록), `cfgm <command> [args]` dispatch, 미등록 이름도 `bin/cfgm-<name>.ts` 존재 시 실행 (registry 누락 무해). package.json `bin` 필드 → `bun link` 로 전역 `cfgm` 등록
 - **`cfgm doctor`** — 설치·환경 자가진단: Bun 버전 · 의존성 · memory/ 레이아웃 · 인덱스 존재/신선도 (WAL mtime 보정) · SSL 큐 stale · Brain 프로파일 · LME 데이터. 실패 항목마다 실행 가능한 조치 명령 제시

@@ -144,6 +144,50 @@ describe("LongMemEval adapter (V3.29 ①)", () => {
     }
   });
 
+  test("splitOf — 결정론 + 대략 절반 분할 (V3.32)", async () => {
+    const { splitOf } = await import("../../../src/core/bench/LongMemEval");
+    expect(splitOf("abc123")).toBe(splitOf("abc123")); // 결정론
+    const ids = Array.from({ length: 200 }, (_, i) => `q${i}`);
+    const dev = ids.filter((id) => splitOf(id) === "dev").length;
+    expect(dev).toBeGreaterThan(60);
+    expect(dev).toBeLessThan(140);
+  });
+
+  test("prfTerms — 질문 어휘·기능어 제외, TF 상위 반환 (V3.32)", async () => {
+    const { prfTerms } = await import("../../../src/core/bench/LongMemEval");
+    const terms = prfTerms(
+      ["user: my camera flash and tripod for photography", "user: camera flash reviews"],
+      "What accessories complement my photography setup?",
+    );
+    expect(terms).toContain("camera");
+    expect(terms).toContain("flash");
+    expect(terms).not.toContain("photography"); // 질문에 이미 있음
+    expect(terms).not.toContain("user"); // role 토큰 제외
+    expect(prfTerms([], "query")).toEqual([]);
+  });
+
+  test("split/granularity/prf 옵션 — 평가 동작 (V3.32)", () => {
+    const qs = [
+      q({ question_id: "aa1" }),
+      q({ question_id: "ab2" }),
+      q({ question_id: "ac3" }),
+      q({ question_id: "ad4" }),
+    ];
+    const all = evalLmeRetrieval(qs, { embedder });
+    const dev = evalLmeRetrieval(qs, { embedder, split: "dev" });
+    const test_ = evalLmeRetrieval(qs, { embedder, split: "test" });
+    expect(dev.evaluated + test_.evaluated).toBe(all.evaluated);
+    expect(dev.config).toContain("split=dev");
+
+    const turn = evalLmeRetrieval(qs, { embedder, granularity: "turn" });
+    expect(turn.config).toContain("granularity=turn");
+    expect(turn.overall.find((m) => m.mode === "fts")!.recallAtK[5]).toBeGreaterThan(0);
+
+    const prf = evalLmeRetrieval(qs, { embedder, prf: true });
+    expect(prf.config).toContain("prf=true");
+    expect(prf.overall.find((m) => m.mode === "hybrid")!.recallAtK[1]).toBe(1); // top-3 고정 → 정답 유지
+  });
+
   test("renderLmeReport — overall + type 별 표 포함", () => {
     const result = evalLmeRetrieval([q({})], { embedder });
     const md = renderLmeReport(result, "2026-07-21T12:00:00.000Z");

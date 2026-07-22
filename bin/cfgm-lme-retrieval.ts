@@ -36,6 +36,20 @@ function strFlag(name: string): string | undefined {
 
 const dataPath = resolve(repoRoot, strFlag("--data") ?? "data/longmemeval/longmemeval_s_cleaned.json");
 const reportPath = resolve(repoRoot, strFlag("--out") ?? "memory/reports/longmemeval-retrieval.md");
+// V3.32: held-out split · turn-level granularity · PRF 쿼리 확장
+const splitRaw = strFlag("--split");
+if (splitRaw && splitRaw !== "dev" && splitRaw !== "test") {
+  console.error(`invalid --split: ${splitRaw} (dev|test)`);
+  process.exit(1);
+}
+const split = splitRaw as "dev" | "test" | undefined;
+const granRaw = strFlag("--granularity");
+if (granRaw && granRaw !== "session" && granRaw !== "turn") {
+  console.error(`invalid --granularity: ${granRaw} (session|turn)`);
+  process.exit(1);
+}
+const granularity = granRaw as "session" | "turn" | undefined;
+const prf = args.includes("--prf");
 const limitRaw = strFlag("--limit");
 const limit = limitRaw ? Number.parseInt(limitRaw, 10) : undefined;
 if (limitRaw && (!Number.isFinite(limit) || limit! <= 0)) {
@@ -53,7 +67,7 @@ if (!(await dataFile.exists())) {
 const questions = parseLmeQuestions(await dataFile.json());
 const embedder = new HashedNgramEmbedder();
 const started = performance.now();
-const result = evalLmeRetrieval(questions, { embedder, limit });
+const result = evalLmeRetrieval(questions, { embedder, limit, split, granularity, prf });
 const durationMs = Math.round(performance.now() - started);
 
 const generatedAt = new Date().toISOString();
