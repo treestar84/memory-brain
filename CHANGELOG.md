@@ -5,6 +5,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added — V3.33 온보딩 — `cfgm search` + Codex(AGENTS.md) 지원 (2026-07-23)
+- **`cfgm search "<질의>"`** (`bin/cfgm-search.ts`) — wiki 자연어 검색 CLI 신설. 설치 직후 효능 체감용 진입점 부재를 메움 (`graph-query` 는 KG 전용, plain wiki 검색이 없었음). 인덱스 미생성 시 안내 후 exit 1. 테스트 4건.
+- **`AGENTS.md`** (저장소 루트 신설) — Codex CLI 등 non-Claude host 용 bootloader. `CLAUDE.md` 와 동일한 메모리 규칙 + 30초 온보딩 커맨드. 이전에는 Codex 대응 진입점이 전무했음.
+- README Quick Start: `cfgm search` 스텝 추가 (60초 온보딩 완성) + Claude Code/Codex 동시 지원 안내.
+- `retrieveTopSessions` (V3.32 QA enqueue 단일 진입점, `bin/cfgm-lme-enqueue.ts` 리팩터)가 미커밋 상태로 남아있던 것을 발견해 커밋 — README 발표 벤치마크 수치의 재현성 보장.
+- 검증: 993/993 pass · typecheck OK.
+
 ### Added — V3.32 QA v2 재실측 (2026-07-22, held-out test 255)
 - Sonnet 위임 재실행 (PRF retrieval + prompt v2). 동일 test split 공정 비교: **QA accuracy 87.1% → 89.0%** (+1.9pp)
 - **temporal-reasoning 87.5% → 93.1%** (+5.6pp — prompt v2 날짜 산술 지침 효과 입증) · multi-session 77.8→79.2% · knowledge-update/user/assistant 동일 유지

@@ -149,9 +149,14 @@ bun install
 bun link                          # 전역 `cfgm` 명령 등록 (선택)
 cfgm doctor                       # 자가진단 — 부족한 항목과 조치 명령을 알려줌
 cfgm rebuild-index --embeddings   # 검색 인덱스 생성 (hybrid 포함)
+cfgm search "메모리 라우팅"        # ← 여기까지 60초. 결과가 나오면 정상 동작
 ```
 
+`cfgm search` 는 `memory/{projects,concepts,decisions}/*.md` 를 즉시 검색합니다 — 이 저장소 자체가 dogfooding 용 실제 메모리를 포함하고 있어 클론 직후에도 결과가 나옵니다. 별도 데이터 시딩이 필요 없습니다.
+
 Claude Code 훅 통합(세션 영구 메모리)까지 원하면 `./install.sh` 를 추가 실행합니다. **훅 없이도 모든 CLI 는 단독 동작합니다.** 제거는 `cfgm uninstall`.
+
+**Claude Code ↔ Codex 동시 지원** <sub>*works with both hosts*</sub> — Claude Code 는 `CLAUDE.md` + hook 자동 주입, Codex CLI 는 세션 시작 시 저장소 루트의 [`AGENTS.md`](./AGENTS.md) 를 직접 읽어 동일한 메모리 규칙을 따릅니다. 두 host 가 같은 `memory/` 디렉토리를 공유하므로 host 를 섞어 써도 데이터는 정합합니다. MCP·특정 host SDK 의존이 없어 다른 CLI 에도 같은 방식(bootloader 파일 + CLI 직접 호출)으로 이식 가능합니다.
 
 ## ⌨️ 통합 CLI — `cfgm`
 
@@ -159,6 +164,7 @@ Claude Code 훅 통합(세션 영구 메모리)까지 원하면 `./install.sh` �
 
 ```bash
 cfgm doctor              # 설치·환경 자가진단 (7항목 + 조치 명령 제시)
+cfgm search "<질의>"     # wiki 자연어 검색 — 설치 직후 효능 체감용
 cfgm bench               # 내부 memory quality benchmark
 cfgm bench-lme           # LongMemEval 외부 벤치마크
 cfgm ssl-status          # SSL normalize 큐 상태 (+stale)
@@ -220,6 +226,7 @@ cfgm lme-score --collect            # 공식 지표 (judge accuracy) 집계
 
 | 문서 | 내용 |
 |---|---|
+| [`AGENTS.md`](./AGENTS.md) | Codex 등 non-Claude host 용 bootloader — `CLAUDE.md` 와 동일 규칙 |
 | [`docs/BENCHMARK.md`](./docs/BENCHMARK.md) | **측정 규약** — SHA-256·split 정책·튜닝 로그·재현 절차·한계 |
 | [`docs/RULES.md`](./docs/RULES.md) | 아키텍처 원칙 5 + 위반 처리 (새 코드 전 필독) |
 | [`docs/EXTENDING.md`](./docs/EXTENDING.md) | 확장 seam 8종 — Embedder·fusion·Router·어휘·host-위임 큐 |

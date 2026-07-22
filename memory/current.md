@@ -226,6 +226,15 @@
 - **QA v2 재실측 완료** (사용자 승인, test split 255 한정): v1 87.1% → **v2 89.0%** (+1.9pp). temporal +5.6pp (prompt v2 효과 입증), multi-session +1.4pp, preference 동일 (n=12). 예상치(88~90%대) 적중.
 - 남은 개선 스택: multi-session QA (79.2%) — 근거 세션이 top-10 에 다 안 들어오는 케이스가 상한. preference 는 held-out 확대 측정 필요 (n=12 소표본).
 
+## V3.33 온보딩 — `cfgm search` + Codex(AGENTS.md) 지원 (2026-07-23) ✅
+
+- **문제 발견**: `cfgm doctor` + `rebuild-index` 까지는 있었지만, 설치 직후 사용자가 "메모리 엔진이 실제로 동작한다"를 즉시 확인할 CLI 가 없었음 (`graph-query` 는 KG 노드 전용, plain wiki 검색 CLI 부재) — 효능감 체감의 실제 병목.
+- **`cfgm search "<질의>"`** (`bin/cfgm-search.ts`) — `searchWikiHybrid` 를 얇게 감싼 CLI. 인덱스 없으면 안내 후 exit 1, 빈 결과는 정상 종료. 이 저장소 자체의 dogfood `memory/{concepts,decisions,projects}/*.md` 덕에 클론 직후에도 결과가 남 (별도 시딩 불필요). 테스트 4건 (tests/bin/cfgm-search.test.ts) 신규.
+- **Codex 등 non-Claude host 지원**: 저장소 루트에 `AGENTS.md` 신설 — `CLAUDE.md` 와 동일한 메모리 규칙 + 30초 온보딩 커맨드를 host-중립 형태로 기술. Claude Code 는 hook 자동 주입, Codex 는 세션 시작 시 이 파일을 직접 읽음. 이전까지 저장소에 Codex 대응 진입점이 전혀 없었음 (grep 결과 문서 언급만 존재, 실제 통합 0건).
+- README Quick Start 에 `cfgm search` 스텝 + "Claude Code ↔ Codex 동시 지원" 섹션 추가.
+- 검증: 993/993 pass · typecheck OK · 회귀 0건. 실사용 검증: `cfgm search "메모리 라우팅 정책"` → 5건 정상 반환 확인.
+- retrieveTopSessions (V3.32 QA enqueue 용) 이 미커밋 상태로 남아있던 것도 이번에 발견해 함께 커밋 (`df5c0dd`) — README 발표 수치의 재현성 보장.
+
 ## 다음 단계 후보
 
 - V3.25: cfgm-run `--interactive` 결과를 cfgm-replay 와 연동 (replay 파일 포맷 통일)

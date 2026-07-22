@@ -46,6 +46,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
     title: "검색·인덱스",
     commands: [
       { name: "rebuild-index", script: "cfgm-rebuild-index", desc: "wiki+claim+SSL 인덱스 재생성 (--embeddings: hybrid)" },
+      { name: "search", script: "cfgm-search", desc: "wiki 자연어 검색 — \"cfgm search \\\"질의\\\"\"" },
       { name: "bench", script: "cfgm-bench", desc: "내부 memory quality benchmark" },
       { name: "bench-lme", script: "cfgm-lme-retrieval", desc: "LongMemEval retrieval 벤치마크 (외부 표준)" },
       { name: "okf-export", script: "cfgm-okf-export", desc: "L3 wiki → Google OKF v0.1 번들" },
