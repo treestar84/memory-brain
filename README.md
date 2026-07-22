@@ -1,65 +1,147 @@
 # CFGM-OS — memory-brain
 
-> **Claim-Grounded, Persona-Aware Memory Routing OS** — AI 에이전트의 기억을 "거대한 텍스트 덤프"가 아니라 **근거 기반·라우팅되는·실행 가능한 지식 그래프**로 관리하는 오픈소스 메모리 엔진.
+> **Claim-Grounded, Persona-Aware Memory Routing OS**
+> AI 에이전트의 기억을 "거대한 텍스트 덤프"가 아니라 **근거 기반 · 라우팅되는 · 실행 가능한 지식 그래프**로 관리하는 오픈소스 메모리 엔진.
+> <sub>*An open-source memory engine that manages AI agent memory as an evidence-grounded, routed, executable knowledge graph — not a giant text dump.*</sub>
 
-![License: MIT](https://img.shields.io/badge/License-MIT-green.svg) ![Runtime: Bun](https://img.shields.io/badge/Runtime-Bun%20%E2%89%A5%201.1-black) ![LLM API calls: 0](https://img.shields.io/badge/LLM%20API%20calls-0-blue)
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg) ![Runtime: Bun](https://img.shields.io/badge/Runtime-Bun%20%E2%89%A5%201.1-black) ![LLM API calls: 0](https://img.shields.io/badge/Retrieval%20LLM%20calls-0-blue) ![Benchmark: LongMemEval](https://img.shields.io/badge/Benchmark-LongMemEval-orange)
 
-Claude Code · Codex · Gemini CLI 같은 **host CLI 위에서 동작**하는 영구 메모리 엔진입니다. MCP 서버도, API 키도, 추가 구독도 요구하지 않습니다 — 인터페이스는 파일과 자연어 명세뿐입니다.
+Claude Code · Codex · Gemini CLI 같은 **host CLI 위에서 동작**합니다. MCP 서버도, API 키도, 추가 구독도 요구하지 않습니다 — 인터페이스는 파일과 자연어 명세뿐입니다.
+<sub>*Runs on top of host CLIs. No MCP server, no API key, no extra subscription — the only interfaces are files and natural-language specs.*</sub>
 
-## 왜 만들었나 — 4가지 페인포인트
+---
 
-| 페인포인트 | CFGM-OS 의 해법 |
-|---|---|
-| **컨텍스트 비대화** — `CLAUDE.md`/`MEMORY.md` 에 지식을 쌓으면 매 세션 통째로 주입 | bootloader + retrieval policy 라우팅: 요청 분류 → lane 선택 → 필요한 1~3개 파일만 조회 |
-| **메모리 부패** — 무조건 append 로 중복·모순·낡은 정보 누적 | upsert/merge/supersede + governance 리포트 (중복·stale·모순·decay) |
-| **근거 없는 기억** — LLM 추론이 검증된 사실처럼 저장 | claim/evidence 원장 — 모든 주장에 evidence pointer, 추론 persona 는 confidence 표기 + 별도 레이어 격리 |
-| **prose 스킬의 한계** — SKILL.md 는 실행 순서·분기·성공 기준이 암묵적 | SSL (Scheduling–Structural–Logical) 타입 지식 그래프 — 검색·리스크 게이트·학습/재실행·실행까지 |
+## 📊 벤치마크 점수 카드 <sub>*Benchmark Scorecard*</sub>
 
-## 설계 원칙 5 ([`docs/RULES.md`](./docs/RULES.md))
+공신력 있는 외부 벤치마크 **[LongMemEval](https://github.com/xiaowu0162/LongMemEval)** (ICLR 2025) 실측. 모든 수치는 [측정 규약](./docs/BENCHMARK.md)을 따르며 아래 재현 커맨드로 검증 가능합니다.
+<sub>*All numbers follow the published methodology and are reproducible with the commands below.*</sub>
 
-1. **MCP 미사용** — 파일 + 자연어 명세만. vendor-agnostic.
-2. **구독 auth 위임** — LLM SDK 직접 호출 금지. 엔진은 명세(prompt+schema)만 만들고 실제 LLM 호출은 host CLI 에 위임 → **사용자 추가 비용 0**.
-3. **외부 orchestration 도구 비의존** — `git clone` 만으로 단독 동작.
-4. **Production 품질** — 테스트 986개 · 신규 코드 커버리지 ≥90% · typecheck · 회귀 0 게이트.
-5. **분리 프로파일** — persona(추론)와 canonical knowledge(검증 사실)를 레이어로 분리, mutate 작업은 별도 PAI 세션에서.
+### 핵심 수치 <sub>*Headline numbers*</sub>
 
-## 벤치마크 — 주장이 아니라 수치
-
-**외부 표준: [LongMemEval](https://github.com/xiaowu0162/LongMemEval)** (ICLR 2025) — session-level retrieval, 500문항, **LLM 호출 0회·89초·재현 스크립트 포함**:
-
-| | R@1 | R@3 | R@5 | R@10 | MRR |
-|---|---|---|---|---|---|
-| V3.29 (초기) | 55.2% | 85.9% | 91.7% | 94.5% | 0.909 |
-| V3.30 (튜닝) | 56.6% | 87.2% | 92.2% | 96.2% | 0.927 |
-| **V3.32 (+PRF, 전체 500)** | 56.6% | 87.2% | **93.7%** | **96.5%** | **0.928** |
-| **V3.32 held-out test (확증)** | 56.7% | 86.2% | **93.2%** | 95.8% | 0.921 |
-
-V3.32 부터 **held-out split** (dev 245 튜닝 전용 / test 255 확증 전용, 결정론적 해시 분할) 을 도입해 과적합 의심을 차단합니다. 측정 규약·튜닝 로그(기각 기법 포함)·재현 절차·한계는 [`docs/BENCHMARK.md`](./docs/BENCHMARK.md) 참조.
-
-**풀 QA 트랙 실측** (host-위임 Sonnet 답변 + LLM judge, held-out test 255문항 동일 조건 비교):
-
-| | v1 (2026-07-22) | **v2 (+PRF retrieval, prompt v2)** |
+| 트랙 <sub>Track</sub> | 조건 <sub>Setting</sub> | 점수 <sub>Score</sub> |
 |---|---|---|
-| **QA accuracy** | 87.1% | **89.0%** |
-| temporal-reasoning | 87.5% | **93.1%** |
-| multi-session | 77.8% | 79.2% |
-| knowledge-update / user / assistant | 93.3 / 97.6 / 100% | 93.3 / 97.6 / 100% |
-| preference (n=12) | 58.3% | 58.3% |
+| 🔍 **Retrieval R@5** | held-out test 255, LLM 호출 0회 | **93.2%** |
+| 🔍 Retrieval R@10 / MRR | 전체 500 | **96.5%** / 0.928 |
+| 🧠 **QA accuracy** | held-out test 255, Sonnet + LLM judge | **89.0%** |
 
-상세: `memory/reports/longmemeval-qa.md` · 방법론: [`docs/BENCHMARK.md`](./docs/BENCHMARK.md)
+### 버전별 개선 추이 <sub>*Improvement over versions*</sub>
 
-```bash
-# 재현 (데이터셋 265MB — repo 미포함, MIT)
-mkdir -p data/longmemeval && cd data/longmemeval
-curl -LO https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_s_cleaned.json
-cd ../.. && cfgm bench-lme
+```mermaid
+xychart-beta
+    title "Retrieval R@5 (%) — LongMemEval_S 500"
+    x-axis ["V3.29 초기", "V3.30 튜닝", "V3.32 +PRF"]
+    y-axis "R@5 (%)" 85 --> 100
+    bar [91.7, 92.2, 93.7]
+    line [91.7, 92.2, 93.7]
 ```
 
-알려진 약점도 리포트에 그대로 노출합니다 (single-session-preference 유형, [CHANGELOG](./CHANGELOG.md) V3.30 참조). 내부 품질 벤치(`cfgm bench`)는 router lane 적중률·검색 recall 을 회귀 게이트로 측정합니다. 벤치 정답에서 역산한 상수를 검색 코드에 넣는 것은 과적합으로 금지합니다.
+```mermaid
+xychart-beta
+    title "QA accuracy (%) — held-out test 255, 동일 조건 비교"
+    x-axis ["v1 (기본 프롬프트)", "v2 (PRF + 유형별 지침)"]
+    y-axis "accuracy (%)" 80 --> 95
+    bar [87.1, 89.0]
+```
 
-## Quick Start
+### 질문 유형별 QA (v1 → v2, held-out test) <sub>*QA by question type*</sub>
 
-**Prerequisites**: [Bun](https://bun.sh) ≥ 1.1 (+ 훅 통합 시 Claude Code CLI)
+```mermaid
+xychart-beta
+    title "유형별 QA accuracy (%) — v2"
+    x-axis ["assistant", "user", "k-update", "temporal", "multi-sess", "preference"]
+    y-axis "accuracy (%)" 0 --> 100
+    bar [100, 97.6, 93.3, 93.1, 79.2, 58.3]
+```
+
+| 유형 <sub>Type</sub> | v1 | **v2** | Δ |
+|---|---|---|---|
+| single-session-assistant | 100% | **100%** | — |
+| single-session-user | 97.6% | **97.6%** | — |
+| knowledge-update | 93.3% | **93.3%** | — |
+| temporal-reasoning | 87.5% | **93.1%** | 🔺 **+5.6pp** |
+| multi-session | 77.8% | **79.2%** | 🔺 +1.4pp |
+| single-session-preference (n=12) | 58.3% | 58.3% | — <sub>소표본 유보</sub> |
+
+### 신뢰성 장치 <sub>*Why you can trust these numbers*</sub>
+
+| ✅ 장치 <sub>Safeguard</sub> | 내용 <sub>Detail</sub> |
+|---|---|
+| Held-out split | dev 245 (튜닝 전용) / test 255 (확증 1회) — 결정론적 해시 분할, 과적합 차단 |
+| 데이터 무결성 | 데이터셋 SHA-256 공개 — 변조·버전 차이 반박 가능 |
+| 튜닝 로그 전면 공개 | **기각된 기법까지 기록** (turn-level: dev -3.1pp → 기각) |
+| 벤치 과적합 금지 | 정답에서 역산한 상수(hypernym 사전 류) 사용 금지 원칙 |
+| 동일 조건 비교 | v1/v2 는 같은 split · 같은 judge 프로토콜로만 비교 |
+| 한계 자진 명시 | judge 자체 실행 · 단일 실행 · 소표본 유형 등 [threats to validity](./docs/BENCHMARK.md#7-알려진-한계-threats-to-validity) |
+
+### 재현하기 <sub>*Reproduce*</sub>
+
+```bash
+git clone https://github.com/treestar84/memory-brain.git && cd memory-brain && bun install
+mkdir -p data/longmemeval && cd data/longmemeval
+curl -LO https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_s_cleaned.json
+shasum -a 256 longmemeval_s_cleaned.json   # docs/BENCHMARK.md 의 SHA-256 과 대조
+cd ../.. && bun run bench:lme -- --split test --prf   # retrieval 확증 수치 재현 (LLM 0회)
+```
+
+---
+
+## 🧩 왜 만들었나 — 4가지 페인포인트 <sub>*Why: four pain points*</sub>
+
+```mermaid
+flowchart LR
+    subgraph 문제["❌ 기존 방식의 문제"]
+        P1["컨텍스트 비대화<br/>모든 지식을 매 세션 주입"]
+        P2["메모리 부패<br/>append 만 하다 중복·모순 누적"]
+        P3["근거 없는 기억<br/>추론이 사실처럼 저장"]
+        P4["prose 스킬<br/>실행 순서·분기 암묵적"]
+    end
+    subgraph 해법["✅ CFGM-OS 의 해법"]
+        S1["Bootloader + Router<br/>필요한 1~3개 파일만 조회"]
+        S2["upsert/supersede + Governance<br/>중복·stale·모순 리포트"]
+        S3["Claim/Evidence 원장<br/>모든 주장에 근거 포인터"]
+        S4["SSL 타입 지식 그래프<br/>검색·학습·재실행·실행"]
+    end
+    P1 --> S1
+    P2 --> S2
+    P3 --> S3
+    P4 --> S4
+```
+
+## 🏛️ 아키텍처 — 7-layer <sub>*Architecture*</sub>
+
+```mermaid
+flowchart TB
+    L1["L1 Bootloader — CLAUDE.md/MEMORY.md<br/><i>메모리 사용 규칙만</i>"]
+    L2["L2 Router — retrieval policy<br/><i>요청 분류 → lane → 파일 1~3개</i>"]
+    L3["L3 Wiki — canonical knowledge<br/><i>markdown + frontmatter (OKF 호환)</i>"]
+    L4["L4 Claim — evidence 원장<br/><i>append-only + projection</i>"]
+    L5["L5 Graph/Search — SQLite FTS5 + hybrid<br/><i>파생물 — 언제든 rebuild</i>"]
+    L6["L6 Persona — 추론 프로파일<br/><i>confidence 표기, fact 와 격리</i>"]
+    L7["L7 Governance — 리포트<br/><i>중복·stale·모순·decay</i>"]
+    L1 --> L2 --> L3 --> L4 --> L5
+    L3 -.-> L7
+    L6 -.-> L2
+```
+
+**5대 설계 원칙** ([`docs/RULES.md`](./docs/RULES.md)): ① MCP 미사용 ② LLM SDK 직접 호출 금지 (host 구독 위임 → **사용자 추가 비용 0**) ③ 외부 orchestration 비의존 ④ Production 품질 (테스트 989+ · 커버리지 ≥90%) ⑤ persona/fact 분리 + mutate 는 별도 PAI 세션.
+
+### PAI 세션 — 분리 영속 세션 <sub>*Separate persistent session*</sub>
+
+```mermaid
+sequenceDiagram
+    participant M as 메인 세션<br/>(사용자 본업)
+    participant F as memory/ 파일시스템
+    participant P as PAI 세션<br/>(.claude-pai)
+    M->>F: cfgm ssl-enqueue (작업 큐 생성)
+    P->>F: hook 주입 시 큐 자동 감지
+    P->>F: SSL JSON 생성 + validate + status: done
+    Note over P,F: 세션이 죽으면 lease 만료 →<br/>cfgm ssl-reap 이 자동 회수
+    M->>F: cfgm viewer 로 결과 확인
+```
+
+## 🚀 Quick Start
+
+**Prerequisites**: [Bun](https://bun.sh) ≥ 1.1
 
 ```bash
 git clone https://github.com/treestar84/memory-brain.git && cd memory-brain
@@ -71,7 +153,7 @@ cfgm rebuild-index --embeddings   # 검색 인덱스 생성 (hybrid 포함)
 
 Claude Code 훅 통합(세션 영구 메모리)까지 원하면 `./install.sh` 를 추가 실행합니다. **훅 없이도 모든 CLI 는 단독 동작합니다.** 제거는 `cfgm uninstall`.
 
-## 통합 CLI — `cfgm`
+## ⌨️ 통합 CLI — `cfgm`
 
 52개 스크립트의 단일 진입점. `cfgm help` 로 그룹별 전체 목록:
 
@@ -86,117 +168,69 @@ cfgm run --skill <slug>  # SSL 스킬 실행 계획 / --interactive
 
 전역 등록 없이 쓰려면 `bun run bin/cfgm.ts <command>`. registry 에 없는 이름도 `bin/cfgm-<name>.ts` 가 존재하면 실행됩니다.
 
-## Architecture — 7-layer
-
-| Layer | 위치 | 역할 |
-|---|---|---|
-| L1 Bootloader | `CLAUDE.md` + `MEMORY.md` | 메모리 사용 규칙만 (지식 저장 금지) |
-| L2 Router | `memory/ROUTER.md` + `src/core/router/` | retrieval policy — 요청 분류 → lane → 파일 1~3개 |
-| L3 Wiki | `memory/{projects,concepts,decisions}/` | canonical knowledge (markdown + frontmatter) |
-| L4 Claim | `memory/claims/ledger.jsonl` | claim/evidence 원장 (append-only + projection) |
-| L5 Graph/Search | `.memory-brain/indexes/` (SQLite FTS5) | **파생물** — markdown 에서 rebuild 가능 |
-| L6 Persona | `memory/profile/*.jsonl` | 추론 프로파일 (confidence 표기, fact 와 격리) |
-| L7 Governance | `memory/reports/` | 중복·stale·모순·decay 리포트 |
-
-코드 레벨: **Adapters** (platform JSON → CanonicalEvent) / **Core** (platform-free 순수 함수) / **Storage** (주입 가능 인터페이스). 결정 기록은 [`docs/adr/`](./docs/adr/).
-
-### PAI 세션 — 분리 영속 세션 (원칙 5)
-
-mutate 작업(SSL normalize, governance 등)은 메인 세션이 아니라 **별도 PAI 세션**이 처리합니다. 두 세션은 `memory/` 파일 시스템으로만 통신합니다:
-
-```bash
-# 별도 터미널에서:
-CLAUDE_CONFIG_DIR=.claude-pai claude
-```
-
-메인 세션이 `cfgm ssl-enqueue` 로 작업을 큐에 넣으면, PAI 세션이 hook 주입 시 자동 감지해 처리합니다. 세션이 죽어 고아가 된 job 은 lease 기반으로 회수됩니다: `cfgm ssl-status` 가 stale 을 표시하고 `cfgm ssl-reap` 이 재큐/실패 처리합니다 (attempts/max_attempts=3/lease 60분 — 계약: `memory/_pending/normalize/_spec/prompt.md`).
-
-## 핵심 기능
+## 🧠 핵심 기능 <sub>*Core features*</sub>
 
 ### KG-Brain — SKILL.md → SSL 지식 그래프
 
-`.claude/skills/**` 의 prose 스킬을 타입 그래프로 정규화합니다. SKILL.md 가 source-of-truth, SSL JSON 은 파생물입니다.
+`.claude/skills/**` 의 prose 스킬을 Scheduling–Structural–Logical 타입 그래프로 정규화합니다. SKILL.md 가 source-of-truth, SSL JSON 은 파생물입니다.
 
 ```bash
 cfgm ssl-enqueue     # heuristic 1차 + hole 있는 스킬은 PAI 큐로
-cfgm ssl-status      # 큐 상태
 cfgm rebuild-index   # wiki + claim + SSL 인덱싱
 cfgm ssl-stats       # canonical 사용률 등 지표 (실측: 96%)
 cfgm viewer          # 대시보드 — 3-layer 시각화·검색·risk findings
 ```
 
-### Workflow Learn & Replay
-
-세션에서 수행한 워크플로우를 SSL 로 저장하고 다음 세션에서 재실행합니다.
+### Workflow Learn & Replay + Executable SSL
 
 ```bash
-cfgm learn --name my-flow --goal "..."   # 학습 → memory/workflows/<slug>.md
-cfgm replay --query "ssl normalize"      # SSL Scene DAG 순서의 replay plan 생성
-cfgm replay --list
+cfgm learn --name my-flow --goal "..."               # 세션 워크플로우 → SSL 저장
+cfgm replay --query "ssl normalize"                  # Scene DAG 순서 replay plan
+cfgm run --skill app-store-screenshots --interactive # SSL JSON 만으로 단계별 실행
 ```
 
-SKILL.md 단독 대비: 실행 순서(Scene DAG)·분기(DecisionNode)·사용자 pause(InteractionNode)·성공 기준(EvidenceNode)·위임 규약(ProtocolNode)이 전부 명시적입니다.
-
-### Executable SSL — `cfgm run`
-
-SSL JSON 만으로 스킬을 실행합니다 (SKILL.md 불필요):
-
-```bash
-cfgm run --skill app-store-screenshots               # 실행 계획
-cfgm run --skill app-store-screenshots --interactive # 단계별 실행
-```
-
-`logical[]` 노드의 `instructions` 필드가 실행 계획에 포함됩니다 (optional, back-compat).
+실행 순서(Scene DAG)·분기(DecisionNode)·사용자 pause(InteractionNode)·성공 기준(EvidenceNode)·위임 규약(ProtocolNode)이 전부 명시적입니다.
 
 ### KG Graph + 체인 추론
 
-cross-skill 엣지가 물질화된 전역 그래프 (`CONTAINS`/`TRANSITIONS_TO`/`INSTANTIATES`/`DELEGATES_TO`/`SCOPED_TO`):
-
 ```bash
 cfgm graph-query neighbors <node_id> --relation DELEGATES_TO
-cfgm compose                        # DELEGATES_TO 전이 폐포 → COMPOSES 트리플 + 사이클 감지
+cfgm compose                        # DELEGATES_TO 전이 폐포 → COMPOSES + 사이클 감지
 cfgm find-chain --goal "..."        # goal → 스킬 체인 발견 (--replay 연동)
 ```
 
-### Hybrid 검색 (opt-in)
+### Hybrid 검색 + PRF (opt-in)
 
-FTS5 BM25 에 의존성 0 의 결정론적 n-gram 벡터를 융합합니다 — 오타·형태소 변형 쿼리 구제. 융합 전략 3종(`rescue` 기본 / `rescue-rerank` / `rrf`)은 전부 실측 근거로 선택됐습니다 ([EXTENDING.md §2](./docs/EXTENDING.md)). 벡터 없는 인덱스에서는 FTS 로 안전하게 fallback. 실제 embedding 모델은 `Embedder` 인터페이스 구현으로 주입합니다.
+FTS5 BM25 에 의존성 0 의 결정론적 n-gram 벡터를 융합하고, PRF(pseudo-relevance feedback)로 어휘 단절을 보완합니다. 융합 전략 3종은 전부 실측 근거로 선택됐습니다 ([EXTENDING.md](./docs/EXTENDING.md)). 벡터 없는 인덱스에서는 FTS 로 안전하게 fallback.
 
 ### OKF Export
 
-L3 wiki 를 Google [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/tree/main/okf) v0.1 번들로 내보냅니다 (wiki 가 truth, OKF 는 어댑터 뒤 파생물):
-
-```bash
-cfgm okf-export --out dist/okf --active-only
-```
+L3 wiki 를 Google [Open Knowledge Format](https://github.com/GoogleCloudPlatform/knowledge-catalog/tree/main/okf) v0.1 번들로 내보냅니다 (wiki 가 truth, OKF 는 어댑터 뒤 파생물): `cfgm okf-export --out dist/okf`
 
 ### LongMemEval 풀 QA 트랙 (host-위임)
 
-공식 QA accuracy 까지 측정하려면 — SDK 호출 없이 PAI 세션에 위임:
-
 ```bash
-cfgm lme-enqueue                    # answer job 생성 (retrieval top-k 컨텍스트)
-# → PAI 세션이 처리
-cfgm lme-score                      # proxy 채점 (EM/contains/token-F1)
-cfgm lme-score --judge-enqueue      # semantic 판정 job 생성 → PAI 처리
+cfgm lme-enqueue --split test       # answer job 생성 (PRF retrieval top-k 컨텍스트)
+# → host LLM 이 job 처리 (ground truth 미포함 — 누출 차단)
+cfgm lme-score --judge-enqueue      # semantic 판정 job 생성 → host 처리
 cfgm lme-score --collect            # 공식 지표 (judge accuracy) 집계
 ```
 
-## 문서 지도
+## 📚 문서 지도 <sub>*Documentation map*</sub>
 
 | 문서 | 내용 |
 |---|---|
+| [`docs/BENCHMARK.md`](./docs/BENCHMARK.md) | **측정 규약** — SHA-256·split 정책·튜닝 로그·재현 절차·한계 |
 | [`docs/RULES.md`](./docs/RULES.md) | 아키텍처 원칙 5 + 위반 처리 (새 코드 전 필독) |
-| [`docs/EXTENDING.md`](./docs/EXTENDING.md) | 확장 seam 8종 계약 — Embedder·fusion·Router·어휘·host-위임 큐 |
-| [`memory/SCHEMA.md`](./memory/SCHEMA.md) | 디렉토리 트리 명세 |
-| [`memory/ROUTER.md`](./memory/ROUTER.md) | retrieval policy |
+| [`docs/EXTENDING.md`](./docs/EXTENDING.md) | 확장 seam 8종 — Embedder·fusion·Router·어휘·host-위임 큐 |
+| [`memory/SCHEMA.md`](./memory/SCHEMA.md) / [`memory/ROUTER.md`](./memory/ROUTER.md) | 디렉토리 명세 / retrieval policy |
 | [`docs/adr/`](./docs/adr/) | Architecture Decision Records |
 | [`CHANGELOG.md`](./CHANGELOG.md) | 버전별 변경 + 실측 기록 (퇴행 포함 정직 보고) |
 
-## Test
+## 🧪 Test
 
 ```bash
-bun test              # 986 tests
+bun test              # 989+ tests
 bun run typecheck
 ```
 
