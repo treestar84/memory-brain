@@ -204,6 +204,74 @@ export function prfTerms(feedbackTexts: string[], query: string, n: number = 5):
     .map(([t]) => t);
 }
 
+/**
+ * V3.32 확정 구성 (hybrid rescue-rerank + dateWindow + bodyUser + PRF) 으로
+ * 질문의 top 세션을 검색 — QA 트랙 enqueue 가 사용하는 단일 진입점.
+ * evalLmeRetrieval 의 hybrid 경로와 동일 로직을 유지할 것 (측정-실전 정합).
+ */
+export function retrieveTopSessions(
+  q: LmeQuestion,
+  embedder: Embedder,
+  opts: { depth?: number; prf?: boolean } = {},
+): string[] {
+  const depth = opts.depth ?? 10;
+  const usePrf = opts.prf ?? true;
+
+  const seen = new Set<string>();
+  const pages: WikiPage[] = [];
+  const sessionText = new Map<string, string>();
+  q.haystack_session_ids.forEach((sid, i) => {
+    if (seen.has(sid)) return;
+    seen.add(sid);
+    const turns = q.haystack_sessions[i] ?? [];
+    sessionText.set(sid, sessionToText(turns, q.haystack_dates?.[i]));
+    pages.push({
+      path: `sessions/${sid}.md`,
+      frontmatter: { id: sid, type: "concept", status: "active", updated_at: "2026-01-01" },
+      body: sessionText.get(sid)!,
+      bodyUser: sessionToUserText(turns),
+      claimIds: [],
+      evidence: [],
+    });
+  });
+
+  const index = new SearchIndex(":memory:");
+  index.rebuild({ wikiPages: pages, claims: [], embedder });
+  const dateWindow = q.question_date
+    ? parseTemporalWindow(q.question, q.question_date) ?? undefined
+    : undefined;
+
+  const search = (query: string): string[] =>
+    index
+      .searchWikiHybrid(query, embedder, { limit: depth, dateWindow, fusion: "rescue-rerank" })
+      .map((h) => h.pageId);
+
+  let result = search(q.question);
+  if (usePrf) {
+    const feedback = result.slice(0, 3).map((sid) => sessionText.get(sid) ?? "");
+    const terms = prfTerms(feedback, q.question);
+    if (terms.length > 0) {
+      const expanded = search(`${q.question} ${terms.join(" ")}`);
+      const pinned = result.slice(0, 3);
+      const pinnedSet = new Set(pinned);
+      const K = 60;
+      const score = new Map<string, number>();
+      result.forEach((sid, i) => {
+        if (!pinnedSet.has(sid)) score.set(sid, (score.get(sid) ?? 0) + 1 / (K + i + 1));
+      });
+      expanded.forEach((sid, i) => {
+        if (!pinnedSet.has(sid)) score.set(sid, (score.get(sid) ?? 0) + 1 / (K + i + 1));
+      });
+      const tail = Array.from(score.entries())
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([sid]) => sid);
+      result = [...pinned, ...tail].slice(0, depth);
+    }
+  }
+  index.close();
+  return result;
+}
+
 export function evalLmeRetrieval(
   questions: LmeQuestion[],
   opts: LmeRetrievalOpts,
