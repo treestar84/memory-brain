@@ -36,7 +36,17 @@ Claude Code · Codex · Gemini CLI 같은 **host CLI 위에서 동작**하는 �
 
 V3.32 부터 **held-out split** (dev 245 튜닝 전용 / test 255 확증 전용, 결정론적 해시 분할) 을 도입해 과적합 의심을 차단합니다. 측정 규약·튜닝 로그(기각 기법 포함)·재현 절차·한계는 [`docs/BENCHMARK.md`](./docs/BENCHMARK.md) 참조.
 
-**풀 QA 트랙 실측** (2026-07-22, host-위임 Sonnet 답변 생성 + LLM judge, 500/500): **QA accuracy 86.2%** — single-session-assistant 100% · user 98.6% · knowledge-update 93.6% · temporal 88.0% · multi-session 77.4% · preference 43.3% (retrieval 약점이 그대로 전파 — 알려진 튜닝 대상). 상세: `memory/reports/longmemeval-qa.md`
+**풀 QA 트랙 실측** (host-위임 Sonnet 답변 + LLM judge, held-out test 255문항 동일 조건 비교):
+
+| | v1 (2026-07-22) | **v2 (+PRF retrieval, prompt v2)** |
+|---|---|---|
+| **QA accuracy** | 87.1% | **89.0%** |
+| temporal-reasoning | 87.5% | **93.1%** |
+| multi-session | 77.8% | 79.2% |
+| knowledge-update / user / assistant | 93.3 / 97.6 / 100% | 93.3 / 97.6 / 100% |
+| preference (n=12) | 58.3% | 58.3% |
+
+상세: `memory/reports/longmemeval-qa.md` · 방법론: [`docs/BENCHMARK.md`](./docs/BENCHMARK.md)
 
 ```bash
 # 재현 (데이터셋 265MB — repo 미포함, MIT)

@@ -223,8 +223,8 @@
 
 - **held-out split** 도입 (dev 245 튜닝 / test 255 확증 1회) — 과적합 반박 장치. `docs/BENCHMARK.md` 에 전체 규약 (데이터 SHA-256·튜닝 로그·재현 절차·한계).
 - **PRF 채택**: dev 92.8→94.3% (pref +11.1pp) → **test 확증 R@5 93.2%** (dev 와 1.1pp — 일반화 OK). 전체 500: R@5 93.7% / R@10 96.5%. **turn-level 은 측정 후 기각** (-3.1pp, 로그에 기록).
-- **prompt v2** (유형별 답변 지침) 구현 — QA 재실행 대기 (Sonnet ~25-30M 토큰, 사용자 승인 필요).
-- 남은 개선 스택: QA 재실행 (prompt v2 + 개선된 retrieval) → multi-session/preference QA 회복 기대. 예상 QA 88~90%대.
+- **QA v2 재실측 완료** (사용자 승인, test split 255 한정): v1 87.1% → **v2 89.0%** (+1.9pp). temporal +5.6pp (prompt v2 효과 입증), multi-session +1.4pp, preference 동일 (n=12). 예상치(88~90%대) 적중.
+- 남은 개선 스택: multi-session QA (79.2%) — 근거 세션이 top-10 에 다 안 들어오는 케이스가 상한. preference 는 held-out 확대 측정 필요 (n=12 소표본).
 
 ## 다음 단계 후보
 

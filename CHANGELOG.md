@@ -5,6 +5,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added — V3.32 QA v2 재실측 (2026-07-22, held-out test 255)
+- Sonnet 위임 재실행 (PRF retrieval + prompt v2). 동일 test split 공정 비교: **QA accuracy 87.1% → 89.0%** (+1.9pp)
+- **temporal-reasoning 87.5% → 93.1%** (+5.6pp — prompt v2 날짜 산술 지침 효과 입증) · multi-session 77.8→79.2% · knowledge-update/user/assistant 동일 유지
+- preference 58.3% 동일 (n=12 소표본 — 통계적 판단 유보, BENCHMARK.md 한계 명시)
+- v1 대비 판정 조건 동일 (같은 judge 프로토콜·같은 split) — 리포트 `memory/reports/longmemeval-qa.md`
+
 ### Added — V3.32 벤치마크 공신력 + PRF retrieval 개선 (2026-07-22)
 - **Held-out split** — `splitOf(question_id)` FNV 해시 분할 (dev 245 / test 255). 튜닝은 dev 전용, test 는 1회 확증. `--split dev|test` CLI 플래그. 리포트에 config 문자열 기록
 - **PRF 쿼리 확장 (채택)** — 1차 top-3 세션에서 TF 상위 확장 어휘 추출 → top-3 고정 + rank 4+ 꼬리 RRF 재정렬. 벤치 특화 상수 없는 표준 IR 기법. dev R@5 92.8→**94.3%** (preference +11.1pp), **test 확증 93.2%**, 전체 500 R@5 92.2→**93.7%** (multi-session 88.7→91.5, preference 80.0→86.7 회복)
