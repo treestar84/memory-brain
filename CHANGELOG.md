@@ -5,6 +5,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added — V3.36.1 LongMemEval_M 실측 + 스트리밍 파서 (2026-07-24)
+- **스트리밍 JSON 파서** (`src/core/bench/StreamingJson.ts`) — 2.5GB 데이터셋에서 `.text()` JS 문자열 상한 초과로 SIGTRAP 크래시하던 문제 해결. top-level 배열 원소를 chunk 단위 상태 기계로 1건씩 parse·평가·폐기 (메모리 ~문항 1건분). `--sample` 은 스트림 조기 종료. S/M 단일 경로. 테스트 8건 (chunk 경계 멀티바이트 포함).
+- **M (문항당 ~500세션, 2.5GB, SHA-256 기록) 500문항 실측 (7.4분, LLM 0회)**:
+  - **규모 저하 실재**: 동일 지표 기준 S(~50세션) 대비 M 100% 시점 R@5 97.4→88.8% (naive) / 98.0→89.4% (governed) — 축적 규모 10배에서 검색 품질 저하 확인.
+  - **governed 전 지점 우위**: R@5/MRR 모두 4개 체크포인트 전부 naive 이상. 격차는 이른 축적 구간에서 최대 (25%: +4.7pp R@5 / +0.055 MRR), 100% 시점 +0.6pp / +0.025.
+  - **정직 한계**: governed 도 규모에 따라 저하 — "부패하지 않는다"는 주장은 여전히 불가. 체크포인트 간 곡선 비교는 평가 문항 부분집합이 달라(n 64→500) 코호트 혼동 요인 있음 — 4개 체크포인트 공통 문항 코호트 분석이 후속 개선.
+
 ### Added — V3.36 Memory Rot Benchmark — 측정 도구 + 정직 판정 (2026-07-24)
 - **`cfgm rot-bench`** (`src/core/bench/RotBench.ts`) — 세션 축적 강건성 실측: 날짜순 체크포인트(25/50/75/100%) × 2조건 (naive hybrid vs governed V3.32 확정 구성). LLM 0회, LongMemEval.ts 무수정(추가 전용), 테스트 신규 포함 45/45.
 - **500문항 실측 판정 (정직 보고)**: "축적에 따른 부패 곡선"은 **이 측정에서는 입증되지 않음** — 양 조건 모두 질문 단위 R@5 hit 97~99% (천장 효과), naive 붕괴 없음. 유일한 유의미 격차는 temporal-reasoning 100% 시점 governed +2.3pp (98.5 vs 96.2%). governed 는 전 지점에서 naive 이상 (하한 보장).

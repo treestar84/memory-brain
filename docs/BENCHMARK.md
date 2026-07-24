@@ -11,6 +11,9 @@
 - **SHA-256**: `d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442`
   (재현 시 반드시 대조 — 데이터 변조/버전 차이 반박 장치)
 - repo 에 커밋하지 않음 (`data/` gitignore)
+- **LongMemEval_M** (동일 출처, rot-bench 용) — 500문항, 문항당 ~500세션 (2.5GB)
+- 다운로드: `https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_m_cleaned.json`
+- **SHA-256**: `9d79e5524794a2e6900a3aa9cb7d9152c5a3e8319c9a87c25494ba1eacee495f`
 
 ## 2. Held-out split (과적합 방지)
 

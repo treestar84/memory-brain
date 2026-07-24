@@ -3,7 +3,8 @@ import { resolve, dirname } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { HashedNgramEmbedder } from "../src/core/search/Embedder";
 import { parseLmeQuestions } from "../src/core/bench/LongMemEval";
-import { runRotBench, renderRotBenchReport } from "../src/core/bench/RotBench";
+import { createRotBenchAccumulator, addQuestionToRotBench, finalizeRotBench, renderRotBenchReport } from "../src/core/bench/RotBench";
+import { streamTopLevelJsonArray } from "../src/core/bench/StreamingJson";
 
 /**
  * cfgm-rot-bench — 메모리 부패(rot) 벤치마크.
@@ -53,17 +54,24 @@ if (!(await dataFile.exists())) {
   process.exit(1);
 }
 
-const questions = parseLmeQuestions(await dataFile.json());
+// 2.5GB 급 데이터셋은 Bun.file().text()/json() 으로 전체를 문자열/객체로
+// 동시에 들고 있으면 JS 문자열 상한(~2GB)을 초과해 크래시한다 (SIGTRAP,
+// exit 133, 무출력). streamTopLevelJsonArray 로 원소 1건씩 읽어 즉시
+// 정규화·평가하고, 질문 객체는 평가 직후 버린다 — 전체 파일을 누적하는
+// 코드 경로가 없다. S 데이터셋(265MB)도 경로 이원화 없이 동일하게 처리한다.
 const embedder = new HashedNgramEmbedder();
+const acc = createRotBenchAccumulator({ embedder, order: seedOrder ? "seed" : "date" });
 const started = performance.now();
-const result = runRotBench(questions, {
-  embedder,
-  limit: sample,
-  order: seedOrder ? "seed" : "date",
-  onProgress: (done, total) => {
-    if (done % 50 === 0 || done === total) console.error(`  진행 ${done}/${total}`);
-  },
-});
+let seen = 0;
+for await (const raw of streamTopLevelJsonArray(dataPath)) {
+  if (sample && seen >= sample) break; // 조기 종료 — 남은 스트림을 읽지 않는다
+  const [question] = parseLmeQuestions([raw]);
+  addQuestionToRotBench(acc, question!);
+  seen++;
+  if (seen % 50 === 0) console.error(`  진행 ${seen}${sample ? `/${sample}` : ""}`);
+}
+console.error(`  진행 ${seen}${sample ? `/${sample}` : ""}`);
+const result = finalizeRotBench(acc);
 const durationMs = Math.round(performance.now() - started);
 
 const generatedAt = new Date().toISOString();

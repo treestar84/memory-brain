@@ -206,57 +206,79 @@ function aggregateCells(cases: RotCaseResult[], checkpoints: number[]): RotAggre
 }
 
 /**
- * rot 벤치마크 본체 — 질문별 체크포인트×조건 평가 후 집계.
- * 순수 함수 (SearchIndex 는 함수 내부에서 `:memory:` 로 생성·폐기).
+ * 스트리밍 로더용 accumulator — 질문을 배열로 한꺼번에 들고 있지 않고
+ * 1건씩 받아 즉시 평가·집계하기 위한 상태 컨테이너. `createRotBenchAccumulator`
+ * 로 생성하고 `addQuestionToRotBench` 로 질문을 하나씩 투입한 뒤
+ * `finalizeRotBench` 로 최종 결과를 얻는다. 대용량 데이터셋(수 GB)을
+ * 스트리밍 파싱할 때 질문 객체 자체는 평가 직후 버릴 수 있도록 하는 것이
+ * 목적이다 (`bin/cfgm-rot-bench.ts` 참고).
  */
-export function runRotBench(questions: LmeQuestion[], opts: RotBenchOpts): RotBenchResult {
-  const checkpoints = [...(opts.checkpoints ?? ROT_CHECKPOINTS)].sort((a, b) => a - b);
-  const order = opts.order ?? "date";
-  const pool = opts.limit ? questions.slice(0, opts.limit) : questions;
+export interface RotBenchAccumulator {
+  readonly checkpoints: number[];
+  readonly order: RotOrder;
+  readonly embedder: Embedder;
+  readonly evaluatedByCheckpoint: Record<number, number>;
+  readonly skippedByCheckpoint: Record<number, number>;
+  readonly cases: RotCaseResult[];
+  totalQuestions: number;
+}
 
+export function createRotBenchAccumulator(opts: RotBenchOpts): RotBenchAccumulator {
+  const checkpoints = [...(opts.checkpoints ?? ROT_CHECKPOINTS)].sort((a, b) => a - b);
   const evaluatedByCheckpoint: Record<number, number> = {};
   const skippedByCheckpoint: Record<number, number> = {};
   for (const f of checkpoints) {
     evaluatedByCheckpoint[f] = 0;
     skippedByCheckpoint[f] = 0;
   }
+  return {
+    checkpoints,
+    order: opts.order ?? "date",
+    embedder: opts.embedder,
+    evaluatedByCheckpoint,
+    skippedByCheckpoint,
+    cases: [],
+    totalQuestions: 0,
+  };
+}
 
-  const cases: RotCaseResult[] = [];
-
-  pool.forEach((q, qi) => {
-    if (q.answer_session_ids.length === 0) {
-      // abstention 류 — 근거 라벨이 없어 체크포인트 커버리지 판정 불가.
-      for (const f of checkpoints) skippedByCheckpoint[f]!++;
-      opts.onProgress?.(qi + 1, pool.length);
-      return;
+/** 질문 1건을 체크포인트×조건으로 평가해 accumulator 에 누적한다 (순수 부수효과 함수). */
+export function addQuestionToRotBench(acc: RotBenchAccumulator, q: LmeQuestion): void {
+  acc.totalQuestions++;
+  if (q.answer_session_ids.length === 0) {
+    // abstention 류 — 근거 라벨이 없어 체크포인트 커버리지 판정 불가.
+    for (const f of acc.checkpoints) acc.skippedByCheckpoint[f]!++;
+    return;
+  }
+  for (const f of acc.checkpoints) {
+    const partial = sliceAtCheckpoint(q, f, acc.order);
+    if (!partial) {
+      acc.skippedByCheckpoint[f]!++;
+      continue;
     }
-    for (const f of checkpoints) {
-      const partial = sliceAtCheckpoint(q, f, order);
-      if (!partial) {
-        skippedByCheckpoint[f]!++;
-        continue;
-      }
-      evaluatedByCheckpoint[f]!++;
-      for (const condition of ["naive", "governed"] as const) {
-        const ranked =
-          condition === "naive"
-            ? retrieveNaive(partial, opts.embedder, { depth: 10 })
-            : retrieveTopSessions(partial, opts.embedder, { depth: 10, prf: true });
-        const { hit, reciprocalRank, top5Tokens } = scoreRanked(ranked, partial);
-        cases.push({
-          questionId: q.question_id,
-          questionType: q.question_type,
-          checkpoint: f,
-          condition,
-          hit,
-          reciprocalRank,
-          top5Tokens,
-        });
-      }
+    acc.evaluatedByCheckpoint[f]!++;
+    for (const condition of ["naive", "governed"] as const) {
+      const ranked =
+        condition === "naive"
+          ? retrieveNaive(partial, acc.embedder, { depth: 10 })
+          : retrieveTopSessions(partial, acc.embedder, { depth: 10, prf: true });
+      const { hit, reciprocalRank, top5Tokens } = scoreRanked(ranked, partial);
+      acc.cases.push({
+        questionId: q.question_id,
+        questionType: q.question_type,
+        checkpoint: f,
+        condition,
+        hit,
+        reciprocalRank,
+        top5Tokens,
+      });
     }
-    opts.onProgress?.(qi + 1, pool.length);
-  });
+  }
+}
 
+/** accumulator 를 최종 `RotBenchResult` 로 집계한다. */
+export function finalizeRotBench(acc: RotBenchAccumulator): RotBenchResult {
+  const { checkpoints, cases } = acc;
   const aggregates = aggregateCells(cases, checkpoints);
   const types = Array.from(new Set(cases.map((c) => c.questionType))).sort();
   const byType: RotTypeCell[] = [];
@@ -270,13 +292,30 @@ export function runRotBench(questions: LmeQuestion[], opts: RotBenchOpts): RotBe
   return {
     dataset: "LongMemEval-RotBench",
     checkpoints,
-    totalQuestions: pool.length,
-    evaluatedByCheckpoint,
-    skippedByCheckpoint,
+    totalQuestions: acc.totalQuestions,
+    evaluatedByCheckpoint: acc.evaluatedByCheckpoint,
+    skippedByCheckpoint: acc.skippedByCheckpoint,
     aggregates,
     byType,
     cases,
   };
+}
+
+/**
+ * rot 벤치마크 본체 — 질문별 체크포인트×조건 평가 후 집계.
+ * 순수 함수 (SearchIndex 는 함수 내부에서 `:memory:` 로 생성·폐기).
+ * 내부적으로 accumulator 경로(`createRotBenchAccumulator`/`addQuestionToRotBench`)
+ * 를 사용하는 wrapper — 배열을 미리 들고 있는 기존 호출측(테스트 포함)과의
+ * 하위 호환을 위해 유지한다. 대용량 스트리밍 입력에는 accumulator 를 직접 쓸 것.
+ */
+export function runRotBench(questions: LmeQuestion[], opts: RotBenchOpts): RotBenchResult {
+  const pool = opts.limit ? questions.slice(0, opts.limit) : questions;
+  const acc = createRotBenchAccumulator(opts);
+  pool.forEach((q, qi) => {
+    addQuestionToRotBench(acc, q);
+    opts.onProgress?.(qi + 1, pool.length);
+  });
+  return finalizeRotBench(acc);
 }
 
 /** 결과 → memory/reports/ markdown. */

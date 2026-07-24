@@ -259,6 +259,13 @@
 - **판정: 부패 곡선 미입증** — LME_S 규모(~50세션)에선 naive 도 붕괴하지 않음 (천장 효과). temporal 100% 에서만 governed +2.3pp. governed 는 전 지점 naive 이상.
 - 결정: "썩지 않는 메모리" README 주장은 실증 전까지 게재 금지. 후속: LongMemEval_M (~500세션/문항) 대규모 측정이 진짜 시험대.
 
+## V3.36.1 M 실측 — 규모 저하 실재 + governed 전 지점 우위 (2026-07-24) ✅
+
+- 2.5GB M 에서 SIGTRAP 크래시 → StreamingJson (chunk 상태 기계) 로 해결, 메모리 ~문항 1건분.
+- M 500문항 실측: 규모 10배에서 저하 실재 (100% R@5 naive 88.8 / governed 89.4 — S 는 양쪽 97~98). governed 는 4개 체크포인트 전부 우위, 이른 축적 구간 최대 (+4.7pp/+0.055 MRR).
+- 정직 한계: governed 도 저하 — "부패 안 함" 주장 불가. 체크포인트 간 곡선은 코호트 혼동 (n 64→500) — 공통 문항 코호트 분석이 후속.
+- M SHA-256 을 docs/BENCHMARK.md 에 기록.
+
 ## 다음 단계 후보
 
 - V3.25: cfgm-run `--interactive` 결과를 cfgm-replay 와 연동 (replay 파일 포맷 통일)
