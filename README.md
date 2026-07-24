@@ -11,6 +11,76 @@ Claude Code · Codex · Gemini CLI 같은 **host CLI 위에서 동작**합니다
 
 ---
 
+## ⚡ 30초 데모 — 새 세션이 지난 결정을 기억한다 <sub>*30-second demo: a new session remembers a past decision*</sub>
+
+```
+# ❌ 보통의 새 세션
+> 우리 Honcho self-host 왜 철회했었지?
+"이전 대화 기록이 없어 확인할 수 없습니다. 일반적으로는..." (추측 시작)
+```
+
+```bash
+$ cfgm ask "Honcho self-host 를 철회한 이유"
+질의: "Honcho self-host 를 철회한 이유" — 근거 1건
+
+● decision.oss-incorporation  [decision/active]
+  decisions/oss-incorporation.md
+  ...Honcho server 통째 self-host 결정은 ADR-021 으로 철회. ...
+  claims: cl-oss-001, cl-oss-002, cl-oss-003, cl-oss-004, cl-oss-005, cl-oss-006
+
+위 근거만 사용해 질문에 답하라. 각 주장 끝에 (근거: <pageId> / <claim-id>) 형식의
+pointer 를 인용하라. 위 근거로 답할 수 없으면 추측하지 말고 '메모리에 근거 없음'
+이라고 답하라. 질문: Honcho self-host 를 철회한 이유
+```
+
+> "Honcho self-host 는 docker-compose + Postgres+pgvector + LLM API key 부담이 local-first 정신과 충돌해 철회했고, 자체 PersonaStore(markdown + jsonl)로 대체했습니다 **(근거: decision.oss-incorporation / cl-oss-004)**"
+
+이 과정 전체에서 별도 LLM API 호출 0회 — 답변은 이미 쓰고 있는 host CLI 구독이 생성.
+
+## 🎯 무엇이 달라지나 — 시나리오 3 <sub>*What changes: three scenarios*</sub>
+
+### 시나리오 1 — 세션이 바뀌어도 결정과 이유가 남는다
+
+*"지난주 세션에서 OSS 도입 범위를 정하고 이유까지 논의했는데, 오늘 세션은 그걸 모른다."*
+
+```bash
+$ cfgm ask "OSS 를 통째로 도입하기로 한 결정과 이유"
+질의: "OSS 를 통째로 도입하기로 한 결정과 이유" — 근거 1건
+
+● decision.oss-incorporation  [decision/active]
+  decisions/oss-incorporation.md
+  claims: cl-oss-001, cl-oss-002, cl-oss-003, cl-oss-004, cl-oss-005, cl-oss-006
+```
+
+→ 효과: 결정 자체뿐 아니라 근거(claim) 6건까지 그대로 반환된다 — "왜 그랬는지"가 세션이 바뀌어도 사라지지 않는다.
+
+### 시나리오 2 — "그 정보 어디서 나온 거야?"에 claim 단위로 답한다
+
+모든 기억 조각에는 claim id 마커가 붙어 있다. 실제 wiki page 원문(`memory/decisions/oss-incorporation.md`) 발췌:
+
+```markdown
+<!-- claim:cl-oss-004 -->
+**L6 Persona**: Honcho self-host 부담(docker-compose + Postgres+pgvector + LLM API key)
+이 사용자 local-first 정신과 충돌하여 철회. 자체 PersonaStore (markdown + jsonl, ...) 로 대체.
+```
+
+→ 효과: 답변의 모든 주장이 이 마커로 역추적된다 — 근거 없으면 모델이 "메모리에 근거 없음"이라 답하도록 지시된다.
+
+### 시나리오 3 — 내 기억은 내가 열어볼 수 있는 markdown 파일이다
+
+*"메모리 도구가 뭘 기억하고 있는지 열어볼 수도, 고칠 수도 없다면 그건 내 기억이 아니다."*
+
+```
+$ git log --oneline -3 -- memory/decisions/ memory/concepts/
+6caf99d feat(kg): app-store-screenshots SSL — 7개 logical 노드 instructions 채움
+7f99f2b feat(kg): app-store-screenshots SSL 편입 + KGProjector evidenceClaimIds fix
+d3622ba feat(tbox): TBox 확장 — capabilities.yaml + scopes.yaml
+```
+
+→ 효과: 기억이 벡터 DB·클라우드 블랙박스가 아니라 저장소 안의 markdown이다 — DB/클라우드에 갇힌 메모리와 달리, 직접 읽고, 고치고, diff 로 리뷰하고, git 으로 롤백할 수 있다. 벤더 락인 0, 팀과 PR 로 기억을 공유할 수 있다.
+
+---
+
 ## 📊 벤치마크 점수 카드 <sub>*Benchmark Scorecard*</sub>
 
 공신력 있는 외부 벤치마크 **[LongMemEval](https://github.com/xiaowu0162/LongMemEval)** (ICLR 2025) 실측. 모든 수치는 [측정 규약](./docs/BENCHMARK.md)을 따르며 아래 재현 커맨드로 검증 가능합니다.
@@ -86,6 +156,11 @@ cd ../.. && bun run bench:lme -- --split test --prf   # retrieval 확증 수치 
 ---
 
 ## 🧩 왜 만들었나 — 4가지 페인포인트 <sub>*Why: four pain points*</sub>
+
+- **컨텍스트 비대화** — 매 세션 CLAUDE.md 에 지식 전부를 욱여넣어 토큰과 집중력을 태운다.
+- **메모리 부패** — append 만 반복하다 같은 내용이 중복·모순으로 쌓여 어느 게 최신인지 알 수 없어진다.
+- **근거 없는 기억** — 한 번 추론한 내용이 다음 세션엔 검증된 사실처럼 인용된다.
+- **prose 스킬의 암묵성** — SKILL.md 는 사람이 읽기엔 좋지만 실행 순서·분기·성공 기준이 코드로는 재현되지 않는다.
 
 ```mermaid
 flowchart LR
@@ -177,7 +252,9 @@ cfgm run --skill <slug>  # SSL 스킬 실행 계획 / --interactive
 
 전역 등록 없이 쓰려면 `bun run bin/cfgm.ts <command>`. registry 에 없는 이름도 `bin/cfgm-<name>.ts` 가 존재하면 실행됩니다.
 
-## 🧠 핵심 기능 <sub>*Core features*</sub>
+## 🔬 고급 기능 <sub>*Advanced features*</sub>
+
+아래는 메모리 엔진 위에 얹힌 고급 계층 — 처음엔 몰라도 된다.
 
 ### KG-Brain — SKILL.md → SSL 지식 그래프
 

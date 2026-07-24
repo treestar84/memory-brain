@@ -5,6 +5,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed — README 예시 중심 재구성 (2026-07-24)
+- 최상단에 "30초 데모" (Before/After 실캡처 — `cfgm ask` 근거 번들 + claim pointer 인용 답변) + "시나리오 3" 신설: ① 세션 간 결정 기억 ② claim 단위 근거 역추적 ③ **markdown·git 기반 메모리** (블랙박스 DB 대비 — 열람·수정·diff·롤백·PR 공유).
+- 모든 예시는 실제 실행 캡처만 사용 (팩트체크 원칙). 벤치마크 카드 수치 무변경 (위치만 데모 아래로), "핵심 기능" → "고급 기능" 격하, 4 페인포인트에 구체 장면 서술 추가.
+
 ### Added — V3.34 효용 3종 — `cfgm ask` · `cfgm capture` · 사용 통계 (2026-07-24)
 - **`cfgm ask "<질의>"`** (`bin/cfgm-ask.ts`) — evidence pointer 붙은 근거 번들 컴포저. hybrid 검색 top-K + hit 페이지의 `<!-- claim:... -->` 마커 추출 + host LLM 인용 지시 (추측 금지·pointer 의무). LLM 직접 호출 0 (원칙 2). claim-grounded 정체성을 CLI 한 줄로 체감. 테스트 5건.
 - **`cfgm capture` 파이프라인** (`bin/cfgm-capture{,-status,-accept}.ts` + `memory/_pending/capture/`) — 세션 노트/transcript → wiki page draft 수집 큐. 검증된 normalize PAI 큐 패턴 복제 (SHA stale 체크·job.md·host-위임 spec). draft 는 confidence 의무 + 중복 시 supersede 명시, `capture-accept` 로 사용자 검토 후 편입 (path traversal 방어, `--force` 시 `_archive/` 보관). 쓰기 경로 수동 병목 해소의 1단계. 테스트 6건.
