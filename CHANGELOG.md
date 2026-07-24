@@ -5,6 +5,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added — V3.37 Session Consolidation — 구현 + 실측 기각 (2026-07-24, 정직 보고)
+- **`SessionConsolidator`** (신규) — 근사중복 supersede (content-token TF 코사인 ≥0.90) + 추출적 증류 (상위 5문장/30% 고정). 계측기 교정 선행: HashedNgram 원문 코사인은 무관 쌍 23.2%≥0.90 로 무효 판정 → content-token TF 로 교체 (무관 max 0.314 / 근사중복 min 0.940, 벤치 정답 미사용). `cfgm rot-bench --consolidated` 3조건 측정.
+- **M 코호트 실측 판정 — 기각**:
+  - **증류 기각**: consolidated R@5 57.8~65.6% — governed 대비 **-25pp**. 5문장 증류가 recall 신호를 파괴 (토큰은 13배 절감되나 검색 품질 손실이 압도). 고정 예산 추출 증류는 장세션 검색에 부적합.
+  - **dedup 은 안전하나 불발**: 정답 세션 오폭 **0건**, 그러나 supersede 발동도 475세션 중 평균 2.6건 — **LME 의 부패는 중복이 아니라 무관 세션 crowding** 이라는 진단 확보. dedup supersede 는 재진술형 실사용 부패용 seam 으로 보존 (벤치로는 미입증 상태 명시).
+  - 파라미터 구제 스윕 없이 단일 실행 기각 — 튜닝 로그 원칙 준수. 코드는 production seam 으로 유지.
+- 전략 함의: LME-M 은 usage 신호(회상 빈도·claim supersede 링크)가 없는 최악 조건 측정 — memory-brain 의 decay/승격이 쓰는 실사용 신호는 이 벤치로 검증 불가. 다음 방향은 crowding 대응 판별력 (사전 등록 후 측정) 또는 실사용 신호 기반 시뮬레이션.
+
 ### Added — V3.36.2 코호트 분석 — 순수 부패 곡선 확정 (2026-07-24)
 - **`cfgm rot-bench --cohort`** — 4개 체크포인트 전부 평가 가능한 공통 문항만 포함 (M: n=64, 제외 436). 전 지점 n 동일 불변식 가드. 리포트 별도 파일 (`rot-bench-cohort-latest.md`).
 - **M 코호트 실측 (동일 문항, 혼동 제거)**:

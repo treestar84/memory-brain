@@ -176,6 +176,12 @@ describe("RotBench (메모리 부패 벤치마크)", () => {
       }
     });
 
+    test("consolidated=true 는 cohort 와 조합 가능 — 회귀 없이 함께 동작", () => {
+      const result = runRotBench([q({ question_id: "full" })], { embedder, cohort: true, consolidated: true });
+      expect(result.mode).toBe("cohort");
+      expect(result.conditions).toEqual(["naive", "governed", "consolidated"]);
+    });
+
     test("cohort=false(기본) 모드 결과는 기존 동작과 동일하다 (회귀 가드)", () => {
       const qs = [q({ question_id: "a" }), q({ question_id: "b", answer_session_ids: ["s4"] })];
       const withCohortFlag = runRotBench(qs, { embedder, checkpoints: [0.25, 0.5, 0.75, 1.0], cohort: false });
@@ -186,6 +192,67 @@ describe("RotBench (메모리 부패 벤치마크)", () => {
       expect(withCohortFlag.skippedByCheckpoint).toEqual(withoutCohortFlag.skippedByCheckpoint);
       expect(withCohortFlag.cases).toEqual(withoutCohortFlag.cases);
       expect(withCohortFlag.cohortExcluded).toBeUndefined();
+    });
+  });
+
+  describe("consolidated 조건", () => {
+    test("consolidated 미지정(기본) 시 conditions 는 naive/governed 2개뿐", () => {
+      const result = runRotBench([q({})], { embedder, checkpoints: [1.0] });
+      expect(result.conditions).toEqual(["naive", "governed"]);
+      expect(result.aggregates.length).toBe(2); // 1 checkpoint × 2 conditions
+      expect(result.answerSupersededCount).toBeUndefined();
+      expect(result.consolidationByCheckpoint).toBeUndefined();
+      expect(result.cases.every((c) => c.condition !== "consolidated")).toBe(true);
+    });
+
+    test("--consolidated 시 3조건 결과 구조 (naive/governed/consolidated 각각 case 생성)", () => {
+      const result = runRotBench([q({})], { embedder, checkpoints: [1.0], consolidated: true });
+      expect(result.conditions).toEqual(["naive", "governed", "consolidated"]);
+      expect(result.aggregates.length).toBe(3); // 1 checkpoint × 3 conditions
+      const conditionsSeen = new Set(result.cases.map((c) => c.condition));
+      expect(conditionsSeen).toEqual(new Set(["naive", "governed", "consolidated"]));
+      const consolidatedCell = result.aggregates.find((c) => c.condition === "consolidated")!;
+      expect(consolidatedCell.caseCount).toBe(1);
+      expect(result.consolidationByCheckpoint).toBeDefined();
+      expect(result.consolidationByCheckpoint![1.0]).toBeDefined();
+      expect(result.consolidationByCheckpoint![1.0]!.avgSessionsBefore).toBeGreaterThan(0);
+      expect(typeof result.answerSupersededCount).toBe("number");
+    });
+
+    test("정답 세션이 supersede 로 제거되면 answerSessionSuperseded 카운트에 반영되고 정직하게 hit 실패로 채점된다", () => {
+      // s1(정답)과 근접중복인 s5 를 뒤쪽(더 최신) 날짜로 추가 — s1 이 supersede 대상이 되도록 구성.
+      const withDuplicate = q({
+        haystack_session_ids: ["s1", "s2", "s3", "s4", "s5"],
+        haystack_dates: [
+          "2023/01/10 (Tue)",
+          "2023/03/05 (Sun)",
+          "2023/02/01 (Wed)",
+          "2023/04/20 (Thu)",
+          // s5 는 s1 의 근접중복 — 요일까지 같은 날짜를 써서 날짜 브래킷 토큰이
+          // TF 코사인에 노이즈로 섞이지 않게 한다(내용 자체의 근접중복성만 반영).
+          "2023/01/17 (Tue)",
+        ],
+        haystack_sessions: [
+          [{ role: "user", content: "I graduated with a business administration degree from state university last spring after four years." }],
+          [{ role: "user", content: "My cat knocked over the coffee mug again." }],
+          [{ role: "user", content: "Planning a hiking trip to the mountains next month." }],
+          [{ role: "user", content: "Quarterly report deadline is Friday." }],
+          [{ role: "user", content: "I graduated with a business administration degree from state university last spring after four years!" }],
+        ],
+        answer_session_ids: ["s1"],
+      });
+      const result = runRotBench([withDuplicate], { embedder, checkpoints: [1.0], consolidated: true });
+      const consolidatedCase = result.cases.find((c) => c.condition === "consolidated")!;
+      expect(consolidatedCase.answerSessionSuperseded).toBe(true);
+      expect(consolidatedCase.hit).toBe(false); // 정답 세션이 후보군에서 제거됐으니 정직하게 실패
+      expect(result.answerSupersededCount).toBe(1);
+    });
+
+    test("consolidated 조건도 renderRotBenchReport 에 병기된다", () => {
+      const result = runRotBench([q({})], { embedder, checkpoints: [1.0], consolidated: true });
+      const md = renderRotBenchReport(result, "2026-07-24T00:00:00.000Z");
+      expect(md).toContain("consolidated");
+      expect(md).toContain("## Consolidation 통계");
     });
   });
 });

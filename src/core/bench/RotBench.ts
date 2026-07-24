@@ -3,6 +3,7 @@ import type { Embedder } from "../search/Embedder";
 import type { WikiPage } from "../wiki/types";
 import { estimateTokens } from "../stats/TokenEstimate";
 import { type LmeQuestion, type LmeTurn, sessionToText, retrieveTopSessions } from "./LongMemEval";
+import { consolidateSessions, type ConsolidationStats } from "../consolidation/SessionConsolidator";
 
 /**
  * 메모리 부패(rot) 벤치마크 (팀리드 지시 — 2026-07-24).
@@ -24,7 +25,7 @@ import { type LmeQuestion, type LmeTurn, sessionToText, retrieveTopSessions } fr
 /** 부패 측정 체크포인트 — haystack 세션 누적 비율 f. */
 export const ROT_CHECKPOINTS: readonly number[] = [0.25, 0.5, 0.75, 1.0];
 
-export type RotCondition = "naive" | "governed";
+export type RotCondition = "naive" | "governed" | "consolidated";
 export type RotOrder = "date" | "seed";
 
 interface SessionRef {
@@ -120,6 +121,44 @@ export function retrieveNaive(q: LmeQuestion, embedder: Embedder, opts: { depth?
   return result;
 }
 
+/**
+ * consolidated 조건 — 체크포인트 슬라이스에 SessionConsolidator 를 적용해
+ * (근사중복 supersede + 추출적 증류) 정화된 후보군 위에 governed 와 동일한
+ * retrieval 구성(retrieveTopSessions, depth 10, PRF)을 그대로 적용한다.
+ * governed 와의 유일한 차이는 인덱싱 대상 세션 집합/텍스트뿐이다 —
+ * governed 순효과와 consolidation 순효과를 분리 관측하기 위함.
+ *
+ * 정답 세션이 supersede 로 제거되면 채점은 정직하게 실패(hit=false)로
+ * 처리한다 (보정 금지) — 대신 answerSuperseded 플래그로 해석용 카운트를 남긴다.
+ */
+function buildConsolidatedPartial(partial: LmeQuestion): {
+  question: LmeQuestion;
+  answerSuperseded: boolean;
+  stats: ConsolidationStats;
+} {
+  const inputs = partial.haystack_session_ids.map((sid, i) => ({
+    id: sid,
+    text: sessionToText(partial.haystack_sessions[i] ?? [], partial.haystack_dates?.[i]),
+    date: partial.haystack_dates?.[i],
+  }));
+  const { sessions, stats } = consolidateSessions(inputs);
+  const dateById = new Map(inputs.map((inp) => [inp.id, inp.date]));
+
+  const answerSet = new Set(partial.answer_session_ids);
+  const answerSuperseded = sessions.some((s) => answerSet.has(s.id) && s.supersededBy !== undefined);
+
+  const survivors = sessions.filter((s) => s.supersededBy === undefined);
+  const question: LmeQuestion = {
+    ...partial,
+    haystack_session_ids: survivors.map((s) => s.id),
+    // coreText 를 단일 user turn 으로 감싸 sessionToText/bodyUser 경로(날짜·요일 병기 포함)를
+    // governed 와 동일하게 통과시킨다 — LongMemEval.ts 는 수정하지 않는다.
+    haystack_sessions: survivors.map((s) => [{ role: "user", content: s.coreText }]),
+    haystack_dates: partial.haystack_dates ? survivors.map((s) => dateById.get(s.id) ?? "") : undefined,
+  };
+  return { question, answerSuperseded, stats };
+}
+
 export interface RotCaseResult {
   questionId: string;
   questionType: string;
@@ -131,6 +170,8 @@ export interface RotCaseResult {
   reciprocalRank: number;
   /** top-5 세션 텍스트의 estimateTokens 추정 합 */
   top5Tokens: number;
+  /** consolidated 조건 전용 — 정답 세션 중 하나 이상이 supersede 로 후보군에서 제거됐는지 (해석용, 채점엔 미반영) */
+  answerSessionSuperseded?: boolean;
 }
 
 function scoreRanked(ranked: string[], q: LmeQuestion): { hit: boolean; reciprocalRank: number; top5Tokens: number } {
@@ -181,6 +222,15 @@ export interface RotBenchResult {
   mode: "all" | "cohort";
   /** cohort 모드에서 체크포인트 중 하나라도 answer 커버리지가 없어 통째로 제외된 문항 수. */
   cohortExcluded?: number;
+  /** 이번 실행에서 평가된 조건 목록 — consolidated 활성화 여부에 따라 2개/3개. */
+  conditions: RotCondition[];
+  /** consolidated 조건에서 정답 세션이 supersede 로 제거된 case 수 (해석용 — 채점엔 미반영). consolidated 미활성 시 undefined. */
+  answerSupersededCount?: number;
+  /** consolidated 조건 checkpoint 별 평균 consolidation 통계 (해석용). consolidated 미활성 시 undefined. */
+  consolidationByCheckpoint?: Record<
+    number,
+    { avgSessionsBefore: number; avgSuperseded: number; avgCompressionRatio: number }
+  >;
 }
 
 export interface RotBenchOpts {
@@ -191,13 +241,15 @@ export interface RotBenchOpts {
   /** true 면 cohort 모드 — 4개 체크포인트 전부에서 평가 가능한 문항만 포함해
    * 동일 문항 집단으로 체크포인트 간 직접 비교가 가능해진다 (기본 false — 기존 동작 무변경). */
   cohort?: boolean;
+  /** true 면 3번째 조건 "consolidated" 추가 평가 (기본 false — 기존 2조건 동작 무변경). */
+  consolidated?: boolean;
   onProgress?: (done: number, total: number) => void;
 }
 
-function aggregateCells(cases: RotCaseResult[], checkpoints: number[]): RotAggregateCell[] {
+function aggregateCells(cases: RotCaseResult[], checkpoints: number[], conditions: RotCondition[]): RotAggregateCell[] {
   const out: RotAggregateCell[] = [];
   for (const f of checkpoints) {
-    for (const condition of ["naive", "governed"] as const) {
+    for (const condition of conditions) {
       const subset = cases.filter((c) => c.checkpoint === f && c.condition === condition);
       const n = subset.length;
       out.push({
@@ -221,14 +273,24 @@ function aggregateCells(cases: RotCaseResult[], checkpoints: number[]): RotAggre
  * 스트리밍 파싱할 때 질문 객체 자체는 평가 직후 버릴 수 있도록 하는 것이
  * 목적이다 (`bin/cfgm-rot-bench.ts` 참고).
  */
+interface ConsolidationAggCell {
+  sessionsSum: number;
+  supersededSum: number;
+  ratioSum: number;
+  n: number;
+}
+
 export interface RotBenchAccumulator {
   readonly checkpoints: number[];
   readonly order: RotOrder;
   readonly embedder: Embedder;
   readonly mode: "all" | "cohort";
+  readonly conditions: RotCondition[];
   readonly evaluatedByCheckpoint: Record<number, number>;
   readonly skippedByCheckpoint: Record<number, number>;
   readonly cases: RotCaseResult[];
+  /** consolidated 활성 시에만 존재 — checkpoint 별 consolidation 통계 누적기. */
+  readonly consolidationAgg?: Record<number, ConsolidationAggCell>;
   totalQuestions: number;
   cohortExcluded: number;
 }
@@ -241,22 +303,55 @@ export function createRotBenchAccumulator(opts: RotBenchOpts): RotBenchAccumulat
     evaluatedByCheckpoint[f] = 0;
     skippedByCheckpoint[f] = 0;
   }
+  const conditions: RotCondition[] = opts.consolidated
+    ? ["naive", "governed", "consolidated"]
+    : ["naive", "governed"];
+  let consolidationAgg: Record<number, ConsolidationAggCell> | undefined;
+  if (opts.consolidated) {
+    consolidationAgg = {};
+    for (const f of checkpoints) consolidationAgg[f] = { sessionsSum: 0, supersededSum: 0, ratioSum: 0, n: 0 };
+  }
   return {
     checkpoints,
     order: opts.order ?? "date",
     embedder: opts.embedder,
     mode: opts.cohort ? "cohort" : "all",
+    conditions,
     evaluatedByCheckpoint,
     skippedByCheckpoint,
     cases: [],
+    consolidationAgg,
     totalQuestions: 0,
     cohortExcluded: 0,
   };
 }
 
-/** 체크포인트 f 의 부분 질문을 naive/governed 두 조건으로 평가해 case 를 누적한다. */
+/** 체크포인트 f 의 부분 질문을 acc.conditions (naive/governed[/consolidated])로 평가해 case 를 누적한다. */
 function evaluateAtCheckpoint(acc: RotBenchAccumulator, q: LmeQuestion, partial: LmeQuestion, f: number): void {
-  for (const condition of ["naive", "governed"] as const) {
+  for (const condition of acc.conditions) {
+    if (condition === "consolidated") {
+      const { question: consolidatedQuestion, answerSuperseded, stats } = buildConsolidatedPartial(partial);
+      const ranked = retrieveTopSessions(consolidatedQuestion, acc.embedder, { depth: 10, prf: true });
+      const { hit, reciprocalRank, top5Tokens } = scoreRanked(ranked, consolidatedQuestion);
+      acc.cases.push({
+        questionId: q.question_id,
+        questionType: q.question_type,
+        checkpoint: f,
+        condition,
+        hit,
+        reciprocalRank,
+        top5Tokens,
+        answerSessionSuperseded: answerSuperseded,
+      });
+      const agg = acc.consolidationAgg?.[f];
+      if (agg) {
+        agg.sessionsSum += stats.total;
+        agg.supersededSum += stats.superseded;
+        agg.ratioSum += stats.avgCompressionRatio;
+        agg.n += 1;
+      }
+      continue;
+    }
     const ranked =
       condition === "naive"
         ? retrieveNaive(partial, acc.embedder, { depth: 10 })
@@ -332,15 +427,36 @@ export function finalizeRotBench(acc: RotBenchAccumulator): RotBenchResult {
       );
     }
   }
-  const aggregates = aggregateCells(cases, checkpoints);
+  const aggregates = aggregateCells(cases, checkpoints, acc.conditions);
   const types = Array.from(new Set(cases.map((c) => c.questionType))).sort();
   const byType: RotTypeCell[] = [];
   for (const t of types) {
     const subset = cases.filter((c) => c.questionType === t);
-    for (const cell of aggregateCells(subset, checkpoints)) {
+    for (const cell of aggregateCells(subset, checkpoints, acc.conditions)) {
       byType.push({ ...cell, questionType: t });
     }
   }
+
+  const hasConsolidated = acc.conditions.includes("consolidated");
+  const answerSupersededCount = hasConsolidated
+    ? cases.filter((c) => c.condition === "consolidated" && c.answerSessionSuperseded).length
+    : undefined;
+  const consolidationByCheckpoint =
+    hasConsolidated && acc.consolidationAgg
+      ? Object.fromEntries(
+          checkpoints.map((f) => {
+            const agg = acc.consolidationAgg![f]!;
+            return [
+              f,
+              {
+                avgSessionsBefore: agg.n === 0 ? 0 : agg.sessionsSum / agg.n,
+                avgSuperseded: agg.n === 0 ? 0 : agg.supersededSum / agg.n,
+                avgCompressionRatio: agg.n === 0 ? 0 : agg.ratioSum / agg.n,
+              },
+            ];
+          }),
+        )
+      : undefined;
 
   return {
     dataset: "LongMemEval-RotBench",
@@ -353,6 +469,9 @@ export function finalizeRotBench(acc: RotBenchAccumulator): RotBenchResult {
     cases,
     mode: acc.mode,
     cohortExcluded: acc.mode === "cohort" ? acc.cohortExcluded : undefined,
+    conditions: acc.conditions,
+    answerSupersededCount,
+    consolidationByCheckpoint,
   };
 }
 
@@ -415,6 +534,16 @@ export function renderRotBenchReport(result: RotBenchResult, generatedAt: string
     `  PRF 쿼리 확장, rescue-rerank 미적용.`,
     `- **governed 조건**: memory-brain V3.32 확정 구성 (\`retrieveTopSessions\`,`,
     `  PRF 포함) 그대로 재사용.`,
+    ...(result.conditions.includes("consolidated")
+      ? [
+          `- **consolidated 조건** (\`--consolidated\`): 체크포인트 슬라이스에`,
+          `  SessionConsolidator 를 적용(근사중복 supersede + 추출적 증류)한 뒤,`,
+          `  supersede 되지 않은 세션의 coreText 로 governed 와 완전히 동일한`,
+          `  retrieval 구성(retrieveTopSessions, PRF)을 적용한다 — governed 대비`,
+          `  차이가 consolidation 순효과다. 정답 세션이 supersede 로 제거되면`,
+          `  보정 없이 hit 실패로 채점한다(정직성 원칙).`,
+        ]
+      : []),
     `- **R@5 (hit)**: 정답 세션 중 최소 1개가 top-5 안에 있으면 1, 아니면 0`,
     `  (질문 단위 이진 hit — LongMemEval.ts 의 macro fractional recall 과`,
     `  다른 지표이니 직접 비교하지 말 것).`,
@@ -436,6 +565,21 @@ export function renderRotBenchReport(result: RotBenchResult, generatedAt: string
     ),
     ``,
     ...(result.mode === "cohort" ? [`> cohort 제외 문항 수(체크포인트 전체 기준, 위 skipped 에 포함됨): ${result.cohortExcluded ?? 0}`, ``] : []),
+    ...(result.conditions.includes("consolidated") && result.consolidationByCheckpoint
+      ? [
+          `## Consolidation 통계 (해석용 — 채점엔 미반영)`,
+          ``,
+          `> 정답 세션이 supersede 로 제거된 case 수(consolidated 조건, 정직하게 hit 실패로 채점됨): ${result.answerSupersededCount ?? 0}`,
+          ``,
+          `| checkpoint | 평균 세션 수(정화 전) | 평균 supersede 수 | 평균 압축률(coreText/원문 토큰) |`,
+          `|---|---|---|---|`,
+          ...result.checkpoints.map((f) => {
+            const c = result.consolidationByCheckpoint![f]!;
+            return `| ${(f * 100).toFixed(0)}% | ${c.avgSessionsBefore.toFixed(1)} | ${c.avgSuperseded.toFixed(1)} | ${(c.avgCompressionRatio * 100).toFixed(1)}% |`;
+          }),
+          ``,
+        ]
+      : []),
     `## Question type 별 (knowledge-update 포함)`,
     ``,
   ];
@@ -472,6 +616,7 @@ export function renderRotBenchReport(result: RotBenchResult, generatedAt: string
     `cfgm rot-bench -- --seed-order      # 날짜 재정렬 대신 데이터셋 원 순서 사용`,
     `cfgm rot-bench -- --json            # 구조화 결과 전체`,
     `cfgm rot-bench -- --cohort          # 코호트 모드 (동일 문항 집단, rot-bench-cohort-latest.md)`,
+    `cfgm rot-bench -- --consolidated    # 3번째 조건 consolidated 추가 평가`,
     "```",
   );
   return lines.join("\n");

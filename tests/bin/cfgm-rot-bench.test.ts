@@ -89,4 +89,24 @@ describe("cfgm-rot-bench CLI", () => {
       expect(md).toContain("동일 문항 집단");
     });
   });
+
+  test("--consolidated 시 3조건(naive/governed/consolidated) 출력 + consolidation 통계 로그", () => {
+    const projectRoot = mkdtempSync(join(tmpdir(), "cfgm-rot-bench-consolidated-"));
+    writeSyntheticDataset(projectRoot);
+    const reportPath = join(projectRoot, "memory", "reports", "rot-bench-latest.md");
+
+    const res = cfgmRotBench(["--consolidated"], { CFGM_PROJECT_ROOT: projectRoot });
+    expect(res.status).toBe(0);
+    expect(res.stdout).toContain("naive");
+    expect(res.stdout).toContain("governed");
+    expect(res.stdout).toContain("consolidated");
+    expect(res.stdout).toContain("consolidation —");
+    expect(existsSync(reportPath)).toBe(true);
+
+    const report = Bun.file(reportPath).text();
+    return report.then((md) => {
+      expect(md).toContain("| consolidated |");
+      expect(md).toContain("## Consolidation 통계");
+    });
+  });
 });

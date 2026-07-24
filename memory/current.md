@@ -272,6 +272,12 @@
 - 정직 판정: governed 전 지점 R@5 우위이나 기울기 우위 없음, MRR 100% 동률. **"축적에 강건" 주장 불가.**
 - 다음 개발 목표 확정: 대규모 축적 구간에서 격차를 만드는 것 (세션 단위 consolidation/supersede 등) — rot-bench 가 그 측정 장치.
 
+## V3.37 Consolidation 실측 — 기각 (2026-07-24) ✅
+
+- SessionConsolidator (TF 코사인 dedup + 추출 증류) + `--consolidated` 3조건 측정. 계측기 교정 (HashedNgram 무효 → content-token TF) 선행.
+- **판정: 기각** — 증류 -25pp (recall 파괴), dedup 은 오폭 0 이나 발동 2.6/475 (LME 부패는 중복 아닌 crowding). 스윕 없이 단일 기각, 코드는 production seam 보존.
+- 함의: LME 는 usage 신호 부재의 최악 조건 — decay/승격의 실사용 신호는 벤치 검증 불가. 다음: crowding 판별력(사전 등록) 또는 실사용 신호 시뮬레이션.
+
 ## 다음 단계 후보
 
 - V3.25: cfgm-run `--interactive` 결과를 cfgm-replay 와 연동 (replay 파일 포맷 통일)

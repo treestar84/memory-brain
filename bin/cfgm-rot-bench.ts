@@ -27,6 +27,9 @@ import { streamTopLevelJsonArray } from "../src/core/bench/StreamingJson";
  *                                       가능한 문항만 포함해 동일 문항 집단으로 순수
  *                                       부패 곡선을 만든다. rot-bench-latest.md 와
  *                                       별도로 rot-bench-cohort-latest.md 에 저장.
+ *   cfgm rot-bench -- --consolidated  # 3번째 조건 consolidated 추가 평가 (저장 시점
+ *                                       근사중복 supersede + 추출적 증류 순효과 측정).
+ *                                       --cohort 와 조합 가능.
  *
  * LLM 호출 0 — docs/RULES.md 원칙 2 준수.
  */
@@ -36,6 +39,7 @@ const args = process.argv.slice(2);
 const json = args.includes("--json");
 const seedOrder = args.includes("--seed-order");
 const cohort = args.includes("--cohort");
+const consolidated = args.includes("--consolidated");
 
 function strFlag(name: string): string | undefined {
   const i = args.indexOf(name);
@@ -66,7 +70,7 @@ if (!(await dataFile.exists())) {
 // 정규화·평가하고, 질문 객체는 평가 직후 버린다 — 전체 파일을 누적하는
 // 코드 경로가 없다. S 데이터셋(265MB)도 경로 이원화 없이 동일하게 처리한다.
 const embedder = new HashedNgramEmbedder();
-const acc = createRotBenchAccumulator({ embedder, order: seedOrder ? "seed" : "date", cohort });
+const acc = createRotBenchAccumulator({ embedder, order: seedOrder ? "seed" : "date", cohort, consolidated });
 const started = performance.now();
 let seen = 0;
 for await (const raw of streamTopLevelJsonArray(dataPath)) {
@@ -93,8 +97,17 @@ if (json) {
   }
   for (const c of result.aggregates) {
     console.log(
-      `  ${`${(c.checkpoint * 100).toFixed(0)}%`.padEnd(5)} ${c.condition.padEnd(9)} n=${String(c.caseCount).padEnd(4)} R@5 ${(c.recallAt5 * 100).toFixed(1)}%  MRR ${c.mrr.toFixed(3)}  avgTok ${c.avgTop5Tokens.toFixed(0)}`,
+      `  ${`${(c.checkpoint * 100).toFixed(0)}%`.padEnd(5)} ${c.condition.padEnd(12)} n=${String(c.caseCount).padEnd(4)} R@5 ${(c.recallAt5 * 100).toFixed(1)}%  MRR ${c.mrr.toFixed(3)}  avgTok ${c.avgTop5Tokens.toFixed(0)}`,
     );
+  }
+  if (result.conditions.includes("consolidated") && result.consolidationByCheckpoint) {
+    console.log(`  consolidation — 정답 세션 supersede 제거 case 수: ${result.answerSupersededCount ?? 0}`);
+    for (const f of result.checkpoints) {
+      const c = result.consolidationByCheckpoint[f]!;
+      console.log(
+        `    ${`${(f * 100).toFixed(0)}%`.padEnd(5)} avgSessions ${c.avgSessionsBefore.toFixed(1)}  avgSuperseded ${c.avgSuperseded.toFixed(1)}  avgCompressionRatio ${(c.avgCompressionRatio * 100).toFixed(1)}%`,
+      );
+    }
   }
   console.log(`  report — ${reportPath}`);
 }
