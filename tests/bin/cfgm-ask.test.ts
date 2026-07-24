@@ -81,6 +81,22 @@ describe("cfgm-ask — evidence pointer 근거 번들 컴포저", () => {
     expect(res.stdout).toContain("메모리에 근거 없음");
   });
 
+  test("텍스트 출력에 토큰 추정 푸터가 표시된다", () => {
+    const res = cfgm(["자몽바나나"], env);
+    expect(res.status).toBe(0);
+    expect(res.stdout).toMatch(/근거 번들 ~\d+ tokens · 전체 메모리 ~\d+ tokens 의 [\d.]+% \(추정: chars\/4\)/);
+  });
+
+  test("--json 은 tokens.bundle/corpus/pct 를 포함한다", () => {
+    const res = cfgm(["자몽바나나", "--json"], env);
+    expect(res.status).toBe(0);
+    const out = JSON.parse(res.stdout);
+    expect(typeof out.tokens.bundle).toBe("number");
+    expect(typeof out.tokens.corpus).toBe("number");
+    expect(out.tokens.corpus).toBeGreaterThan(0);
+    expect(typeof out.tokens.pct).toBe("number");
+  });
+
   test("질의 없이 실행 → exit 2 + 사용법 안내", () => {
     const res = cfgm([], env);
     expect(res.status).toBe(2);

@@ -11,12 +11,20 @@ export interface UsageEntry {
   hits: number;
   topPageIds: string[];
   ts: string;
+  /** 전달한 근거 번들/스니펫의 추정 토큰 수 (chars/4). 구형 라인엔 없을 수 있음 — 0 취급. */
+  contextTokens?: number;
 }
 
 export interface UsageDayCount {
   date: string; // YYYY-MM-DD
   searches: number;
   asks: number;
+}
+
+export interface PageStat {
+  pageId: string;
+  count: number;
+  lastTs: string;
 }
 
 export interface UsageAggregate {
@@ -26,6 +34,8 @@ export interface UsageAggregate {
   topQueries: Array<{ query: string; count: number }>;
   topPages: Array<{ pageId: string; count: number }>;
   byDay: UsageDayCount[];
+  /** contextTokens 합계 (구형 라인은 0 취급) — 토큰 효율 가시화용 추정치. */
+  totalContextTokens: number;
 }
 
 /**
@@ -57,6 +67,7 @@ export class UsageLog {
 
     let totalSearches = 0;
     let totalAsks = 0;
+    let totalContextTokens = 0;
     const queryCounts = new Map<string, number>();
     const pageCounts = new Map<string, number>();
     const dayCounts = new Map<string, { searches: number; asks: number }>();
@@ -64,6 +75,10 @@ export class UsageLog {
     for (const e of inRange) {
       if (e.tool === "search") totalSearches++;
       else if (e.tool === "ask") totalAsks++;
+
+      if (typeof e.contextTokens === "number" && Number.isFinite(e.contextTokens)) {
+        totalContextTokens += e.contextTokens;
+      }
 
       if (e.query) queryCounts.set(e.query, (queryCounts.get(e.query) ?? 0) + 1);
       for (const pageId of e.topPageIds ?? []) {
@@ -98,7 +113,41 @@ export class UsageLog {
       topQueries,
       topPages,
       byDay,
+      totalContextTokens,
     };
+  }
+
+  /**
+   * 페이지 단위 회상(recall) 집계 — WikiDecayEngine 의 "최근 회상 빈도" 신호 (V3.35).
+   * days 지정 시 해당 기간 내 topPageIds 만 집계. 손상 라인은 readEntries() 에서 이미 skip.
+   */
+  async pageStats(opts: { days?: number } = {}): Promise<PageStat[]> {
+    const entries = await this.readEntries();
+
+    const cutoff = opts.days && opts.days > 0 ? Date.now() - opts.days * 86_400_000 : null;
+    const inRange = cutoff === null
+      ? entries
+      : entries.filter((e) => {
+          const t = Date.parse(e.ts);
+          return Number.isFinite(t) && t >= cutoff;
+        });
+
+    const stats = new Map<string, { count: number; lastTs: string }>();
+    for (const e of inRange) {
+      for (const pageId of e.topPageIds ?? []) {
+        const prev = stats.get(pageId);
+        if (!prev) {
+          stats.set(pageId, { count: 1, lastTs: e.ts });
+        } else {
+          prev.count++;
+          if (e.ts > prev.lastTs) prev.lastTs = e.ts;
+        }
+      }
+    }
+
+    return [...stats.entries()]
+      .map(([pageId, s]) => ({ pageId, count: s.count, lastTs: s.lastTs }))
+      .sort((a, b) => b.count - a.count);
   }
 
   private async readEntries(): Promise<UsageEntry[]> {

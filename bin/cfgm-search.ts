@@ -6,6 +6,7 @@ import { HashedNgramEmbedder } from "../src/core/search/Embedder";
 import { resolveStorageRoot } from "../src/hooks/bootstrap";
 import { UsageLog } from "../src/core/stats/UsageLog";
 import { FsStorage } from "../src/core/storage/FsStorage";
+import { estimateTokens } from "../src/core/stats/TokenEstimate";
 
 /**
  * cfgm-search — memory/ wiki 자연어 검색 (온보딩용 즉시 체감 진입점).
@@ -49,12 +50,15 @@ const embedder = new HashedNgramEmbedder();
 const hits = index.searchWikiHybrid(query, embedder, { limit });
 index.close();
 
+const contextTokens = estimateTokens(hits.map((h) => h.snippet).join("\n"));
+
 await new UsageLog(new FsStorage(storageRoot)).record({
   tool: "search",
   query,
   hits: hits.length,
   topPageIds: hits.slice(0, 5).map((h) => h.pageId),
   ts: new Date().toISOString(),
+  contextTokens,
 });
 
 if (json) {

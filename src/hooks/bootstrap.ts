@@ -52,6 +52,7 @@ export function buildClaimStorage(): FsStorage {
 }
 
 export type BootstrappedDeps = {
+  storageRoot: string;
   storage: FsStorage;
   clock: RealClock;
   problemStore: ActiveProblemStore;
@@ -116,6 +117,7 @@ export function buildDeps(root: string = resolveStorageRoot()): BootstrappedDeps
   const sessionStartBudget = new SessionStartBudget();
 
   return {
+    storageRoot: root,
     storage, clock, problemStore, queue, ledger, expirer, bundler,
     injector, fallback, ontologyModule, resumeReader, resumeWriter,
     decayEngine, flowStore, normalizer, redactor, questionQueue, settingsReader,

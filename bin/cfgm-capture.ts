@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import { Glob } from "bun";
-import { resolve, relative, extname, basename } from "node:path";
+import { resolve, relative, extname } from "node:path";
 import { mkdir, stat } from "node:fs/promises";
+import { enqueueSource } from "../src/core/capture/CaptureEnqueuer";
 
 /**
  * cfgm-capture — 세션 transcript/노트 파일을 wiki page draft 추출용 큐로 enqueue.
@@ -53,21 +54,6 @@ function parseArgs(argv: string[]): ParsedArgs {
   return out;
 }
 
-function slugFromPath(p: string): string {
-  const base = basename(p, extname(p));
-  return base
-    .replace(/[^a-zA-Z0-9_-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .toLowerCase() || "capture";
-}
-
-async function sha256(text: string): Promise<string> {
-  const hasher = new Bun.CryptoHasher("sha256");
-  hasher.update(text);
-  return hasher.digest("hex");
-}
-
 const args = parseArgs(process.argv.slice(2));
 
 if (!args.input) {
@@ -106,28 +92,18 @@ const generatedAt = new Date().toISOString();
 for (const fullPath of filesToProcess) {
   stats.scanned++;
   const source = await Bun.file(fullPath).text();
-  const sha = await sha256(source);
-  const slug = slugFromPath(fullPath);
-  const jobPath = resolve(args.jobsDir, `${slug}.job.md`);
 
-  // Stale check — 같은 slug 의 기존 job (status 무관) 에 동일 SHA 가 있으면 skip.
-  if (!args.force) {
-    const existingJob = Bun.file(jobPath);
-    if (await existingJob.exists()) {
-      const txt = await existingJob.text();
-      if (txt.includes(`source_sha256: ${sha}`)) { stats.skipped++; continue; }
-    }
-  }
-
-  const job = renderJobFile({
-    slug,
+  const result = await enqueueSource({
     sourcePath: relative(REPO_ROOT, fullPath),
-    sourceSha: sha,
+    sourceText: source,
+    jobsDir: args.jobsDir,
     draftsDir: relative(REPO_ROOT, args.draftsDir),
     specDir: relative(REPO_ROOT, args.specDir),
-    generatedAt,
+    force: args.force,
+    now: new Date(generatedAt),
   });
-  await Bun.write(jobPath, job);
+
+  if (result.skipped) { stats.skipped++; continue; }
   stats.enqueued++;
 }
 
@@ -141,43 +117,4 @@ if (args.json) {
     console.log(`  PAI 세션이 떠 있다면 다음 prompt/hook 시 자동 인지하여 처리합니다.`);
     console.log(`  PAI 세션이 없다면 별도 터미널에서 'CLAUDE_CONFIG_DIR=.claude-pai claude' 로 띄우세요.`);
   }
-}
-
-interface RenderJobOpts {
-  slug: string;
-  sourcePath: string;
-  sourceSha: string;
-  draftsDir: string;
-  specDir: string;
-  generatedAt: string;
-}
-
-function renderJobFile(o: RenderJobOpts): string {
-  return [
-    `---`,
-    `job_id: cap-${o.generatedAt.slice(0, 10)}-${o.slug}`,
-    `status: pending`,
-    `attempts: 0`,
-    `max_attempts: 3`,
-    `source_path: ${o.sourcePath}`,
-    `source_sha256: ${o.sourceSha}`,
-    `drafts_dir: ${o.draftsDir}`,
-    `enqueued_at: ${o.generatedAt}`,
-    `---`,
-    ``,
-    `# Capture job — \`${o.slug}\``,
-    ``,
-    `이 작업의 처리 방법은 [\`${o.specDir}/prompt.md\`](${o.specDir}/prompt.md) 를 먼저 읽고 따른다.`,
-    ``,
-    `## 입력`,
-    ``,
-    `- 원본: [\`${o.sourcePath}\`](${o.sourcePath}) — SHA-256 \`${o.sourceSha}\``,
-    ``,
-    `## 완료 후`,
-    ``,
-    `1. 기억할 가치가 있는 지식 후보마다 \`${o.draftsDir}/<page-slug>.md\` 에 wiki page draft 저장 (WIKI-FORMAT.md 준수, \`status: draft\`).`,
-    `2. 본 파일 frontmatter 를 \`status: done\` 으로 갱신.`,
-    `3. 실패 시 \`status: failed\` + \`failure_reason: <사유>\` 추가.`,
-    ``,
-  ].join("\n");
 }

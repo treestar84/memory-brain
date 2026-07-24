@@ -77,6 +77,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
       { name: "claim-list", script: "cfgm-claim-list", desc: "claim 후보 목록" },
       { name: "claim-review", script: "cfgm-claim-review", desc: "claim 후보 검토" },
       { name: "governance-report", script: "cfgm-governance-report", desc: "중복·stale·모순 보고서" },
+      { name: "decay", script: "cfgm-decay", desc: "wiki page 망각 판정 (--archive <id>: 보관 이동, 삭제 아님)" },
       { name: "persona-list", script: "cfgm-persona-list", desc: "persona 프로파일 조회" },
     ],
   },

@@ -5,6 +5,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added — V3.35 철학 완성 3축: 자동 capture · wiki 망각 · 토큰 효율 가시화 (2026-07-24)
+- **자동 capture** — session-end hook 이 세션 관찰 기록(기본 3건 이상)을 `<storageRoot>/_pending/capture/` 에 자동 enqueue. `CaptureEnqueuer` 모듈 추출로 CLI/hook 공유. kill switch `CFGM_AUTO_CAPTURE=0`, 임계값 `CFGM_AUTO_CAPTURE_MIN`. **hook 내부 오류는 세션 종료에 영향 0** (오류 주입 테스트로 검증). `capture-status` 는 repo+storage 큐 동시 집계, `capture-accept --drafts-dir` 신설.
+- **`cfgm decay`** — L3 wiki 망각. `WikiDecayEngine`: 페이지 나이(updated_at) × 회상 빈도(UsageLog.pageStats) → fresh/aging/stale-draft/decay-candidate 4단 판정, 모든 판정에 사유 명시. 기본 dry-run + `memory/reports/decay-latest.md` 리포트. 조치는 `--archive <pageId>` 페이지 단위 명시 승인만 — **삭제 코드 경로 없음** (archive 이동 + `status: archived`). 첫 실측: 실제 wiki 5건 중 stale-draft 1건 검출.
+- **토큰 효율 가시화** — `TokenEstimate` (chars/4, 추정치 명시). `cfgm ask` 푸터에 "근거 번들 ~N tokens · 전체 메모리의 P%" (실측: 180 tokens / 4.6%), stats·viewer 에 전량 주입 대비 절감률. 공책 모델(라우팅 철학)의 이득을 처음으로 수치화.
+- 검증: **1047/1047 pass** (신규 34) · typecheck OK · 실사용 스모크 (decay 실판정·ask 토큰 표기·stats 집계) 통과.
+
 ### Changed — README 예시 중심 재구성 (2026-07-24)
 - 최상단에 "30초 데모" (Before/After 실캡처 — `cfgm ask` 근거 번들 + claim pointer 인용 답변) + "시나리오 3" 신설: ① 세션 간 결정 기억 ② claim 단위 근거 역추적 ③ **markdown·git 기반 메모리** (블랙박스 DB 대비 — 열람·수정·diff·롤백·PR 공유).
 - 모든 예시는 실제 실행 캡처만 사용 (팩트체크 원칙). 벤치마크 카드 수치 무변경 (위치만 데모 아래로), "핵심 기능" → "고급 기능" 격하, 4 페인포인트에 구체 장면 서술 추가.

@@ -291,6 +291,22 @@ function renderStats(root, data) {
   );
   root.appendChild(totals);
 
+  const tokens = data.tokens;
+  if (tokens && tokens.corpus > 0 && tokens.savingsPct != null) {
+    root.appendChild(
+      el('div', { class: 'stat-group' },
+        el('div', { class: 'stat-row' },
+          '전달 컨텍스트',
+          el('span', { class: 'num' }, '~' + tokens.context + ' tokens'),
+        ),
+        el('div', { class: 'stat-row' },
+          '전량 주입 대비',
+          el('span', { class: 'num' }, '~' + tokens.savingsPct + '% 절감 (추정)'),
+        ),
+      )
+    );
+  }
+
   if (data.totalSearches === 0 && data.totalAsks === 0) {
     root.appendChild(el('div', { class: 'empty' }, '아직 사용 기록이 없습니다.\ncfgm search 를 사용해 보세요.'));
     return;

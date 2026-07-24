@@ -74,4 +74,45 @@ describe("UsageLog", () => {
     expect(agg.topPages[0]!.pageId).toBe("page-common");
     expect(agg.topPages[0]!.count).toBe(6);
   });
+
+  test("pageStats — 페이지별 회상 횟수 + 마지막 회상 시각을 집계한다", async () => {
+    await log.record({ tool: "search", query: "a", hits: 1, topPageIds: ["p1", "p2"], ts: "2026-07-01T00:00:00.000Z" });
+    await log.record({ tool: "ask", query: "b", hits: 1, topPageIds: ["p1"], ts: "2026-07-10T00:00:00.000Z" });
+
+    const stats = await log.pageStats();
+    const p1 = stats.find((s) => s.pageId === "p1");
+    const p2 = stats.find((s) => s.pageId === "p2");
+    expect(p1?.count).toBe(2);
+    expect(p1?.lastTs).toBe("2026-07-10T00:00:00.000Z");
+    expect(p2?.count).toBe(1);
+    // 빈도순 정렬
+    expect(stats[0]!.pageId).toBe("p1");
+  });
+
+  test("contextTokens 없는 구형 라인도 정상 파싱되고 0 취급된다", async () => {
+    await log.record({ tool: "search", query: "신형", hits: 1, topPageIds: [], ts: new Date().toISOString(), contextTokens: 120 });
+    // 구형 라인(contextTokens 필드 없음)을 직접 append.
+    const existing = (await storage.readText("stats/usage.jsonl")) ?? "";
+    await storage.writeRaw(
+      "stats/usage.jsonl",
+      existing + JSON.stringify({ tool: "search", query: "구형", hits: 1, topPageIds: [], ts: new Date().toISOString() }) + "\n",
+    );
+
+    const agg = await log.aggregate();
+    expect(agg.totalSearches).toBe(2);
+    expect(agg.totalContextTokens).toBe(120);
+  });
+
+  test("pageStats — days 옵션으로 기간 밖 회상은 제외되고, 기록 없으면 빈 배열", async () => {
+    const empty = await log.pageStats();
+    expect(empty).toEqual([]);
+
+    const old = new Date(Date.now() - 30 * 86_400_000).toISOString();
+    const recent = new Date().toISOString();
+    await log.record({ tool: "search", query: "오래됨", hits: 1, topPageIds: ["old-page"], ts: old });
+    await log.record({ tool: "search", query: "최근", hits: 1, topPageIds: ["new-page"], ts: recent });
+
+    const stats = await log.pageStats({ days: 7 });
+    expect(stats.map((s) => s.pageId)).toEqual(["new-page"]);
+  });
 });

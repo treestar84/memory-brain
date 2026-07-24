@@ -6,6 +6,7 @@ import { HashedNgramEmbedder } from "../src/core/search/Embedder";
 import { resolveStorageRoot } from "../src/hooks/bootstrap";
 import { UsageLog } from "../src/core/stats/UsageLog";
 import { FsStorage } from "../src/core/storage/FsStorage";
+import { estimateTokens, estimateMemoryCorpusTokens } from "../src/core/stats/TokenEstimate";
 
 /**
  * cfgm-ask — evidence pointer 가 붙은 근거 번들을 생성하는 프롬프트 컴포저.
@@ -93,21 +94,48 @@ for (const h of hits) {
   });
 }
 
+const instruction =
+  `위 근거만 사용해 질문에 답하라. 각 주장 끝에 (근거: <pageId> / <claim-id>) 형식의 ` +
+  `pointer 를 인용하라. 위 근거로 답할 수 없으면 추측하지 말고 '메모리에 근거 없음' 이라고 답하라. ` +
+  `질문: ${query}`;
+
+// 근거 번들 텍스트(실제로 host LLM 에게 전달되는 부분) 를 조립해 토큰 추정에 사용한다.
+const bundleLines: string[] = [];
+if (grounds.length === 0) {
+  bundleLines.push(`"${query}" — 근거 없음. 인덱스에 관련 wiki page 가 없거나 어휘가 다를 수 있습니다.`);
+} else {
+  bundleLines.push(`질의: "${query}" — 근거 ${grounds.length}건\n`);
+  for (const g of grounds) {
+    bundleLines.push(`● ${g.pageId}  [${g.type}/${g.status}]`);
+    bundleLines.push(`  ${g.pagePath}`);
+    bundleLines.push(`  ${g.snippet}`);
+    bundleLines.push(`  claims: ${g.claimIds.length > 0 ? g.claimIds.join(", ") : "(없음)"}\n`);
+  }
+  bundleLines.push(instruction);
+}
+const bundleText = bundleLines.join("\n");
+
+const bundleTokens = estimateTokens(bundleText);
+const corpusTokens = await estimateMemoryCorpusTokens(memoryDir);
+const pct = corpusTokens > 0 ? Math.round((bundleTokens / corpusTokens) * 1000) / 10 : null;
+
 await new UsageLog(new FsStorage(storageRoot)).record({
   tool: "ask",
   query,
   hits: grounds.length,
   topPageIds: grounds.slice(0, 5).map((g) => g.pageId),
   ts: new Date().toISOString(),
+  contextTokens: bundleTokens,
 });
 
-const instruction =
-  `위 근거만 사용해 질문에 답하라. 각 주장 끝에 (근거: <pageId> / <claim-id>) 형식의 ` +
-  `pointer 를 인용하라. 위 근거로 답할 수 없으면 추측하지 말고 '메모리에 근거 없음' 이라고 답하라. ` +
-  `질문: ${query}`;
-
 if (json) {
-  console.log(JSON.stringify({ query, limit, grounds, instruction }, null, 2));
+  console.log(
+    JSON.stringify(
+      { query, limit, grounds, instruction, tokens: { bundle: bundleTokens, corpus: corpusTokens, pct } },
+      null,
+      2,
+    ),
+  );
   process.exit(0);
 }
 
@@ -125,3 +153,9 @@ for (const g of grounds) {
 }
 
 console.log(instruction);
+
+if (corpusTokens > 0) {
+  console.log(
+    `\n--- 근거 번들 ~${bundleTokens} tokens · 전체 메모리 ~${corpusTokens} tokens 의 ${pct}% (추정: chars/4)`,
+  );
+}

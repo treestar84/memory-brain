@@ -72,6 +72,15 @@ describe("cfgm-stats — 사용 통계 요약", () => {
     expect(Array.isArray(out.byDay)).toBe(true);
   });
 
+  test("--json 은 tokens.context/corpus/savingsPct 를 포함한다", () => {
+    const res = run("cfgm-stats", ["--json"], env);
+    expect(res.status).toBe(0);
+    const out = JSON.parse(res.stdout);
+    expect(typeof out.tokens.context).toBe("number");
+    expect(typeof out.tokens.corpus).toBe("number");
+    expect(out.tokens.corpus).toBeGreaterThan(0);
+  });
+
   test("기록 없음 → 안내 문구 + exit 0", () => {
     const freshRoot = mkdtempSync(join(tmpdir(), "cfgm-stats-empty-"));
     const res = run("cfgm-stats", [], { CFGM_PROJECT_ROOT: freshRoot });

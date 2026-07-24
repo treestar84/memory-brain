@@ -244,6 +244,15 @@
 - 구현: Sonnet executor 3기 위임 (사용자 지시). 스모크 테스트에서 ask 의 claim 추출 경로 결함 발견·수정 (storage root ≠ repo 루트 — 기존 경로 불일치 버그 클래스 재발, rebuild-index 규칙으로 통일).
 - 검증: 1013/1013 pass · typecheck OK · 실사용 스모크 통과.
 
+## V3.35 철학 완성 3축 (2026-07-24) ✅
+
+- 배경: 경쟁 전장 재조사 (claude-mem 65.8K stars 지배·ByteRover 팀 메모리·호스트 내장 메모리) 후 철학 7종 감정 — 망각·서버없음·공책모델·자동승격 4개가 2026 분야 최전선과 일치하나 "90일차 페인 vs 1일차 채택" 격차 + 비가시성이 문제로 진단.
+- **자동 capture**: session-end hook 자동 enqueue (임계 3건, kill switch, hook 오류 격리 — 세션 종료 영향 0). 큐 위치 이원화 (repo+storage).
+- **`cfgm decay`**: WikiDecayEngine — 나이×회상빈도(UsageLog) 4단 판정+사유. dry-run 기본, `--archive` 명시 승인만, 삭제 경로 없음. 첫 실측: wiki 5건 중 stale-draft 1건 (ssl-skill-representation, 80일 방치 draft) 검출.
+- **토큰 효율 가시화**: TokenEstimate (chars/4 추정 명시). ask 푸터 실측 "번들 180 tokens = 전체 3913 의 4.6%", stats 절감률 표기.
+- 포지셔닝 전환 합의: "시간이 지나도 썩지 않는 메모리". 검증: 1047/1047 pass · 스모크 통과.
+- 다음 후보: **90일 rot 벤치마크** (LongMemEval 세션 시간순 재생 — append-only vs governed, retrieval 지표만·LLM 0회) — 사용자 승인 대기.
+
 ## 다음 단계 후보
 
 - V3.25: cfgm-run `--interactive` 결과를 cfgm-replay 와 연동 (replay 파일 포맷 통일)

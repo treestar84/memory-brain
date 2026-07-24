@@ -1,7 +1,9 @@
 #!/usr/bin/env bun
+import { resolve } from "node:path";
 import { UsageLog } from "../src/core/stats/UsageLog";
 import { FsStorage } from "../src/core/storage/FsStorage";
 import { resolveStorageRoot } from "../src/hooks/bootstrap";
+import { estimateMemoryCorpusTokens } from "../src/core/stats/TokenEstimate";
 
 /**
  * cfgm-stats — cfgm search/ask 로컬 사용 통계 요약 (효능 지표).
@@ -31,8 +33,24 @@ const storageRoot = resolveStorageRoot();
 const log = new UsageLog(new FsStorage(storageRoot));
 const agg = await log.aggregate({ days });
 
+// wiki 원본 위치는 cfgm-ask/cfgm-rebuild-index 와 동일한 규칙으로 해석한다 (storage root 와 다름).
+const repoRoot = process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+const memoryDir = resolve(repoRoot, "memory");
+const corpusTokens = await estimateMemoryCorpusTokens(memoryDir);
+const callCount = agg.totalSearches + agg.totalAsks;
+const savingsPct =
+  corpusTokens > 0 && callCount > 0
+    ? Math.round((1 - agg.totalContextTokens / (callCount * corpusTokens)) * 1000) / 10
+    : null;
+
 if (json) {
-  console.log(JSON.stringify({ days, ...agg }, null, 2));
+  console.log(
+    JSON.stringify(
+      { days, ...agg, tokens: { context: agg.totalContextTokens, corpus: corpusTokens, savingsPct } },
+      null,
+      2,
+    ),
+  );
   process.exit(0);
 }
 
@@ -46,7 +64,11 @@ if (!hasData) {
 console.log(`cfgm 사용 통계 — 최근 ${days}일\n`);
 console.log(`검색(search): ${agg.totalSearches}회`);
 console.log(`질의(ask): ${agg.totalAsks}회`);
-console.log(`고유 질의: ${agg.uniqueQueries}건\n`);
+console.log(`고유 질의: ${agg.uniqueQueries}건`);
+if (corpusTokens > 0 && savingsPct !== null) {
+  console.log(`전달 컨텍스트: ~${agg.totalContextTokens} tokens (전량 주입 대비 ~${savingsPct}% 절감 — 추정치)`);
+}
+console.log("");
 
 console.log("자주 찾은 질의:");
 if (agg.topQueries.length === 0) {
