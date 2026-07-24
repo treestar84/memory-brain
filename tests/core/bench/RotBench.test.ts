@@ -136,4 +136,56 @@ describe("RotBench (메모리 부패 벤치마크)", () => {
       [2, 2],
     ]);
   });
+
+  describe("cohort 모드", () => {
+    test("이른 체크포인트에서 answer 미포함 문항은 전체 제외된다 (cohortExcluded 카운트)", () => {
+      // 정답 s4(04/20) 는 25/50/75% 체크포인트에서 아직 등장 전 — cohort 모드에서 전체 제외.
+      const withLateAnswer = q({ question_id: "late", answer_session_ids: ["s4"] });
+      const result = runRotBench([withLateAnswer], { embedder, cohort: true });
+      expect(result.mode).toBe("cohort");
+      expect(result.cohortExcluded).toBe(1);
+      for (const f of result.checkpoints) {
+        expect(result.evaluatedByCheckpoint[f]).toBe(0);
+        expect(result.skippedByCheckpoint[f]).toBe(1);
+      }
+      expect(result.cases.length).toBe(0);
+    });
+
+    test("포함 문항은 4개 체크포인트 모두 평가되고 모든 체크포인트 n 이 동일하다", () => {
+      // 정답 s1(01/10) 은 모든 체크포인트에 포함 — cohort 모드에서 4곳 모두 평가.
+      const result = runRotBench([q({ question_id: "full" })], { embedder, cohort: true });
+      expect(result.mode).toBe("cohort");
+      expect(result.cohortExcluded).toBe(0);
+      const ns = result.checkpoints.map((f) => result.evaluatedByCheckpoint[f]);
+      expect(new Set(ns).size).toBe(1);
+      expect(ns[0]).toBe(1);
+      // naive+governed × 4 체크포인트 = 8 케이스
+      expect(result.cases.length).toBe(8);
+    });
+
+    test("cohortExcluded 카운트 정확성 — 포함 1건 + 제외 1건 혼합", () => {
+      const qs = [
+        q({ question_id: "full", answer_session_ids: ["s1"] }),
+        q({ question_id: "late", answer_session_ids: ["s4"] }),
+        q({ question_id: "abstain", answer_session_ids: [] }),
+      ];
+      const result = runRotBench(qs, { embedder, cohort: true });
+      expect(result.cohortExcluded).toBe(2); // late + abstain
+      for (const f of result.checkpoints) {
+        expect(result.evaluatedByCheckpoint[f]).toBe(1); // full 만 평가
+      }
+    });
+
+    test("cohort=false(기본) 모드 결과는 기존 동작과 동일하다 (회귀 가드)", () => {
+      const qs = [q({ question_id: "a" }), q({ question_id: "b", answer_session_ids: ["s4"] })];
+      const withCohortFlag = runRotBench(qs, { embedder, checkpoints: [0.25, 0.5, 0.75, 1.0], cohort: false });
+      const withoutCohortFlag = runRotBench(qs, { embedder, checkpoints: [0.25, 0.5, 0.75, 1.0] });
+      expect(withCohortFlag.mode).toBe("all");
+      expect(withoutCohortFlag.mode).toBe("all");
+      expect(withCohortFlag.evaluatedByCheckpoint).toEqual(withoutCohortFlag.evaluatedByCheckpoint);
+      expect(withCohortFlag.skippedByCheckpoint).toEqual(withoutCohortFlag.skippedByCheckpoint);
+      expect(withCohortFlag.cases).toEqual(withoutCohortFlag.cases);
+      expect(withCohortFlag.cohortExcluded).toBeUndefined();
+    });
+  });
 });

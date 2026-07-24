@@ -266,6 +266,12 @@
 - 정직 한계: governed 도 저하 — "부패 안 함" 주장 불가. 체크포인트 간 곡선은 코호트 혼동 (n 64→500) — 공통 문항 코호트 분석이 후속.
 - M SHA-256 을 docs/BENCHMARK.md 에 기록.
 
+## V3.36.2 코호트 곡선 확정 (2026-07-24) ✅
+
+- `--cohort` (M: n=64 동일 집단): **부패 실재·가파름** — naive -12.5pp, governed -14.1pp (25→100%).
+- 정직 판정: governed 전 지점 R@5 우위이나 기울기 우위 없음, MRR 100% 동률. **"축적에 강건" 주장 불가.**
+- 다음 개발 목표 확정: 대규모 축적 구간에서 격차를 만드는 것 (세션 단위 consolidation/supersede 등) — rot-bench 가 그 측정 장치.
+
 ## 다음 단계 후보
 
 - V3.25: cfgm-run `--interactive` 결과를 cfgm-replay 와 연동 (replay 파일 포맷 통일)

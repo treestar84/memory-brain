@@ -23,6 +23,10 @@ import { streamTopLevelJsonArray } from "../src/core/bench/StreamingJson";
  *   cfgm rot-bench -- --sample 50     # smoke run
  *   cfgm rot-bench -- --seed-order    # 날짜 재정렬 대신 데이터셋 원 순서 사용
  *   cfgm rot-bench -- --json          # 구조화 결과 전체
+ *   cfgm rot-bench -- --cohort        # 코호트 모드 — 4개 체크포인트 전부에서 평가
+ *                                       가능한 문항만 포함해 동일 문항 집단으로 순수
+ *                                       부패 곡선을 만든다. rot-bench-latest.md 와
+ *                                       별도로 rot-bench-cohort-latest.md 에 저장.
  *
  * LLM 호출 0 — docs/RULES.md 원칙 2 준수.
  */
@@ -31,6 +35,7 @@ const repoRoot = process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? pr
 const args = process.argv.slice(2);
 const json = args.includes("--json");
 const seedOrder = args.includes("--seed-order");
+const cohort = args.includes("--cohort");
 
 function strFlag(name: string): string | undefined {
   const i = args.indexOf(name);
@@ -38,7 +43,8 @@ function strFlag(name: string): string | undefined {
 }
 
 const dataPath = resolve(repoRoot, strFlag("--data") ?? "data/longmemeval/longmemeval_s_cleaned.json");
-const reportPath = resolve(repoRoot, strFlag("--out") ?? "memory/reports/rot-bench-latest.md");
+const defaultOut = cohort ? "memory/reports/rot-bench-cohort-latest.md" : "memory/reports/rot-bench-latest.md";
+const reportPath = resolve(repoRoot, strFlag("--out") ?? defaultOut);
 
 const sampleRaw = strFlag("--sample");
 const sample = sampleRaw ? Number.parseInt(sampleRaw, 10) : undefined;
@@ -60,7 +66,7 @@ if (!(await dataFile.exists())) {
 // 정규화·평가하고, 질문 객체는 평가 직후 버린다 — 전체 파일을 누적하는
 // 코드 경로가 없다. S 데이터셋(265MB)도 경로 이원화 없이 동일하게 처리한다.
 const embedder = new HashedNgramEmbedder();
-const acc = createRotBenchAccumulator({ embedder, order: seedOrder ? "seed" : "date" });
+const acc = createRotBenchAccumulator({ embedder, order: seedOrder ? "seed" : "date", cohort });
 const started = performance.now();
 let seen = 0;
 for await (const raw of streamTopLevelJsonArray(dataPath)) {
@@ -81,7 +87,10 @@ await Bun.write(reportPath, renderRotBenchReport(result, generatedAt));
 if (json) {
   console.log(JSON.stringify({ dataPath, durationMs, ...result }, null, 2));
 } else {
-  console.log(`✓ Rot Bench — 총 ${result.totalQuestions}문항 (${durationMs}ms)`);
+  console.log(`✓ Rot Bench [mode=${result.mode}] — 총 ${result.totalQuestions}문항 (${durationMs}ms)`);
+  if (result.mode === "cohort") {
+    console.log(`  cohort 제외 문항 수: ${result.cohortExcluded ?? 0}`);
+  }
   for (const c of result.aggregates) {
     console.log(
       `  ${`${(c.checkpoint * 100).toFixed(0)}%`.padEnd(5)} ${c.condition.padEnd(9)} n=${String(c.caseCount).padEnd(4)} R@5 ${(c.recallAt5 * 100).toFixed(1)}%  MRR ${c.mrr.toFixed(3)}  avgTok ${c.avgTop5Tokens.toFixed(0)}`,

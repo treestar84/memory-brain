@@ -176,6 +176,11 @@ export interface RotBenchResult {
   aggregates: RotAggregateCell[];
   byType: RotTypeCell[];
   cases: RotCaseResult[];
+  /** "all": 기존 동작 (체크포인트별 독립 커버리지). "cohort": 4개 체크포인트 전부에서
+   * 평가 가능한 문항만 포함 — 동일 집단으로 순수 부패 곡선을 만든다. */
+  mode: "all" | "cohort";
+  /** cohort 모드에서 체크포인트 중 하나라도 answer 커버리지가 없어 통째로 제외된 문항 수. */
+  cohortExcluded?: number;
 }
 
 export interface RotBenchOpts {
@@ -183,6 +188,9 @@ export interface RotBenchOpts {
   checkpoints?: number[];
   limit?: number;
   order?: RotOrder;
+  /** true 면 cohort 모드 — 4개 체크포인트 전부에서 평가 가능한 문항만 포함해
+   * 동일 문항 집단으로 체크포인트 간 직접 비교가 가능해진다 (기본 false — 기존 동작 무변경). */
+  cohort?: boolean;
   onProgress?: (done: number, total: number) => void;
 }
 
@@ -217,10 +225,12 @@ export interface RotBenchAccumulator {
   readonly checkpoints: number[];
   readonly order: RotOrder;
   readonly embedder: Embedder;
+  readonly mode: "all" | "cohort";
   readonly evaluatedByCheckpoint: Record<number, number>;
   readonly skippedByCheckpoint: Record<number, number>;
   readonly cases: RotCaseResult[];
   totalQuestions: number;
+  cohortExcluded: number;
 }
 
 export function createRotBenchAccumulator(opts: RotBenchOpts): RotBenchAccumulator {
@@ -235,11 +245,33 @@ export function createRotBenchAccumulator(opts: RotBenchOpts): RotBenchAccumulat
     checkpoints,
     order: opts.order ?? "date",
     embedder: opts.embedder,
+    mode: opts.cohort ? "cohort" : "all",
     evaluatedByCheckpoint,
     skippedByCheckpoint,
     cases: [],
     totalQuestions: 0,
+    cohortExcluded: 0,
   };
+}
+
+/** 체크포인트 f 의 부분 질문을 naive/governed 두 조건으로 평가해 case 를 누적한다. */
+function evaluateAtCheckpoint(acc: RotBenchAccumulator, q: LmeQuestion, partial: LmeQuestion, f: number): void {
+  for (const condition of ["naive", "governed"] as const) {
+    const ranked =
+      condition === "naive"
+        ? retrieveNaive(partial, acc.embedder, { depth: 10 })
+        : retrieveTopSessions(partial, acc.embedder, { depth: 10, prf: true });
+    const { hit, reciprocalRank, top5Tokens } = scoreRanked(ranked, partial);
+    acc.cases.push({
+      questionId: q.question_id,
+      questionType: q.question_type,
+      checkpoint: f,
+      condition,
+      hit,
+      reciprocalRank,
+      top5Tokens,
+    });
+  }
 }
 
 /** 질문 1건을 체크포인트×조건으로 평가해 accumulator 에 누적한다 (순수 부수효과 함수). */
@@ -248,8 +280,36 @@ export function addQuestionToRotBench(acc: RotBenchAccumulator, q: LmeQuestion):
   if (q.answer_session_ids.length === 0) {
     // abstention 류 — 근거 라벨이 없어 체크포인트 커버리지 판정 불가.
     for (const f of acc.checkpoints) acc.skippedByCheckpoint[f]!++;
+    if (acc.mode === "cohort") acc.cohortExcluded++;
     return;
   }
+
+  if (acc.mode === "cohort") {
+    // 코호트 모드 — 4개 체크포인트 전부에서 answer 커버리지가 있어야 포함.
+    // 체크포인트 슬라이스는 f 오름차순으로 nested(prefix superset)이므로 이론상
+    // 최소 체크포인트 통과 여부만으로 충분하지만, 안전하게 전 체크포인트를 검사한다.
+    const slices = new Map<number, LmeQuestion>();
+    let allCovered = true;
+    for (const f of acc.checkpoints) {
+      const partial = sliceAtCheckpoint(q, f, acc.order);
+      if (!partial) {
+        allCovered = false;
+        break;
+      }
+      slices.set(f, partial);
+    }
+    if (!allCovered) {
+      for (const f of acc.checkpoints) acc.skippedByCheckpoint[f]!++;
+      acc.cohortExcluded++;
+      return;
+    }
+    for (const f of acc.checkpoints) {
+      acc.evaluatedByCheckpoint[f]!++;
+      evaluateAtCheckpoint(acc, q, slices.get(f)!, f);
+    }
+    return;
+  }
+
   for (const f of acc.checkpoints) {
     const partial = sliceAtCheckpoint(q, f, acc.order);
     if (!partial) {
@@ -257,28 +317,21 @@ export function addQuestionToRotBench(acc: RotBenchAccumulator, q: LmeQuestion):
       continue;
     }
     acc.evaluatedByCheckpoint[f]!++;
-    for (const condition of ["naive", "governed"] as const) {
-      const ranked =
-        condition === "naive"
-          ? retrieveNaive(partial, acc.embedder, { depth: 10 })
-          : retrieveTopSessions(partial, acc.embedder, { depth: 10, prf: true });
-      const { hit, reciprocalRank, top5Tokens } = scoreRanked(ranked, partial);
-      acc.cases.push({
-        questionId: q.question_id,
-        questionType: q.question_type,
-        checkpoint: f,
-        condition,
-        hit,
-        reciprocalRank,
-        top5Tokens,
-      });
-    }
+    evaluateAtCheckpoint(acc, q, partial, f);
   }
 }
 
 /** accumulator 를 최종 `RotBenchResult` 로 집계한다. */
 export function finalizeRotBench(acc: RotBenchAccumulator): RotBenchResult {
   const { checkpoints, cases } = acc;
+  if (acc.mode === "cohort") {
+    const ns = checkpoints.map((f) => acc.evaluatedByCheckpoint[f]!);
+    if (new Set(ns).size > 1) {
+      throw new Error(
+        `cohort 모드 불변식 위반 — 체크포인트별 평가 n 이 동일해야 한다: ${JSON.stringify(acc.evaluatedByCheckpoint)}`,
+      );
+    }
+  }
   const aggregates = aggregateCells(cases, checkpoints);
   const types = Array.from(new Set(cases.map((c) => c.questionType))).sort();
   const byType: RotTypeCell[] = [];
@@ -298,6 +351,8 @@ export function finalizeRotBench(acc: RotBenchAccumulator): RotBenchResult {
     aggregates,
     byType,
     cases,
+    mode: acc.mode,
+    cohortExcluded: acc.mode === "cohort" ? acc.cohortExcluded : undefined,
   };
 }
 
@@ -326,14 +381,24 @@ export function renderRotBenchReport(result: RotBenchResult, generatedAt: string
   const row = (c: RotAggregateCell) =>
     `| ${(c.checkpoint * 100).toFixed(0)}% | ${c.condition} | ${c.caseCount} | ${pct(c.recallAt5)} | ${c.mrr.toFixed(3)} | ${c.avgTop5Tokens.toFixed(0)} |`;
 
+  const modeLabel = result.mode === "cohort" ? "cohort (동일 문항 집단)" : "all (체크포인트별 독립 커버리지)";
   const lines: string[] = [
     `# Memory Rot Benchmark (session 축적 강건성)`,
     ``,
-    `> 생성: ${generatedAt} · 총 문항 ${result.totalQuestions}`,
+    `> 생성: ${generatedAt} · 총 문항 ${result.totalQuestions} · 모드: ${modeLabel}`,
     `> 주장: "append-only 메모리는 축적될수록 검색이 부패하고, memory-brain 의`,
     `> governed retrieval 은 강건하다." 본 리포트는 이 주장을 있는 그대로`,
     `> 실측한다 — 결과가 어느 방향이든 튜닝 없이 보고한다.`,
     ``,
+    ...(result.mode === "cohort"
+      ? [
+          `> **코호트 모드**: 25/50/75/100% 체크포인트 전부에서 answer 세션이 커버되는`,
+          `> 문항만 포함해 동일 문항 집단(n=${result.evaluatedByCheckpoint[result.checkpoints[0]!] ?? 0})으로`,
+          `> 체크포인트 간 직접 비교가 가능하다 — 코호트 혼동 제거. 제외 문항 수:`,
+          `> ${result.cohortExcluded ?? 0}.`,
+          ``,
+        ]
+      : []),
     `## 측정 정의`,
     ``,
     `- **체크포인트**: 질문별 haystack 세션을 날짜 오름차순 정렬 후 (\`--seed-order\``,
@@ -342,6 +407,9 @@ export function renderRotBenchReport(result: RotBenchResult, generatedAt: string
     `- **평가/스킵**: 해당 체크포인트에 \`answer_session_ids\` 전부가 포함될`,
     `  때만 평가하고, 아니면 skip 한다 (근거 세션이 아직 등장하지 않은 시점을`,
     `  "정답 없음"으로 채점하지 않기 위함).`,
+    `- **cohort 모드**: 4개 체크포인트 전부에서 평가 가능한 문항만 포함한다 —`,
+    `  하나라도 커버되지 않으면 문항 전체를 제외한다 (\`cohortExcluded\`). 모든`,
+    `  체크포인트의 n 이 동일해야 한다는 불변식을 finalize 시점에 검증한다.`,
     `- **naive 조건** (append-only 덤프형 대변): lexical+vector hybrid 검색`,
     `  (fusion=rescue) 만 사용 — dateWindow(temporal 창), body_user 가중,`,
     `  PRF 쿼리 확장, rescue-rerank 미적용.`,
@@ -367,6 +435,7 @@ export function renderRotBenchReport(result: RotBenchResult, generatedAt: string
       (f) => `| ${(f * 100).toFixed(0)}% | ${result.evaluatedByCheckpoint[f] ?? 0} | ${result.skippedByCheckpoint[f] ?? 0} |`,
     ),
     ``,
+    ...(result.mode === "cohort" ? [`> cohort 제외 문항 수(체크포인트 전체 기준, 위 skipped 에 포함됨): ${result.cohortExcluded ?? 0}`, ``] : []),
     `## Question type 별 (knowledge-update 포함)`,
     ``,
   ];
@@ -402,6 +471,7 @@ export function renderRotBenchReport(result: RotBenchResult, generatedAt: string
     `cfgm rot-bench -- --sample 50       # smoke run`,
     `cfgm rot-bench -- --seed-order      # 날짜 재정렬 대신 데이터셋 원 순서 사용`,
     `cfgm rot-bench -- --json            # 구조화 결과 전체`,
+    `cfgm rot-bench -- --cohort          # 코호트 모드 (동일 문항 집단, rot-bench-cohort-latest.md)`,
     "```",
   );
   return lines.join("\n");
