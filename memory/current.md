@@ -253,6 +253,12 @@
 - 포지셔닝 전환 합의: "시간이 지나도 썩지 않는 메모리". 검증: 1047/1047 pass · 스모크 통과.
 - 다음 후보: **90일 rot 벤치마크** (LongMemEval 세션 시간순 재생 — append-only vs governed, retrieval 지표만·LLM 0회) — 사용자 승인 대기.
 
+## V3.36 Rot Benchmark — 도구 완성 + 미입증 정직 판정 (2026-07-24) ✅
+
+- `cfgm rot-bench` 구현 (체크포인트×2조건, LLM 0회). 500문항 실측 47초.
+- **판정: 부패 곡선 미입증** — LME_S 규모(~50세션)에선 naive 도 붕괴하지 않음 (천장 효과). temporal 100% 에서만 governed +2.3pp. governed 는 전 지점 naive 이상.
+- 결정: "썩지 않는 메모리" README 주장은 실증 전까지 게재 금지. 후속: LongMemEval_M (~500세션/문항) 대규모 측정이 진짜 시험대.
+
 ## 다음 단계 후보
 
 - V3.25: cfgm-run `--interactive` 결과를 cfgm-replay 와 연동 (replay 파일 포맷 통일)

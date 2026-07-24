@@ -51,6 +51,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
       { name: "stats", script: "cfgm-stats", desc: "search/ask 사용 통계 요약 (--days N, --json)" },
       { name: "bench", script: "cfgm-bench", desc: "내부 memory quality benchmark" },
       { name: "bench-lme", script: "cfgm-lme-retrieval", desc: "LongMemEval retrieval 벤치마크 (외부 표준)" },
+      { name: "rot-bench", script: "cfgm-rot-bench", desc: "메모리 부패(rot) 벤치마크 — 세션 축적 강건성 (naive vs governed)" },
       { name: "okf-export", script: "cfgm-okf-export", desc: "L3 wiki → Google OKF v0.1 번들" },
     ],
   },

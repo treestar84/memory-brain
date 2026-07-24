@@ -5,6 +5,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added — V3.36 Memory Rot Benchmark — 측정 도구 + 정직 판정 (2026-07-24)
+- **`cfgm rot-bench`** (`src/core/bench/RotBench.ts`) — 세션 축적 강건성 실측: 날짜순 체크포인트(25/50/75/100%) × 2조건 (naive hybrid vs governed V3.32 확정 구성). LLM 0회, LongMemEval.ts 무수정(추가 전용), 테스트 신규 포함 45/45.
+- **500문항 실측 판정 (정직 보고)**: "축적에 따른 부패 곡선"은 **이 측정에서는 입증되지 않음** — 양 조건 모두 질문 단위 R@5 hit 97~99% (천장 효과), naive 붕괴 없음. 유일한 유의미 격차는 temporal-reasoning 100% 시점 governed +2.3pp (98.5 vs 96.2%). governed 는 전 지점에서 naive 이상 (하한 보장).
+- 원인: LME_S haystack ~50세션은 부패 발생 규모 미달 + 이진 hit 지표의 관대함. 리포트에 한계 자진 명시 (`memory/reports/rot-bench-latest.md`).
+- 후속 후보: LongMemEval_M (문항당 ~500세션) 로 실제 대규모 축적 측정 — README 에 "썩지 않는 메모리" 주장은 **실증 전까지 게재하지 않음**.
+
 ### Added — V3.35 철학 완성 3축: 자동 capture · wiki 망각 · 토큰 효율 가시화 (2026-07-24)
 - **자동 capture** — session-end hook 이 세션 관찰 기록(기본 3건 이상)을 `<storageRoot>/_pending/capture/` 에 자동 enqueue. `CaptureEnqueuer` 모듈 추출로 CLI/hook 공유. kill switch `CFGM_AUTO_CAPTURE=0`, 임계값 `CFGM_AUTO_CAPTURE_MIN`. **hook 내부 오류는 세션 종료에 영향 0** (오류 주입 테스트로 검증). `capture-status` 는 repo+storage 큐 동시 집계, `capture-accept --drafts-dir` 신설.
 - **`cfgm decay`** — L3 wiki 망각. `WikiDecayEngine`: 페이지 나이(updated_at) × 회상 빈도(UsageLog.pageStats) → fresh/aging/stale-draft/decay-candidate 4단 판정, 모든 판정에 사유 명시. 기본 dry-run + `memory/reports/decay-latest.md` 리포트. 조치는 `--archive <pageId>` 페이지 단위 명시 승인만 — **삭제 코드 경로 없음** (archive 이동 + `status: archived`). 첫 실측: 실제 wiki 5건 중 stale-draft 1건 검출.
