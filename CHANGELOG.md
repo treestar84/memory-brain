@@ -5,6 +5,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added — V3.34 효용 3종 — `cfgm ask` · `cfgm capture` · 사용 통계 (2026-07-24)
+- **`cfgm ask "<질의>"`** (`bin/cfgm-ask.ts`) — evidence pointer 붙은 근거 번들 컴포저. hybrid 검색 top-K + hit 페이지의 `<!-- claim:... -->` 마커 추출 + host LLM 인용 지시 (추측 금지·pointer 의무). LLM 직접 호출 0 (원칙 2). claim-grounded 정체성을 CLI 한 줄로 체감. 테스트 5건.
+- **`cfgm capture` 파이프라인** (`bin/cfgm-capture{,-status,-accept}.ts` + `memory/_pending/capture/`) — 세션 노트/transcript → wiki page draft 수집 큐. 검증된 normalize PAI 큐 패턴 복제 (SHA stale 체크·job.md·host-위임 spec). draft 는 confidence 의무 + 중복 시 supersede 명시, `capture-accept` 로 사용자 검토 후 편입 (path traversal 방어, `--force` 시 `_archive/` 보관). 쓰기 경로 수동 병목 해소의 1단계. 테스트 6건.
+- **로컬 사용 통계** (`src/core/stats/UsageLog.ts` + `bin/cfgm-stats.ts` + viewer 패널) — search/ask 사용 이력을 storage root 아래 append-only jsonl 로만 기록 (외부 전송 코드 0). `cfgm stats` 터미널 요약 + `cfgm-viewer` `/api/stats` + "사용 통계" 패널 (주간 횟수·top 질의·top 페이지·일별 추이). 효능 가시화 장치. 테스트 9건.
+- 수정: `cfgm-ask` claim 추출 경로가 storage root 를 repo 루트로 오인하던 결함 — 실사용 스모크 테스트에서 발견, rebuild-index 와 동일한 `CFGM_PROJECT_ROOT ?? cwd` 규칙으로 통일.
+- 검증: 1013/1013 pass (신규 20) · typecheck OK · 실사용 스모크 (ask claim 추출·capture enqueue/status·stats 집계) 통과.
+
 ### Added — V3.33 온보딩 — `cfgm search` + Codex(AGENTS.md) 지원 (2026-07-23)
 - **`cfgm search "<질의>"`** (`bin/cfgm-search.ts`) — wiki 자연어 검색 CLI 신설. 설치 직후 효능 체감용 진입점 부재를 메움 (`graph-query` 는 KG 전용, plain wiki 검색이 없었음). 인덱스 미생성 시 안내 후 exit 1. 테스트 4건.
 - **`AGENTS.md`** (저장소 루트 신설) — Codex CLI 등 non-Claude host 용 bootloader. `CLAUDE.md` 와 동일한 메모리 규칙 + 30초 온보딩 커맨드. 이전에는 Codex 대응 진입점이 전무했음.

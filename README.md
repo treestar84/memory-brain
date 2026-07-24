@@ -165,6 +165,9 @@ Claude Code 훅 통합(세션 영구 메모리)까지 원하면 `./install.sh` �
 ```bash
 cfgm doctor              # 설치·환경 자가진단 (7항목 + 조치 명령 제시)
 cfgm search "<질의>"     # wiki 자연어 검색 — 설치 직후 효능 체감용
+cfgm ask "<질의>"        # 검색 + evidence pointer 근거 번들 — host LLM 이 인용 달린 답 생성
+cfgm capture --input <파일>  # 세션 노트 → wiki draft 수집 큐 (host-위임, 검토 후 편입)
+cfgm stats               # 로컬 사용 통계 (외부 전송 0) — 주간 검색/ask·top 질의
 cfgm bench               # 내부 memory quality benchmark
 cfgm bench-lme           # LongMemEval 외부 벤치마크
 cfgm ssl-status          # SSL normalize 큐 상태 (+stale)

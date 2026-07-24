@@ -235,6 +235,15 @@
 - 검증: 993/993 pass · typecheck OK · 회귀 0건. 실사용 검증: `cfgm search "메모리 라우팅 정책"` → 5건 정상 반환 확인.
 - retrieveTopSessions (V3.32 QA enqueue 용) 이 미커밋 상태로 남아있던 것도 이번에 발견해 함께 커밋 (`df5c0dd`) — README 발표 수치의 재현성 보장.
 
+## V3.34 효용 3종 — ask · capture · 사용 통계 (2026-07-24) ✅
+
+- 경쟁 도구(mem0/Zep/Letta) 대비 고도화 4축 제안 중 사용자가 1(capture)·3(ask)·4(효능 지표) 승인, 2(점수 경쟁: multi-session retrieval + LOCOMO)는 **철학 충돌 우려로 보류** — "실사용 개선이 자연스럽게 벤치에 반영되는 경우만 채택" 기준으로 추후 논의.
+- **`cfgm ask`** — 근거 번들 컴포저 (검색 top-K + claim 마커 추출 + 인용 지시). LLM 호출 0.
+- **`cfgm capture`** — normalize PAI 큐 패턴 복제한 세션 기록→wiki draft 수집 큐. `capture-status`/`capture-accept` 포함. 쓰기 경로 자동화 1단계 (후속 후보: session-end hook 자동 enqueue).
+- **사용 통계** — `UsageLog` (로컬 jsonl, 외부 전송 0) + `cfgm stats` + viewer `/api/stats` 패널.
+- 구현: Sonnet executor 3기 위임 (사용자 지시). 스모크 테스트에서 ask 의 claim 추출 경로 결함 발견·수정 (storage root ≠ repo 루트 — 기존 경로 불일치 버그 클래스 재발, rebuild-index 규칙으로 통일).
+- 검증: 1013/1013 pass · typecheck OK · 실사용 스모크 통과.
+
 ## 다음 단계 후보
 
 - V3.25: cfgm-run `--interactive` 결과를 cfgm-replay 와 연동 (replay 파일 포맷 통일)

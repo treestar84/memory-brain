@@ -47,6 +47,8 @@ export const COMMAND_GROUPS: CommandGroup[] = [
     commands: [
       { name: "rebuild-index", script: "cfgm-rebuild-index", desc: "wiki+claim+SSL 인덱스 재생성 (--embeddings: hybrid)" },
       { name: "search", script: "cfgm-search", desc: "wiki 자연어 검색 — \"cfgm search \\\"질의\\\"\"" },
+      { name: "ask", script: "cfgm-ask", desc: "질의 → claim id 인용 근거 번들 (host LLM 프롬프트 컴포저)" },
+      { name: "stats", script: "cfgm-stats", desc: "search/ask 사용 통계 요약 (--days N, --json)" },
       { name: "bench", script: "cfgm-bench", desc: "내부 memory quality benchmark" },
       { name: "bench-lme", script: "cfgm-lme-retrieval", desc: "LongMemEval retrieval 벤치마크 (외부 표준)" },
       { name: "okf-export", script: "cfgm-okf-export", desc: "L3 wiki → Google OKF v0.1 번들" },
@@ -83,6 +85,14 @@ export const COMMAND_GROUPS: CommandGroup[] = [
     commands: [
       { name: "lme-enqueue", script: "cfgm-lme-enqueue", desc: "answer job 생성 (PAI 세션 처리용)" },
       { name: "lme-score", script: "cfgm-lme-score", desc: "QA 채점 (--judge-enqueue/--collect)" },
+    ],
+  },
+  {
+    title: "수집 (Capture, host-위임)",
+    commands: [
+      { name: "capture", script: "cfgm-capture", desc: "세션 기록 → wiki draft 추출 큐 생성" },
+      { name: "capture-status", script: "cfgm-capture-status", desc: "capture 큐 + drafts 상태" },
+      { name: "capture-accept", script: "cfgm-capture-accept", desc: "draft → concept/decision/project 승격" },
     ],
   },
 ];

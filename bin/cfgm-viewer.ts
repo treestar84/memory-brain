@@ -6,6 +6,7 @@ import { FlowGraphStore } from "../src/core/flow/FlowGraphStore";
 import { FlowGraphProjector } from "../src/core/flow/FlowGraphProjector";
 import { ActiveProblemStore } from "../src/core/binder/ActiveProblemStore";
 import { resolveStorageRoot } from "../src/hooks/bootstrap";
+import { UsageLog } from "../src/core/stats/UsageLog";
 
 const STORAGE_ROOT = resolveStorageRoot();
 const PORT = Number(process.env.CFGM_VIEWER_PORT ?? 4040);
@@ -15,6 +16,7 @@ const clock = new RealClock();
 const problemStore = new ActiveProblemStore(storage, clock);
 const flowStore = new FlowGraphStore(storage, clock);
 const projector = new FlowGraphProjector();
+const usageLog = new UsageLog(storage);
 
 function json(body: unknown, init?: ResponseInit): Response {
   return new Response(JSON.stringify(body), {
@@ -33,6 +35,14 @@ const server = Bun.serve({
       const all = await problemStore.listAll();
       const active = await problemStore.getActive();
       return json({ active: active?.id ?? null, problems: all });
+    },
+
+    "/api/stats": async (req) => {
+      const url = new URL(req.url);
+      const daysParam = Number.parseInt(url.searchParams.get("days") ?? "", 10);
+      const days = Number.isFinite(daysParam) && daysParam > 0 ? daysParam : 7;
+      const agg = await usageLog.aggregate({ days });
+      return json({ days, ...agg });
     },
 
     "/api/problems/:id/graph": async (req) => {

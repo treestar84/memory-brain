@@ -4,6 +4,8 @@ import { existsSync } from "node:fs";
 import { SearchIndex } from "../src/core/search/SearchIndex";
 import { HashedNgramEmbedder } from "../src/core/search/Embedder";
 import { resolveStorageRoot } from "../src/hooks/bootstrap";
+import { UsageLog } from "../src/core/stats/UsageLog";
+import { FsStorage } from "../src/core/storage/FsStorage";
 
 /**
  * cfgm-search — memory/ wiki 자연어 검색 (온보딩용 즉시 체감 진입점).
@@ -46,6 +48,14 @@ const index = new SearchIndex(indexPath);
 const embedder = new HashedNgramEmbedder();
 const hits = index.searchWikiHybrid(query, embedder, { limit });
 index.close();
+
+await new UsageLog(new FsStorage(storageRoot)).record({
+  tool: "search",
+  query,
+  hits: hits.length,
+  topPageIds: hits.slice(0, 5).map((h) => h.pageId),
+  ts: new Date().toISOString(),
+});
 
 if (json) {
   console.log(JSON.stringify({ query, limit, hits }, null, 2));
