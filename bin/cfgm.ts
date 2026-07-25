@@ -3,6 +3,7 @@ import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync, statSync } from "node:fs";
 import { resolveStorageRoot } from "../src/hooks/bootstrap";
+import { t } from "../src/core/i18n/messages";
 
 /**
  * cfgm — CFGM-OS 통합 CLI (V3.31).
@@ -123,7 +124,7 @@ async function runDoctor(): Promise<number> {
   const [maj, min] = bunVer.split(".").map((x) => Number.parseInt(x, 10));
   const bunOk = maj! > 1 || (maj === 1 && min! >= 1);
   checks.push({
-    name: "Bun ≥ 1.1",
+    name: t("doctor.check.bun.name"),
     ok: bunOk,
     detail: `v${bunVer}`,
     fix: bunOk ? undefined : "curl -fsSL https://bun.sh/install | bash",
@@ -131,11 +132,20 @@ async function runDoctor(): Promise<number> {
 
   // 2. 의존성 설치
   const depsOk = existsSync(join(REPO_ROOT, "node_modules", "yaml"));
-  checks.push({ name: "의존성 (bun install)", ok: depsOk, detail: depsOk ? "node_modules OK" : "node_modules 없음", fix: depsOk ? undefined : "bun install" });
+  checks.push({
+    name: t("doctor.check.deps.name"),
+    ok: depsOk,
+    detail: depsOk ? t("doctor.check.deps.detail.ok") : t("doctor.check.deps.detail.fail"),
+    fix: depsOk ? undefined : "bun install",
+  });
 
   // 3. 레포 구조
   const routerOk = existsSync(join(REPO_ROOT, "memory", "ROUTER.md"));
-  checks.push({ name: "memory/ 레이아웃", ok: routerOk, detail: routerOk ? "ROUTER.md OK" : "memory/ROUTER.md 없음 — repo 루트가 아닌 곳에서 실행?" });
+  checks.push({
+    name: t("doctor.check.repo.name"),
+    ok: routerOk,
+    detail: routerOk ? t("doctor.check.repo.detail.ok") : t("doctor.check.repo.detail.fail"),
+  });
 
   // 4. 검색 인덱스 — rebuild-index 와 동일한 storage 해석 사용
   const indexPath = join(resolveStorageRoot(), "indexes", "search.sqlite");
@@ -147,13 +157,18 @@ async function runDoctor(): Promise<number> {
     const ageDays = Math.floor((Date.now() - Math.max(...mtimes)) / 86_400_000);
     const fresh = ageDays <= 7;
     checks.push({
-      name: "검색 인덱스",
+      name: t("doctor.check.index.name"),
       ok: true,
-      detail: `${indexPath} (${ageDays}일 전 갱신)`,
-      fix: fresh ? undefined : "cfgm rebuild-index --embeddings  # 7일 이상 경과 — 재생성 권장",
+      detail: t("doctor.check.index.detail.exists", indexPath, ageDays),
+      fix: fresh ? undefined : t("doctor.check.index.fix.stale"),
     });
   } else {
-    checks.push({ name: "검색 인덱스", ok: false, detail: "미생성 (최초 실행 시 정상)", fix: "cfgm rebuild-index --embeddings" });
+    checks.push({
+      name: t("doctor.check.index.name"),
+      ok: false,
+      detail: t("doctor.check.index.detail.missing"),
+      fix: t("doctor.check.index.fix.missing"),
+    });
   }
 
   // 5. SSL normalize 큐
@@ -172,31 +187,36 @@ async function runDoctor(): Promise<number> {
     }
   }
   checks.push({
-    name: "SSL 큐",
+    name: t("doctor.check.sslQueue.name"),
     ok: stale === 0,
     detail: `pending=${pending} stale=${stale}`,
-    fix: stale > 0 ? "cfgm ssl-reap" : pending > 0 ? "PAI 세션에서 처리: CLAUDE_CONFIG_DIR=.claude-pai claude" : undefined,
+    fix:
+      stale > 0
+        ? t("doctor.check.sslQueue.fix.stale")
+        : pending > 0
+          ? t("doctor.check.sslQueue.fix.pending")
+          : undefined,
   });
 
   // 6. Brain 프로파일 (선택)
   const brainHome = process.env.CFGM_BRAIN_HOME ?? join(process.env.HOME ?? "", ".claude-brain");
   const brainInstalled = existsSync(brainHome);
   checks.push({
-    name: "Brain 프로파일 (선택)",
+    name: t("doctor.check.brain.name"),
     ok: true,
-    detail: brainInstalled ? `${brainHome} 설치됨` : "미설치 — 훅 통합 없이도 CLI 는 모두 동작",
-    fix: brainInstalled ? undefined : "./install.sh  # Claude Code 훅 통합을 원하면",
+    detail: brainInstalled ? t("doctor.check.brain.detail.installed", brainHome) : t("doctor.check.brain.detail.notInstalled"),
+    fix: brainInstalled ? undefined : t("doctor.check.brain.fix"),
   });
 
   // 7. LongMemEval 데이터셋 (선택)
   const lmeData = join(REPO_ROOT, "data", "longmemeval", "longmemeval_s_cleaned.json");
   checks.push({
-    name: "LongMemEval 데이터 (선택)",
+    name: t("doctor.check.lme.name"),
     ok: true,
-    detail: existsSync(lmeData) ? "다운로드됨" : "없음 — bench-lme 실행 시에만 필요",
+    detail: existsSync(lmeData) ? t("doctor.check.lme.detail.downloaded") : t("doctor.check.lme.detail.missing"),
   });
 
-  console.log("cfgm doctor — CFGM-OS 자가진단\n");
+  console.log(t("doctor.header"));
   let failCount = 0;
   for (const c of checks) {
     const mark = c.ok ? "✓" : "✗";
@@ -204,7 +224,7 @@ async function runDoctor(): Promise<number> {
     console.log(`${mark} ${c.name.padEnd(24)} ${c.detail}`);
     if (c.fix) console.log(`    → ${c.fix}`);
   }
-  console.log(failCount === 0 ? "\n모든 필수 점검 통과." : `\n필수 점검 실패 ${failCount}건 — 위 → 조치를 실행하세요.`);
+  console.log(failCount === 0 ? t("doctor.allPass") : t("doctor.someFail", failCount));
   return failCount === 0 ? 0 : 1;
 }
 

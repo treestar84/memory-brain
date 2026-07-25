@@ -4,6 +4,7 @@ import { UsageLog } from "../src/core/stats/UsageLog";
 import { FsStorage } from "../src/core/storage/FsStorage";
 import { resolveStorageRoot } from "../src/hooks/bootstrap";
 import { estimateMemoryCorpusTokens } from "../src/core/stats/TokenEstimate";
+import { t } from "../src/core/i18n/messages";
 
 /**
  * cfgm-stats — cfgm search/ask 로컬 사용 통계 요약 (효능 지표).
@@ -57,36 +58,36 @@ if (json) {
 const hasData = agg.totalSearches > 0 || agg.totalAsks > 0;
 
 if (!hasData) {
-  console.log(`최근 ${days}일 — 아직 사용 기록 없음. cfgm search 를 사용해 보세요.`);
+  console.log(t("stats.noData", days));
   process.exit(0);
 }
 
-console.log(`cfgm 사용 통계 — 최근 ${days}일\n`);
-console.log(`검색(search): ${agg.totalSearches}회`);
-console.log(`질의(ask): ${agg.totalAsks}회`);
-console.log(`고유 질의: ${agg.uniqueQueries}건`);
+console.log(t("stats.header", days));
+console.log(t("stats.searchCount", agg.totalSearches));
+console.log(t("stats.askCount", agg.totalAsks));
+console.log(t("stats.uniqueQueries", agg.uniqueQueries));
 if (corpusTokens > 0 && savingsPct !== null) {
-  console.log(`전달 컨텍스트: ~${agg.totalContextTokens} tokens (전량 주입 대비 ~${savingsPct}% 절감 — 추정치)`);
+  console.log(t("stats.contextLine", agg.totalContextTokens, savingsPct));
 }
 console.log("");
 
-console.log("자주 찾은 질의:");
+console.log(t("stats.topQueriesLabel"));
 if (agg.topQueries.length === 0) {
-  console.log("  (없음)");
+  console.log(t("stats.none"));
 } else {
-  for (const q of agg.topQueries) console.log(`  ${q.count}회  ${q.query}`);
+  for (const q of agg.topQueries) console.log(t("stats.topQueryLine", q.count, q.query));
 }
 
-console.log("\n자주 매칭된 페이지:");
+console.log(t("stats.topPagesLabel"));
 if (agg.topPages.length === 0) {
-  console.log("  (없음)");
+  console.log(t("stats.none"));
 } else {
-  for (const p of agg.topPages) console.log(`  ${p.count}회  ${p.pageId}`);
+  for (const p of agg.topPages) console.log(t("stats.topPageLine", p.count, p.pageId));
 }
 
-console.log("\n일별 추이:");
+console.log(t("stats.dailyTrendLabel"));
 if (agg.byDay.length === 0) {
-  console.log("  (없음)");
+  console.log(t("stats.none"));
 } else {
   for (const d of agg.byDay) console.log(`  ${d.date}  search=${d.searches} ask=${d.asks}`);
 }

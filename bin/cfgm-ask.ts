@@ -7,6 +7,7 @@ import { resolveStorageRoot } from "../src/hooks/bootstrap";
 import { UsageLog } from "../src/core/stats/UsageLog";
 import { FsStorage } from "../src/core/storage/FsStorage";
 import { estimateTokens, estimateMemoryCorpusTokens } from "../src/core/stats/TokenEstimate";
+import { t } from "../src/core/i18n/messages";
 
 /**
  * cfgm-ask — evidence pointer 가 붙은 근거 번들을 생성하는 프롬프트 컴포저.
@@ -40,7 +41,7 @@ const limit = intFlag("--limit", 5);
 const query = rest.filter((a, i) => a !== "--limit" && rest[i - 1] !== "--limit").join(" ").trim();
 
 if (!query) {
-  console.error("사용법: cfgm ask \"<질의>\" [--limit N] [--json]");
+  console.error(t("ask.usage"));
   process.exit(2);
 }
 
@@ -48,7 +49,7 @@ const storageRoot = resolveStorageRoot();
 const indexPath = resolve(storageRoot, "indexes", "search.sqlite");
 
 if (!existsSync(indexPath)) {
-  console.error("검색 인덱스가 없습니다 — 먼저 실행: cfgm rebuild-index --embeddings");
+  console.error(t("index.notFound"));
   process.exit(1);
 }
 
@@ -94,22 +95,19 @@ for (const h of hits) {
   });
 }
 
-const instruction =
-  `위 근거만 사용해 질문에 답하라. 각 주장 끝에 (근거: <pageId> / <claim-id>) 형식의 ` +
-  `pointer 를 인용하라. 위 근거로 답할 수 없으면 추측하지 말고 '메모리에 근거 없음' 이라고 답하라. ` +
-  `질문: ${query}`;
+const instruction = t("ask.instruction", query);
 
 // 근거 번들 텍스트(실제로 host LLM 에게 전달되는 부분) 를 조립해 토큰 추정에 사용한다.
 const bundleLines: string[] = [];
 if (grounds.length === 0) {
-  bundleLines.push(`"${query}" — 근거 없음. 인덱스에 관련 wiki page 가 없거나 어휘가 다를 수 있습니다.`);
+  bundleLines.push(t("ask.noGrounds", query));
 } else {
-  bundleLines.push(`질의: "${query}" — 근거 ${grounds.length}건\n`);
+  bundleLines.push(t("ask.groundsHeader", query, grounds.length));
   for (const g of grounds) {
     bundleLines.push(`● ${g.pageId}  [${g.type}/${g.status}]`);
     bundleLines.push(`  ${g.pagePath}`);
     bundleLines.push(`  ${g.snippet}`);
-    bundleLines.push(`  claims: ${g.claimIds.length > 0 ? g.claimIds.join(", ") : "(없음)"}\n`);
+    bundleLines.push(`  claims: ${g.claimIds.length > 0 ? g.claimIds.join(", ") : t("common.none")}\n`);
   }
   bundleLines.push(instruction);
 }
@@ -140,22 +138,20 @@ if (json) {
 }
 
 if (grounds.length === 0) {
-  console.log(`"${query}" — 근거 없음. 인덱스에 관련 wiki page 가 없거나 어휘가 다를 수 있습니다.`);
+  console.log(t("ask.noGrounds", query));
   process.exit(0);
 }
 
-console.log(`질의: "${query}" — 근거 ${grounds.length}건\n`);
+console.log(t("ask.groundsHeader", query, grounds.length));
 for (const g of grounds) {
   console.log(`● ${g.pageId}  [${g.type}/${g.status}]`);
   console.log(`  ${g.pagePath}`);
   console.log(`  ${g.snippet}`);
-  console.log(`  claims: ${g.claimIds.length > 0 ? g.claimIds.join(", ") : "(없음)"}\n`);
+  console.log(`  claims: ${g.claimIds.length > 0 ? g.claimIds.join(", ") : t("common.none")}\n`);
 }
 
 console.log(instruction);
 
 if (corpusTokens > 0) {
-  console.log(
-    `\n--- 근거 번들 ~${bundleTokens} tokens · 전체 메모리 ~${corpusTokens} tokens 의 ${pct}% (추정: chars/4)`,
-  );
+  console.log(t("ask.tokenFooter", bundleTokens, corpusTokens, pct));
 }

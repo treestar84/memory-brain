@@ -5,6 +5,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added — V3.38 글로벌 온보딩 1단계 — 영어 README + 데모 GIF + CFGM_LANG (2026-07-25)
+- **영어 README 전환** — `README.md` 영어 본문 (한국어판은 `README.ko.md` 보존, 상호 링크). 최상단에 "Memory rot, measured" 후크 (코호트 부패 곡선 mermaid + 기각 로그 공개 카피). 모든 캡처는 실제 실행 출력만 사용 — 초안의 번역 캡처를 실캡처로 전량 교체, 한국어 원문 발췌는 translation 라벨 병기 (팩트체크 원칙).
+- **`CFGM_LANG=en`** — 데모 경로 CLI 4종(doctor/search/ask/stats) 영어 출력 모드 (`src/core/i18n/messages.ts`). 기본값 ko 는 기존 출력과 동일 (회귀 가드 테스트). --json 구조 불변. 테스트 5건.
+- **30초 데모 GIF** (`docs/assets/demo.gif`, vhs 녹화 + `demo.tape` 재현 스크립트) — search → ask (claim 인용 지시 + 토큰 10.7% 푸터) → stats (96.8% 절감). README 최상단 삽입.
+
 ### Added — V3.37 Session Consolidation — 구현 + 실측 기각 (2026-07-24, 정직 보고)
 - **`SessionConsolidator`** (신규) — 근사중복 supersede (content-token TF 코사인 ≥0.90) + 추출적 증류 (상위 5문장/30% 고정). 계측기 교정 선행: HashedNgram 원문 코사인은 무관 쌍 23.2%≥0.90 로 무효 판정 → content-token TF 로 교체 (무관 max 0.314 / 근사중복 min 0.940, 벤치 정답 미사용). `cfgm rot-bench --consolidated` 3조건 측정.
 - **M 코호트 실측 판정 — 기각**:

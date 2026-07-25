@@ -7,6 +7,7 @@ import { resolveStorageRoot } from "../src/hooks/bootstrap";
 import { UsageLog } from "../src/core/stats/UsageLog";
 import { FsStorage } from "../src/core/storage/FsStorage";
 import { estimateTokens } from "../src/core/stats/TokenEstimate";
+import { t } from "../src/core/i18n/messages";
 
 /**
  * cfgm-search — memory/ wiki 자연어 검색 (온보딩용 즉시 체감 진입점).
@@ -33,7 +34,7 @@ const limit = intFlag("--limit", 8);
 const query = rest.filter((a, i) => a !== "--limit" && rest[i - 1] !== "--limit").join(" ").trim();
 
 if (!query) {
-  console.error("사용법: cfgm search \"<질의>\" [--limit N] [--json]");
+  console.error(t("search.usage"));
   process.exit(2);
 }
 
@@ -41,7 +42,7 @@ const storageRoot = resolveStorageRoot();
 const indexPath = resolve(storageRoot, "indexes", "search.sqlite");
 
 if (!existsSync(indexPath)) {
-  console.error("검색 인덱스가 없습니다 — 먼저 실행: cfgm rebuild-index --embeddings");
+  console.error(t("index.notFound"));
   process.exit(1);
 }
 
@@ -67,11 +68,11 @@ if (json) {
 }
 
 if (hits.length === 0) {
-  console.log(`"${query}" — 결과 없음. 인덱스에 관련 wiki page 가 없거나 어휘가 다를 수 있습니다.`);
+  console.log(t("search.noResults", query));
   process.exit(0);
 }
 
-console.log(`"${query}" — ${hits.length}건\n`);
+console.log(t("search.resultsHeader", query, hits.length));
 for (const h of hits) {
   console.log(`● ${h.pageId}  [${h.type}/${h.status}]`);
   console.log(`  ${h.pagePath}`);
