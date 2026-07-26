@@ -66,6 +66,23 @@ request.md
 docs/_codex_plan_check.md
 docs/journal/
 
+# 개발 과정의 개인 시작 작업·기획·히스토리 문서 — README/AGENTS.md 에서 링크되지
+# 않는 내부 스크래치. 동작에 유효한 파일(코드·설치·핵심 docs)만 공개 저장소에 남긴다.
+memory_system_improvement_prompt.md
+docs/handoff.md
+docs/hook_memory_system_invention_prd_ko.md
+docs/pai-gap-report.md
+docs/phase1-plan.md
+docs/phase2-plan.md
+docs/phase2-scope.md
+docs/phase3-candidates.md
+docs/phase3-entry-snapshot-2026-04-26.md
+docs/pr6-plan.md
+docs/pr7-plan.md
+docs/artifacts.md
+docs/superpowers/
+memory/journal/
+
 # External benchmark datasets (download via curl — see bin/cfgm-lme-retrieval.ts)
 data/
 
