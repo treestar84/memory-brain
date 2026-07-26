@@ -15,7 +15,7 @@ Enter
 Sleep 1s
 Show
 
-Type "cfgm ask 'Honcho self-host 를 철회한 이유' --limit 1"
+Type "cfgm ask '하이픈 들어간 검색어가 크래시나던 버그 왜 이렇게 고쳤지' --limit 1"
 Sleep 500ms
 Enter
 Sleep 5s

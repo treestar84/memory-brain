@@ -17,25 +17,25 @@
 
 ```
 ❌ 보통의 새 세션
-> 우리 Honcho self-host 왜 철회했었지?
+> 지난주에 고친 그 검색 크래시 버그, 왜 그렇게 고쳤더라?
 "이전 대화 기록이 없어 확인할 수 없습니다. 일반적으로는..." (추측 시작)
 ```
 
 ```bash
-$ cfgm ask "Honcho self-host 를 철회한 이유"
-질의: "Honcho self-host 를 철회한 이유" — 근거 1건
+$ cfgm ask "하이픈 들어간 검색어가 크래시나던 버그 왜 이렇게 고쳤지"
+질의: "하이픈 들어간 검색어가 크래시나던 버그 왜 이렇게 고쳤지" — 근거 1건
 
-● decision.oss-incorporation  [decision/active]
-  decisions/oss-incorporation.md
-  ...Honcho server 통째 self-host 결정은 ADR-021 으로 철회. ...
-  claims: cl-oss-001, cl-oss-002, cl-oss-003, cl-oss-004, cl-oss-005, cl-oss-006
+● decision.fts5-special-char-crash-fix  [decision/active]
+  decisions/fts5-special-char-crash-fix.md
+  ...KG-Brain" 처럼 하이픈(`-`)이 포함된 실사용 검색어가 SQLite FTS5 의 MATCH...
+  claims: cl-fts5-001, cl-fts5-002, cl-fts5-003, cl-fts5-004
 
 위 근거만 사용해 질문에 답하라. 각 주장 끝에 (근거: <pageId> / <claim-id>) 형식의
 pointer 를 인용하라. 위 근거로 답할 수 없으면 추측하지 말고 '메모리에 근거 없음'
-이라고 답하라. 질문: Honcho self-host 를 철회한 이유
+이라고 답하라. 질문: 하이픈 들어간 검색어가 크래시나던 버그 왜 이렇게 고쳤지
 ```
 
-> "Honcho self-host 는 docker-compose + Postgres+pgvector + LLM API key 부담이 local-first 정신과 충돌해 철회했고, 자체 PersonaStore로 대체했습니다 **(근거: decision.oss-incorporation / cl-oss-004)**"
+> "하이픈처럼 FTS5 쿼리 문법에서 특별한 의미를 갖는 문자가 검색어에 섞이면 NOT 연산자 등으로 잘못 해석돼 쿼리가 깨졌습니다. 그래서 원본 쿼리가 실패하면 정제된 쿼리로, 그래도 안 되면 전체 토큰을 느슨하게 묶은 쿼리로 넘어가는 3단계 폴백을 넣어 절대 크래시하지 않도록 고쳤습니다 **(근거: decision.fts5-special-char-crash-fix / cl-fts5-002, cl-fts5-003)**"
 
 이 답변을 만드는 데 별도 LLM API 호출은 0회입니다 — 이미 쓰고 있는 Claude Code / Codex 구독이 그대로 답을 만듭니다.
 

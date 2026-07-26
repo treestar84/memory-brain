@@ -5,6 +5,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Docs — README 데모 예시를 "일상적인 개발 상황"으로 교체 (2026-07-26)
+- 사용자 피드백: "Honcho self-host" 예시가 이 프로젝트 내부 용어라 일반 개발자가 공감하기 어렵고 설치 동기를 못 준다.
+- **후보 3종 중 사용자가 "버그 수정 이유" 선택** — 실제 이 프로젝트에서 있었던 진짜 사실(V3.28, 하이픈 포함 검색어 FTS5 크래시 → 3단 fallback 수정)만 사용, 지어내지 않음.
+- **`memory/decisions/fts5-special-char-crash-fix.md`** (신규) — 코드(`SearchIndex.queryFtsWithFallback()`)와 CHANGELOG V3.28 기록을 직접 대조해 정확한 사실로 작성 (claim 4건).
+- README.md "30초면 감이 옵니다" 텍스트 데모 + `docs/assets/demo-ko.gif` 를 새 예시로 전량 교체, 실제 `cfgm ask` 재실행 결과와 정확히 일치 확인.
+- 검증: 1102/1102 pass · typecheck OK.
+
 ### Docs — 한국어 실데모 GIF 추가 (2026-07-26)
 - `docs/assets/demo-ko.{gif,tape}` (신규) — 한국어 기본 출력(CFGM_LANG 미설정)으로 `cfgm ask "Honcho self-host 를 철회한 이유" --limit 1` → `cfgm stats` 를 실제 녹화. README.md "30초면 감이 옵니다" 섹션 텍스트 데모와 정확히 동일한 결과(근거 1건, decision.oss-incorporation, claims cl-oss-001~006) — 육안 프레임 검증 완료.
 - 녹화 과정에서 발견: `--limit` 미지정 시 기본 5건이 반환돼 캡처 프레임이 낮은 순위 결과(ssl-skill-representation 등)를 보여줘 오진 위험 있었음 — README 정적 데모와 동일하게 `--limit 1` 로 통일해 재녹화.
