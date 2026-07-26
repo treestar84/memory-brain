@@ -245,6 +245,25 @@ sequenceDiagram
 
 ## 🚀 Quick Start
 
+### Fastest install — Claude Code plugin
+
+```
+/plugin marketplace add treestar84/memory-brain
+/plugin install memory-brain@cfgm-os
+```
+
+Start a new session and the global `cfgm` command is provisioned automatically (a `SessionStart` hook runs `bun install && bun link` the first time, and does nothing on later sessions). Then use the slash commands:
+
+```
+/memory-brain:search <query>     # natural-language wiki search
+/memory-brain:ask <query>        # search + evidence bundle → cited answer
+/memory-brain:doctor             # install/environment self-check
+/memory-brain:capture <file-or-dir>  # session notes → wiki draft intake queue
+/memory-brain:stats              # local search/ask usage stats
+```
+
+### Manual install (any host CLI, or to browse the dogfood memory example)
+
 **Prerequisites**: [Bun](https://bun.sh) ≥ 1.1
 
 ```bash

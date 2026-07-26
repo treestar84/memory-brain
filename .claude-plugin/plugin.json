@@ -1,0 +1,10 @@
+{
+  "name": "memory-brain",
+  "description": "Claim-grounded, persona-aware memory routing OS for host CLIs (Claude Code, Codex). No server. No API key. No MCP. Your memory is markdown in your repo.",
+  "version": "0.1.0",
+  "author": {
+    "name": "treestar84"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/treestar84/memory-brain"
+}

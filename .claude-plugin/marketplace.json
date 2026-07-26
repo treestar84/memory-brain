@@ -1,0 +1,15 @@
+{
+  "name": "cfgm-os",
+  "owner": {
+    "name": "treestar84"
+  },
+  "plugins": [
+    {
+      "name": "memory-brain",
+      "source": "./",
+      "description": "Claim-grounded, persona-aware memory routing OS for host CLIs (Claude Code, Codex). No server. No API key. No MCP. Your memory is markdown in your repo.",
+      "category": "productivity",
+      "tags": ["memory", "claim-grounded", "claude-code"]
+    }
+  ]
+}

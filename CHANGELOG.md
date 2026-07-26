@@ -5,6 +5,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added — V3.40 Claude Code 플러그인 마켓플레이스 (2026-07-26)
+- 저장소 자체를 플러그인 마켓플레이스로 겸용 (`.claude-plugin/marketplace.json` + `plugin.json`) — `/plugin marketplace add treestar84/memory-brain` → `/plugin install memory-brain@cfgm-os` 로 git clone 없는 설치 경로 신설.
+- **`hooks/hooks.json` SessionStart 훅** — `cfgm` 미존재 시에만 플러그인 디렉토리(`$CLAUDE_PLUGIN_ROOT`)에서 `bun install && bun link` 자동 실행. 타임아웃 + `|| true` 로 어떤 실패도 세션 시작을 막지 않음. cfgm 존재/부재 양쪽 시나리오 수동 검증 (각각 0.03s/0.002s 종료, 크래시 없음).
+- **슬래시 커맨드 5종** (`commands/*.md`) — `/memory-brain:search`, `:ask`, `:doctor`, `:capture`, `:stats`. `${CLAUDE_PLUGIN_ROOT}` 가 command 마크다운에서 치환되지 않는 Claude Code 알려진 제약(anthropics/claude-code#9354)을 피해 `cfgm` PATH 의존 자연어 지시로 작성. `/memory-brain:ask` 는 반환된 근거 번들만 사용해 claim id 인용 답변을 생성하도록 지시 (claim-grounded 원칙 유지).
+- README.md(영어) 에 "Fastest install" 섹션 신설, 기존 git-clone 경로는 "Manual install" 로 보존. docs/RULES.md 5원칙(MCP 미사용·API 키 불요 등) 위반 없음.
+- README.ko.md 동기화는 후속 과제로 보류.
+- 검증: 1102/1102 pass (회귀 0) · typecheck OK · JSON 전건 파싱 확인 · 훅 스크립트 양쪽 시나리오 수동 검증.
+
 ### Added — V3.39 rot-bench 독립화 — 외부 어댑터 프로토콜 (2026-07-26)
 - **subprocess JSONL 어댑터 프로토콜** (`src/core/bench/RotAdapter.ts`) — 언어 무관 stdin/stdout JSONL 로 외부 메모리 도구를 naive/governed 와 동일 체크포인트×문항 조건에서 4번째 조건(`external`)으로 측정. 타임아웃/잘못된 응답/EOF 는 크래시 없이 ranked=[] 로 정직 채점(보정 금지). `cfgm rot-bench --adapter "<command...>" [--adapter-label <name>]`, `--cohort`/`--consolidated` 와 조합 가능.
 - **참조 어댑터** (`examples/rot-adapter-bm25.ts`) — 프로토콜 시연용 단순 word-overlap 랭커.
