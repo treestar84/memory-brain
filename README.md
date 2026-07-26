@@ -227,7 +227,7 @@ flowchart TB
     L6 -.-> L2
 ```
 
-**5 design principles** ([`docs/RULES.md`](./docs/RULES.md)): ① no MCP ② no direct LLM SDK calls (delegated to the host subscription → **zero extra cost to the user**) ③ no external orchestration dependency ④ production quality (989+ tests · ≥90% coverage) ⑤ persona/fact separation + mutations happen in a dedicated PAI session.
+**5 design principles** ([`docs/RULES.md`](./docs/RULES.md)): ① no MCP ② no direct LLM SDK calls (delegated to the host subscription → **zero extra cost to the user**) ③ no external orchestration dependency ④ production quality (1100+ tests · ≥90% coverage) ⑤ persona/fact separation + mutations happen in a dedicated PAI session.
 
 ### PAI session — a separate persistent session
 
@@ -368,7 +368,7 @@ cfgm lme-score --collect            # aggregate official metrics (judge accuracy
 ## 🧪 Test
 
 ```bash
-bun test              # 989+ tests
+bun test              # 1100+ tests
 bun run typecheck
 ```
 

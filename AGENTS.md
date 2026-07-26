@@ -50,10 +50,19 @@ cfgm search "메모리 라우팅"        # 자연어로 즉시 검색 — 결과
 ```bash
 cfgm help                          # 전체 명령 그룹별 목록
 cfgm search "<질의>" [--limit N]   # wiki 자연어 검색
+cfgm ask "<질의>"                  # 검색 + evidence pointer 근거 번들 — host LLM 이 인용 달린 답 생성
+cfgm capture --input <파일>        # 세션 노트 → wiki draft 수집 큐 (host-위임, 검토 후 편입)
+cfgm decay                         # wiki 망각 판정 (나이×회상 빈도) — 삭제 없음, archive 만 명시 승인
+cfgm stats                         # 로컬 사용 통계 (외부 전송 0)
+cfgm rot-bench -- --cohort         # 메모리 부패 벤치마크 (docs/ROT-BENCH.md)
 cfgm ssl-enqueue                   # .claude/skills/**(SKILL.md) → SSL 지식그래프 변환
 cfgm viewer                        # 대시보드 (localhost:4041)
 cfgm graph-query neighbors <id>    # KG 그래프 탐색
 ```
+
+`CFGM_LANG=en` 환경변수로 `search`/`ask`/`doctor`/`stats` 의 출력을 영어로 전환할 수 있습니다
+(기본값은 한국어). Claude Code 사용자는 저장소 clone 대신 플러그인 마켓플레이스로도
+설치할 수 있습니다 — `README.md` 의 "Fastest install" 섹션 참고.
 
 세션 영구 메모리(자동 hook 주입)는 Claude Code 전용 기능이며, Codex 등 다른
 host 에서는 **CLI 를 직접 호출**하는 방식으로 동일한 memory/ 상태를 공유합니다 —

@@ -5,6 +5,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Docs — 문서 정합성 정리 (2026-07-26)
+- **README.ko.md 동기화** — V3.38~V3.40 에서 영어 README 에만 반영되고 한국어판엔 빠져 있던 4곳을 채움: 데모 GIF 임베드, "Memory rot, measured" 후크 섹션(수치·mermaid 원본과 100% 대조 확인), Quick Start 의 "가장 빠른 설치(플러그인)"/"수동 설치" 분리, 문서 지도에 `docs/ROT-BENCH.md` 행 추가.
+- **`memory/current.md` 정리** — 자체 운영 규칙("~100줄 상한, 초과 시 journal 이관")을 오래 위반한 상태(287줄, PR-V3.2~V3.17 시절 이력까지 누적)를 시정. PR-V3.2~V3.31 구간을 `memory/journal/2026-07-26.md` 로 전량 이관(내용 손실 없음)하고, V3.32~V3.40 최근 이력 + 다음 단계 후보(90일 rot 실사용 시뮬레이션·Show HN·특허 상담)만 남겨 78줄로 축소.
+- **`AGENTS.md` 갱신** — "자주 쓰는 명령" 이 `cfgm search`/`ssl-enqueue`/`viewer`/`graph-query` 4개뿐이라 V3.34~36 에서 추가된 `ask`/`capture`/`decay`/`stats`/`rot-bench` 가 Codex 사용자에게 전혀 안내되지 않던 것을 시정. `CFGM_LANG=en` · Claude Code 플러그인 설치 경로 안내도 추가.
+- **테스트 수치 정정** — README(영/한) 4곳에 남아있던 "989+ tests"(V3.28 시점 수치)를 실측 "1100+ tests" 로 갱신.
+- 검증: 1102/1102 pass · typecheck OK · 코드펜스 균형 (README.md/README.ko.md 각 46, 짝수) · mermaid 수치 원본 대조 확인.
+
 ### Added — V3.40 Claude Code 플러그인 마켓플레이스 (2026-07-26)
 - 저장소 자체를 플러그인 마켓플레이스로 겸용 (`.claude-plugin/marketplace.json` + `plugin.json`) — `/plugin marketplace add treestar84/memory-brain` → `/plugin install memory-brain@cfgm-os` 로 git clone 없는 설치 경로 신설.
 - **슬래시 커맨드 6종** (`commands/*.md`) — `/memory-brain:setup`, `:search`, `:ask`, `:doctor`, `:capture`, `:stats`. `${CLAUDE_PLUGIN_ROOT}` 가 command 마크다운에서 치환되지 않는 Claude Code 알려진 제약(anthropics/claude-code#9354)을 피해 `cfgm` PATH 의존 자연어 지시로 작성. `/memory-brain:ask` 는 반환된 근거 번들만 사용해 claim id 인용 답변을 생성하도록 지시 (claim-grounded 원칙 유지).

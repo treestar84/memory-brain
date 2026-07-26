@@ -8,8 +8,31 @@
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg) ![Runtime: Bun](https://img.shields.io/badge/Runtime-Bun%20%E2%89%A5%201.1-black) ![LLM API calls: 0](https://img.shields.io/badge/Retrieval%20LLM%20calls-0-blue) ![Benchmark: LongMemEval](https://img.shields.io/badge/Benchmark-LongMemEval-orange)
 
+![30초 데모 — 검색, claim 인용 답변, 사용 통계](./docs/assets/demo.gif)
+
 Claude Code · Codex · Gemini CLI 같은 **host CLI 위에서 동작**합니다. MCP 서버도, API 키도, 추가 구독도 요구하지 않습니다 — 인터페이스는 파일과 자연어 명세뿐입니다.
 <sub>*Runs on top of host CLIs. No MCP server, no API key, no extra subscription — the only interfaces are files and natural-language specs.*</sub>
+
+---
+
+## ⚡ Memory rot, measured — 메모리 부패를 실측하다
+
+```mermaid
+xychart-beta
+    title "R@5 (%) vs. 세션 축적 — LongMemEval-M, cohort n=64"
+    x-axis ["25%", "50%", "75%", "100% 세션 축적"]
+    y-axis "R@5 (%)" 75 --> 100
+    bar [92.2, 89.1, 82.8, 79.7]
+    line [96.9, 92.2, 84.4, 82.8]
+```
+
+세션이 쌓일수록 검색 품질이 12~14pp 무너진다 — LongMemEval-M(2.5GB, 코호트 통제, LLM 호출 0회)에서 직접 측정하고, 측정 방법론과 **우리 자체 해법이 기각된 로그까지** 공개했다. 90%대 마케팅 수치가 넘쳐나는 시장에서, 우리는 부정적 결과도 그대로 출판한다.
+
+```bash
+cfgm rot-bench -- --cohort
+```
+
+전체 방법론·체크포인트 표·한계: [`docs/BENCHMARK.md`](./docs/BENCHMARK.md) · [`memory/reports/rot-bench-cohort-latest.md`](./memory/reports/rot-bench-cohort-latest.md).
 
 ---
 
@@ -200,7 +223,7 @@ flowchart TB
     L6 -.-> L2
 ```
 
-**5대 설계 원칙** ([`docs/RULES.md`](./docs/RULES.md)): ① MCP 미사용 ② LLM SDK 직접 호출 금지 (host 구독 위임 → **사용자 추가 비용 0**) ③ 외부 orchestration 비의존 ④ Production 품질 (테스트 989+ · 커버리지 ≥90%) ⑤ persona/fact 분리 + mutate 는 별도 PAI 세션.
+**5대 설계 원칙** ([`docs/RULES.md`](./docs/RULES.md)): ① MCP 미사용 ② LLM SDK 직접 호출 금지 (host 구독 위임 → **사용자 추가 비용 0**) ③ 외부 orchestration 비의존 ④ Production 품질 (테스트 1100+ · 커버리지 ≥90%) ⑤ persona/fact 분리 + mutate 는 별도 PAI 세션.
 
 ### PAI 세션 — 분리 영속 세션 <sub>*Separate persistent session*</sub>
 
@@ -217,6 +240,26 @@ sequenceDiagram
 ```
 
 ## 🚀 Quick Start
+
+### 가장 빠른 설치 — Claude Code 플러그인
+
+```
+/plugin marketplace add treestar84/memory-brain
+/plugin install memory-brain@cfgm-os
+/memory-brain:setup
+```
+
+`/memory-brain:setup` 은 플러그인 디렉토리 안에서 `bun install && bun link` 를 실행하는 1회성 단계다 — Claude 가 실제 실행 결과를 보여주고 실행 전에 물어본다, 백그라운드에서 조용히 실행되는 것은 없다. 이후 슬래시 커맨드를 사용한다:
+
+```
+/memory-brain:search <질의>          # 자연어 wiki 검색
+/memory-brain:ask <질의>             # 검색 + 근거 번들 → 인용 달린 답변
+/memory-brain:doctor                 # 설치·환경 자가진단
+/memory-brain:capture <파일-또는-디렉토리>  # 세션 노트 → wiki draft 수집 큐
+/memory-brain:stats                  # 로컬 검색/ask 사용 통계
+```
+
+### 수동 설치 (다른 host CLI, 또는 dogfood 메모리 예제를 직접 살펴보고 싶을 때)
 
 **Prerequisites**: [Bun](https://bun.sh) ≥ 1.1
 
@@ -311,6 +354,7 @@ cfgm lme-score --collect            # 공식 지표 (judge accuracy) 집계
 |---|---|
 | [`AGENTS.md`](./AGENTS.md) | Codex 등 non-Claude host 용 bootloader — `CLAUDE.md` 와 동일 규칙 |
 | [`docs/BENCHMARK.md`](./docs/BENCHMARK.md) | **측정 규약** — SHA-256·split 정책·튜닝 로그·재현 절차·한계 |
+| [`docs/ROT-BENCH.md`](./docs/ROT-BENCH.md) | 메모리 부패 벤치마크 — 코호트 실측 결과, 외부 어댑터 프로토콜, 자체 측정 결과 제출 방법 |
 | [`docs/RULES.md`](./docs/RULES.md) | 아키텍처 원칙 5 + 위반 처리 (새 코드 전 필독) |
 | [`docs/EXTENDING.md`](./docs/EXTENDING.md) | 확장 seam 8종 — Embedder·fusion·Router·어휘·host-위임 큐 |
 | [`memory/SCHEMA.md`](./memory/SCHEMA.md) / [`memory/ROUTER.md`](./memory/ROUTER.md) | 디렉토리 명세 / retrieval policy |
@@ -320,7 +364,7 @@ cfgm lme-score --collect            # 공식 지표 (judge accuracy) 집계
 ## 🧪 Test
 
 ```bash
-bun test              # 989+ tests
+bun test              # 1100+ tests
 bun run typecheck
 ```
 
