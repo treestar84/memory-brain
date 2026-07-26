@@ -5,6 +5,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Docs — 한국어 실데모 GIF 추가 (2026-07-26)
+- `docs/assets/demo-ko.{gif,tape}` (신규) — 한국어 기본 출력(CFGM_LANG 미설정)으로 `cfgm ask "Honcho self-host 를 철회한 이유" --limit 1` → `cfgm stats` 를 실제 녹화. README.md "30초면 감이 옵니다" 섹션 텍스트 데모와 정확히 동일한 결과(근거 1건, decision.oss-incorporation, claims cl-oss-001~006) — 육안 프레임 검증 완료.
+- 녹화 과정에서 발견: `--limit` 미지정 시 기본 5건이 반환돼 캡처 프레임이 낮은 순위 결과(ssl-skill-representation 등)를 보여줘 오진 위험 있었음 — README 정적 데모와 동일하게 `--limit 1` 로 통일해 재녹화.
+- README.md 에 GIF 삽입 (정적 텍스트 데모는 접근성·복사용으로 그대로 유지).
+
 ### Docs — README 한국어 메인 전환 + 차별화 이미지 (2026-07-26)
 - **README 언어 우선순위 역전**: `README.md` 가 다시 한국어 메인(일반 사용자 대상, 간결화)이 되고, 기존 영어 상세판은 `README.en.md` 로 이동(아키텍처·전체 CLI·고급 기능 포함, 내용 무변경). `README.ko.md` 는 새 `README.md` 로 대체돼 삭제.
 - **한국어 README 재구성 (approachability 우선)**: 전문용어("Claim-Grounded, Persona-Aware...", 7-layer 등) 로 시작하지 않고 이미지 → 30초 데모 → "왜 다른가 3가지"(평서문) → 설치 → 벤치마크 요약(2줄 표) → 더 알아보기 링크 순으로 재배치. 벤치마크 mermaid 차트·type별 표·아키텍처 다이어그램 등 깊은 내용은 README.en.md/docs/ 로 위임.

@@ -13,6 +13,8 @@
 
 ## 30초면 감이 옵니다
 
+![실제 터미널 데모 — cfgm ask 로 근거 인용 답변, cfgm stats 로 사용 통계](./docs/assets/demo-ko.gif)
+
 ```
 ❌ 보통의 새 세션
 > 우리 Honcho self-host 왜 철회했었지?
