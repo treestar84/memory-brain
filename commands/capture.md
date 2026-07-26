@@ -7,4 +7,4 @@ Run `cfgm capture --input "$ARGUMENTS"` in the shell. This enqueues the given fi
 
 Show the user the command's output, including the created job path(s), and explain that drafts still need review/acceptance (`cfgm capture-status`, `cfgm capture-accept`) before they become part of the memory wiki.
 
-If the command fails with `cfgm: command not found`, tell the user the plugin is still provisioning — ask them to start a new session, or run `cd <plugin dir> && bun install && bun link` manually.
+If the command fails with `cfgm: command not found`, tell the user to run `/memory-brain:setup` once to provision it.

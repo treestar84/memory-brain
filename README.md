@@ -250,9 +250,10 @@ sequenceDiagram
 ```
 /plugin marketplace add treestar84/memory-brain
 /plugin install memory-brain@cfgm-os
+/memory-brain:setup
 ```
 
-Start a new session and the global `cfgm` command is provisioned automatically (a `SessionStart` hook runs `bun install && bun link` the first time, and does nothing on later sessions). Then use the slash commands:
+`/memory-brain:setup` is a one-time step that runs `bun install && bun link` inside the plugin's own directory — Claude shows you the actual output and asks before running it, nothing happens silently in the background. After that, use the slash commands:
 
 ```
 /memory-brain:search <query>     # natural-language wiki search
