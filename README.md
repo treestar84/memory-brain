@@ -338,6 +338,7 @@ cfgm lme-score --collect            # aggregate official metrics (judge accuracy
 |---|---|
 | [`AGENTS.md`](./AGENTS.md) | bootloader for Codex and other non-Claude hosts — same rules as `CLAUDE.md` |
 | [`docs/BENCHMARK.md`](./docs/BENCHMARK.md) | **measurement protocol** — SHA-256, split policy, tuning log, reproduction steps, limitations |
+| [`docs/ROT-BENCH.md`](./docs/ROT-BENCH.md) | memory rot benchmark — cohort results, external adapter protocol, submit your own results |
 | [`docs/RULES.md`](./docs/RULES.md) | the 5 architecture principles + how violations are handled (read before adding code) |
 | [`docs/EXTENDING.md`](./docs/EXTENDING.md) | 8 extension seams — embedder, fusion, router, vocabulary, host-delegated queues |
 | [`memory/SCHEMA.md`](./memory/SCHEMA.md) / [`memory/ROUTER.md`](./memory/ROUTER.md) | directory spec / retrieval policy |

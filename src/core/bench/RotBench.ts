@@ -4,6 +4,7 @@ import type { WikiPage } from "../wiki/types";
 import { estimateTokens } from "../stats/TokenEstimate";
 import { type LmeQuestion, type LmeTurn, sessionToText, retrieveTopSessions } from "./LongMemEval";
 import { consolidateSessions, type ConsolidationStats } from "../consolidation/SessionConsolidator";
+import { runExternalAdapter, type RotAdapterRequest } from "./RotAdapter";
 
 /**
  * 메모리 부패(rot) 벤치마크 (팀리드 지시 — 2026-07-24).
@@ -25,7 +26,7 @@ import { consolidateSessions, type ConsolidationStats } from "../consolidation/S
 /** 부패 측정 체크포인트 — haystack 세션 누적 비율 f. */
 export const ROT_CHECKPOINTS: readonly number[] = [0.25, 0.5, 0.75, 1.0];
 
-export type RotCondition = "naive" | "governed" | "consolidated";
+export type RotCondition = "naive" | "governed" | "consolidated" | "external";
 export type RotOrder = "date" | "seed";
 
 interface SessionRef {
@@ -231,6 +232,10 @@ export interface RotBenchResult {
     number,
     { avgSessionsBefore: number; avgSuperseded: number; avgCompressionRatio: number }
   >;
+  /** external 조건의 표시용 라벨 (opts.externalAdapter.label). external 미활성 시 undefined. */
+  externalLabel?: string;
+  /** external 조건 평가 중 오류(타임아웃/잘못된 응답/EOF)로 처리된 case 수 (해석용 — 채점엔 hit=false 로 이미 반영됨). */
+  externalErrorCount?: number;
 }
 
 export interface RotBenchOpts {
@@ -243,6 +248,14 @@ export interface RotBenchOpts {
   cohort?: boolean;
   /** true 면 3번째 조건 "consolidated" 추가 평가 (기본 false — 기존 2조건 동작 무변경). */
   consolidated?: boolean;
+  /**
+   * 지정 시 외부 subprocess JSONL 어댑터를 4번째(또는 consolidated 포함 시
+   * 5번째) 조건으로 평가에 추가한다 (기본 undefined — 기존 동작 무변경).
+   * `label` 은 리포트/stdout 표시용 이름. 실제 평가는 addQuestionToRotBench
+   * 단계에서 요청만 큐잉하고, `finalizeRotBenchAsync` 호출 시 1회 spawn 해
+   * 일괄 채점한다 (subprocess 는 전체 run 당 1회만 뜬다).
+   */
+  externalAdapter?: { command: string[]; label: string; timeoutMs?: number };
   onProgress?: (done: number, total: number) => void;
 }
 
@@ -293,6 +306,14 @@ export interface RotBenchAccumulator {
   readonly consolidationAgg?: Record<number, ConsolidationAggCell>;
   totalQuestions: number;
   cohortExcluded: number;
+  /** externalAdapter 활성 시에만 존재 — 원본 opts (spawn 은 finalizeRotBenchAsync 시점에 1회만). */
+  readonly externalAdapter?: { command: string[]; label: string; timeoutMs?: number };
+  /** externalAdapter 활성 시에만 존재 — 체크포인트 순회 중 큐잉된 평가 요청. */
+  readonly externalRequests?: RotAdapterRequest[];
+  /** externalAdapter 활성 시에만 존재 — 요청 id → 채점에 필요한 부분 질문·체크포인트 메타. */
+  readonly externalMetaById?: Map<string, { partial: LmeQuestion; checkpoint: number }>;
+  /** finalizeRotBenchAsync 실행 후 채워짐 — 오류(타임아웃/잘못된 응답/EOF) case 수. */
+  externalErrorCount: number;
 }
 
 export function createRotBenchAccumulator(opts: RotBenchOpts): RotBenchAccumulator {
@@ -303,9 +324,9 @@ export function createRotBenchAccumulator(opts: RotBenchOpts): RotBenchAccumulat
     evaluatedByCheckpoint[f] = 0;
     skippedByCheckpoint[f] = 0;
   }
-  const conditions: RotCondition[] = opts.consolidated
-    ? ["naive", "governed", "consolidated"]
-    : ["naive", "governed"];
+  const conditions: RotCondition[] = ["naive", "governed"];
+  if (opts.consolidated) conditions.push("consolidated");
+  if (opts.externalAdapter) conditions.push("external");
   let consolidationAgg: Record<number, ConsolidationAggCell> | undefined;
   if (opts.consolidated) {
     consolidationAgg = {};
@@ -323,6 +344,10 @@ export function createRotBenchAccumulator(opts: RotBenchOpts): RotBenchAccumulat
     consolidationAgg,
     totalQuestions: 0,
     cohortExcluded: 0,
+    externalAdapter: opts.externalAdapter,
+    externalRequests: opts.externalAdapter ? [] : undefined,
+    externalMetaById: opts.externalAdapter ? new Map() : undefined,
+    externalErrorCount: 0,
   };
 }
 
@@ -350,6 +375,19 @@ function evaluateAtCheckpoint(acc: RotBenchAccumulator, q: LmeQuestion, partial:
         agg.ratioSum += stats.avgCompressionRatio;
         agg.n += 1;
       }
+      continue;
+    }
+    if (condition === "external") {
+      // 실제 spawn·평가는 finalizeRotBenchAsync 시점에 1회 일괄 수행한다 — 여기서는
+      // 요청만 큐잉한다 (subprocess 를 질문마다 새로 띄우지 않기 위함).
+      const reqId = `${q.question_id}@${f}`;
+      const sessions = partial.haystack_session_ids.map((sid, i) => ({
+        id: sid,
+        date: partial.haystack_dates?.[i],
+        text: sessionToText(partial.haystack_sessions[i] ?? [], partial.haystack_dates?.[i]),
+      }));
+      acc.externalRequests!.push({ id: reqId, query: partial.question, top_k: 10, sessions });
+      acc.externalMetaById!.set(reqId, { partial, checkpoint: f });
       continue;
     }
     const ranked =
@@ -472,7 +510,52 @@ export function finalizeRotBench(acc: RotBenchAccumulator): RotBenchResult {
     conditions: acc.conditions,
     answerSupersededCount,
     consolidationByCheckpoint,
+    externalLabel: acc.externalAdapter?.label,
+    externalErrorCount: acc.externalAdapter ? acc.externalErrorCount : undefined,
   };
+}
+
+/**
+ * externalAdapter 로 큐잉된 요청을 1회 spawn 으로 일괄 채점해 acc.cases 에
+ * condition="external" case 를 채워 넣는다 (순수 부수효과 함수). 오류(타임아웃/
+ * 잘못된 응답/EOF)는 ranked=[] 로 정직하게 hit=false 채점하고 오류 카운트만
+ * 올린다 — 크래시하지 않는다. externalAdapter 미설정이거나 큐잉된 요청이
+ * 없으면 아무 것도 하지 않는다.
+ */
+async function runExternalAdapterPass(acc: RotBenchAccumulator): Promise<void> {
+  if (!acc.externalAdapter || !acc.externalRequests || acc.externalRequests.length === 0) return;
+  const results = await runExternalAdapter(acc.externalAdapter.command, acc.externalRequests, {
+    timeoutMs: acc.externalAdapter.timeoutMs,
+  });
+  for (const result of results) {
+    const meta = acc.externalMetaById?.get(result.id);
+    if (!meta) continue; // 이론상 발생 불가 — 방어적 skip
+    if (result.error) acc.externalErrorCount++;
+    // ranked 에 haystack 에 없는 세션 id 가 섞여 있으면 무시 (버그성 어댑터 방어).
+    const validIds = new Set(meta.partial.haystack_session_ids);
+    const filteredRanked = result.ranked.filter((sid) => validIds.has(sid));
+    const { hit, reciprocalRank, top5Tokens } = scoreRanked(filteredRanked, meta.partial);
+    acc.cases.push({
+      questionId: meta.partial.question_id,
+      questionType: meta.partial.question_type,
+      checkpoint: meta.checkpoint,
+      condition: "external",
+      hit,
+      reciprocalRank,
+      top5Tokens,
+    });
+  }
+}
+
+/**
+ * `finalizeRotBench` 의 async 버전 — externalAdapter 가 설정돼 있으면
+ * `runExternalAdapterPass` 로 1회 spawn 채점을 수행한 뒤 동일한 집계 로직을
+ * 태운다. externalAdapter 를 쓰지 않는 기존 호출측은 계속 `finalizeRotBench`
+ * (동기) 를 그대로 쓸 수 있다 — 추가 전용.
+ */
+export async function finalizeRotBenchAsync(acc: RotBenchAccumulator): Promise<RotBenchResult> {
+  await runExternalAdapterPass(acc);
+  return finalizeRotBench(acc);
 }
 
 /**
@@ -492,13 +575,29 @@ export function runRotBench(questions: LmeQuestion[], opts: RotBenchOpts): RotBe
   return finalizeRotBench(acc);
 }
 
+/**
+ * `runRotBench` 의 async 버전 — `opts.externalAdapter` 를 지원한다
+ * (naive/governed/consolidated 만 쓰는 기존 호출측은 `runRotBench` 동기판을
+ * 계속 사용 가능 — 추가 전용).
+ */
+export async function runRotBenchAsync(questions: LmeQuestion[], opts: RotBenchOpts): Promise<RotBenchResult> {
+  const pool = opts.limit ? questions.slice(0, opts.limit) : questions;
+  const acc = createRotBenchAccumulator(opts);
+  pool.forEach((q, qi) => {
+    addQuestionToRotBench(acc, q);
+    opts.onProgress?.(qi + 1, pool.length);
+  });
+  return finalizeRotBenchAsync(acc);
+}
+
 /** 결과 → memory/reports/ markdown. */
 export function renderRotBenchReport(result: RotBenchResult, generatedAt: string): string {
   const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
   const header = `| checkpoint | 조건 | n | R@5(hit) | MRR | top-5 평균 토큰(추정) |`;
   const sep = `|---|---|---|---|---|---|`;
+  const conditionLabel = (c: RotCondition) => (c === "external" ? (result.externalLabel ?? "external") : c);
   const row = (c: RotAggregateCell) =>
-    `| ${(c.checkpoint * 100).toFixed(0)}% | ${c.condition} | ${c.caseCount} | ${pct(c.recallAt5)} | ${c.mrr.toFixed(3)} | ${c.avgTop5Tokens.toFixed(0)} |`;
+    `| ${(c.checkpoint * 100).toFixed(0)}% | ${conditionLabel(c.condition)} | ${c.caseCount} | ${pct(c.recallAt5)} | ${c.mrr.toFixed(3)} | ${c.avgTop5Tokens.toFixed(0)} |`;
 
   const modeLabel = result.mode === "cohort" ? "cohort (동일 문항 집단)" : "all (체크포인트별 독립 커버리지)";
   const lines: string[] = [
@@ -542,6 +641,15 @@ export function renderRotBenchReport(result: RotBenchResult, generatedAt: string
           `  retrieval 구성(retrieveTopSessions, PRF)을 적용한다 — governed 대비`,
           `  차이가 consolidation 순효과다. 정답 세션이 supersede 로 제거되면`,
           `  보정 없이 hit 실패로 채점한다(정직성 원칙).`,
+        ]
+      : []),
+    ...(result.conditions.includes("external")
+      ? [
+          `- **${conditionLabel("external")} 조건** (\`--adapter\`): 외부 subprocess`,
+          `  JSONL 어댑터(docs/ROT-BENCH.md §Adapter protocol)를 naive/governed 와`,
+          `  동일 체크포인트×문항으로 평가한다. 타임아웃/잘못된 응답/EOF 는`,
+          `  ranked=[] 로 정직하게 hit 실패 처리한다(보정 금지) — 오류 case 수:`,
+          `  ${result.externalErrorCount ?? 0}.`,
         ]
       : []),
     `- **R@5 (hit)**: 정답 세션 중 최소 1개가 top-5 안에 있으면 1, 아니면 0`,
@@ -617,6 +725,7 @@ export function renderRotBenchReport(result: RotBenchResult, generatedAt: string
     `cfgm rot-bench -- --json            # 구조화 결과 전체`,
     `cfgm rot-bench -- --cohort          # 코호트 모드 (동일 문항 집단, rot-bench-cohort-latest.md)`,
     `cfgm rot-bench -- --consolidated    # 3번째 조건 consolidated 추가 평가`,
+    `cfgm rot-bench -- --adapter "<command...>" [--adapter-label <name>]  # 외부 어댑터 조건 추가 (docs/ROT-BENCH.md)`,
     "```",
   );
   return lines.join("\n");

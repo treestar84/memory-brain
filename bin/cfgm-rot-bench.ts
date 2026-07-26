@@ -3,7 +3,7 @@ import { resolve, dirname } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { HashedNgramEmbedder } from "../src/core/search/Embedder";
 import { parseLmeQuestions } from "../src/core/bench/LongMemEval";
-import { createRotBenchAccumulator, addQuestionToRotBench, finalizeRotBench, renderRotBenchReport } from "../src/core/bench/RotBench";
+import { createRotBenchAccumulator, addQuestionToRotBench, finalizeRotBenchAsync, renderRotBenchReport } from "../src/core/bench/RotBench";
 import { streamTopLevelJsonArray } from "../src/core/bench/StreamingJson";
 
 /**
@@ -30,6 +30,12 @@ import { streamTopLevelJsonArray } from "../src/core/bench/StreamingJson";
  *   cfgm rot-bench -- --consolidated  # 3번째 조건 consolidated 추가 평가 (저장 시점
  *                                       근사중복 supersede + 추출적 증류 순효과 측정).
  *                                       --cohort 와 조합 가능.
+ *   cfgm rot-bench -- --adapter "<command...>" [--adapter-label <name>]
+ *                                     # 외부 subprocess JSONL 어댑터를 조건으로 추가
+ *                                       평가 (docs/ROT-BENCH.md §Adapter protocol).
+ *                                       예: --adapter "python3 my_adapter.py"
+ *                                       (command 는 공백 분리). --cohort/--consolidated
+ *                                       와 조합 가능.
  *
  * LLM 호출 0 — docs/RULES.md 원칙 2 준수.
  */
@@ -57,6 +63,15 @@ if (sampleRaw && (!Number.isFinite(sample) || sample! <= 0)) {
   process.exit(1);
 }
 
+const adapterRaw = strFlag("--adapter");
+const adapterCommand = adapterRaw ? adapterRaw.trim().split(/\s+/).filter(Boolean) : undefined;
+if (adapterRaw && (!adapterCommand || adapterCommand.length === 0)) {
+  console.error(`invalid --adapter: ${adapterRaw}`);
+  process.exit(1);
+}
+const adapterLabel = strFlag("--adapter-label") ?? adapterCommand?.[0];
+const externalAdapter = adapterCommand ? { command: adapterCommand, label: adapterLabel! } : undefined;
+
 const dataFile = Bun.file(dataPath);
 if (!(await dataFile.exists())) {
   console.error(`dataset not found: ${dataPath}`);
@@ -70,7 +85,7 @@ if (!(await dataFile.exists())) {
 // 정규화·평가하고, 질문 객체는 평가 직후 버린다 — 전체 파일을 누적하는
 // 코드 경로가 없다. S 데이터셋(265MB)도 경로 이원화 없이 동일하게 처리한다.
 const embedder = new HashedNgramEmbedder();
-const acc = createRotBenchAccumulator({ embedder, order: seedOrder ? "seed" : "date", cohort, consolidated });
+const acc = createRotBenchAccumulator({ embedder, order: seedOrder ? "seed" : "date", cohort, consolidated, externalAdapter });
 const started = performance.now();
 let seen = 0;
 for await (const raw of streamTopLevelJsonArray(dataPath)) {
@@ -81,7 +96,7 @@ for await (const raw of streamTopLevelJsonArray(dataPath)) {
   if (seen % 50 === 0) console.error(`  진행 ${seen}${sample ? `/${sample}` : ""}`);
 }
 console.error(`  진행 ${seen}${sample ? `/${sample}` : ""}`);
-const result = finalizeRotBench(acc);
+const result = await finalizeRotBenchAsync(acc);
 const durationMs = Math.round(performance.now() - started);
 
 const generatedAt = new Date().toISOString();
@@ -96,9 +111,13 @@ if (json) {
     console.log(`  cohort 제외 문항 수: ${result.cohortExcluded ?? 0}`);
   }
   for (const c of result.aggregates) {
+    const label = c.condition === "external" ? (result.externalLabel ?? "external") : c.condition;
     console.log(
-      `  ${`${(c.checkpoint * 100).toFixed(0)}%`.padEnd(5)} ${c.condition.padEnd(12)} n=${String(c.caseCount).padEnd(4)} R@5 ${(c.recallAt5 * 100).toFixed(1)}%  MRR ${c.mrr.toFixed(3)}  avgTok ${c.avgTop5Tokens.toFixed(0)}`,
+      `  ${`${(c.checkpoint * 100).toFixed(0)}%`.padEnd(5)} ${label.padEnd(12)} n=${String(c.caseCount).padEnd(4)} R@5 ${(c.recallAt5 * 100).toFixed(1)}%  MRR ${c.mrr.toFixed(3)}  avgTok ${c.avgTop5Tokens.toFixed(0)}`,
     );
+  }
+  if (result.conditions.includes("external")) {
+    console.log(`  adapter[${result.externalLabel}] — 오류(타임아웃/잘못된 응답/EOF) case 수: ${result.externalErrorCount ?? 0}`);
   }
   if (result.conditions.includes("consolidated") && result.consolidationByCheckpoint) {
     console.log(`  consolidation — 정답 세션 supersede 제거 case 수: ${result.answerSupersededCount ?? 0}`);
@@ -111,3 +130,4 @@ if (json) {
   }
   console.log(`  report — ${reportPath}`);
 }
+

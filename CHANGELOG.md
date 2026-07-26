@@ -5,6 +5,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added — V3.39 rot-bench 독립화 — 외부 어댑터 프로토콜 (2026-07-26)
+- **subprocess JSONL 어댑터 프로토콜** (`src/core/bench/RotAdapter.ts`) — 언어 무관 stdin/stdout JSONL 로 외부 메모리 도구를 naive/governed 와 동일 체크포인트×문항 조건에서 4번째 조건(`external`)으로 측정. 타임아웃/잘못된 응답/EOF 는 크래시 없이 ranked=[] 로 정직 채점(보정 금지). `cfgm rot-bench --adapter "<command...>" [--adapter-label <name>]`, `--cohort`/`--consolidated` 와 조합 가능.
+- **참조 어댑터** (`examples/rot-adapter-bm25.ts`) — 프로토콜 시연용 단순 word-overlap 랭커.
+- **`docs/ROT-BENCH.md`** (영어) — 부패 곡선 실측표(기각 로그 포함) + 어댑터 프로토콜 명세 + "measure your memory tool" 초대 + self-reported 결과 제출 규약.
+- **실행 중단 버그 수정 (근본 원인)** — `--adapter` 사용 시 CLI 가 결과 출력 후에도 최대 `timeoutMs`(기본 30s) 만큼 종료되지 않던 현상. 원인: `LineCursor.next()` 의 race 에서 진 `setTimeout` 을 `clearTimeout` 하지 않아 이벤트 루프가 계속 붙잡힘 — 두 지점(라인 읽기 타임아웃, 프로세스 종료 대기)의 타이머를 전부 명시적으로 clear 하도록 수정. 표준 CLI 종료 시간 30.016s → 0.05s 로 실측 확인.
+- 검증: 1102/1102 pass · typecheck OK · 실제 어댑터 왕복 + hang 재현/해소 수동 검증.
+
 ### Added — V3.38 글로벌 온보딩 1단계 — 영어 README + 데모 GIF + CFGM_LANG (2026-07-25)
 - **영어 README 전환** — `README.md` 영어 본문 (한국어판은 `README.ko.md` 보존, 상호 링크). 최상단에 "Memory rot, measured" 후크 (코호트 부패 곡선 mermaid + 기각 로그 공개 카피). 모든 캡처는 실제 실행 출력만 사용 — 초안의 번역 캡처를 실캡처로 전량 교체, 한국어 원문 발췌는 translation 라벨 병기 (팩트체크 원칙).
 - **`CFGM_LANG=en`** — 데모 경로 CLI 4종(doctor/search/ask/stats) 영어 출력 모드 (`src/core/i18n/messages.ts`). 기본값 ko 는 기존 출력과 동일 (회귀 가드 테스트). --json 구조 불변. 테스트 5건.

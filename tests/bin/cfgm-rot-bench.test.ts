@@ -109,4 +109,38 @@ describe("cfgm-rot-bench CLI", () => {
       expect(md).toContain("## Consolidation 통계");
     });
   });
+
+  test("--adapter 시 external 조건이 스텁 어댑터로 채점되어 리포트/stdout 에 반영된다", () => {
+    const projectRoot = mkdtempSync(join(tmpdir(), "cfgm-rot-bench-adapter-"));
+    writeSyntheticDataset(projectRoot);
+    const reportPath = join(projectRoot, "memory", "reports", "rot-bench-latest.md");
+
+    // --adapter 는 공백 분리로 command 를 만들기 때문에 (셸 quoting 미지원),
+    // 스텁을 별도 파일로 써서 "bun <path>" 형태로 전달한다.
+    // 항상 s1 을 1순위로 응답하는 고정 스텁 — q_full_cohort 의 정답(s1)은 hit,
+    // q_late_answer 의 정답(s4)은 miss 가 되어 external 조건이 실제로 채점되는지 확인한다.
+    const adapterPath = join(projectRoot, "fixed-stub-adapter.ts");
+    writeFileSync(
+      adapterPath,
+      `for await (const line of console) {
+  if (!line) continue;
+  let req; try { req = JSON.parse(line); } catch { continue; }
+  console.log(JSON.stringify({ id: req.id, ranked: ["s1"] }));
+}
+`,
+    );
+    const res = cfgmRotBench(["--adapter", `bun ${adapterPath}`, "--adapter-label", "fixed-stub"], {
+      CFGM_PROJECT_ROOT: projectRoot,
+    });
+    expect(res.status).toBe(0);
+    expect(res.stdout).toContain("fixed-stub");
+    expect(res.stdout).toContain("adapter[fixed-stub]");
+    expect(existsSync(reportPath)).toBe(true);
+
+    const report = Bun.file(reportPath).text();
+    return report.then((md) => {
+      expect(md).toContain("| fixed-stub |");
+      expect(md).toContain("fixed-stub");
+    });
+  });
 });
