@@ -186,6 +186,29 @@ cd ../.. && bun run bench:lme -- --split test --prf   # reproduces the confirmed
 
 ---
 
+## 🆚 vs Competitors
+
+Same category axes used across the memory-tool ecosystem's own comparisons (retrieval accuracy, auto-capture, search stack, multi-agent, external deps, lifecycle, token cost, viewer, self-hosted). Licenses/stars independently checked via the GitHub API where the repo is public; unverifiable entries are marked.
+
+| | **memory-brain** | agentmemory (25.8K★) | mem0 (61.7K★) | Letta/MemGPT (24.0K★) | Khoj (36.0K★) | supermemory (28.6K★) | MemPalace (57.8K★) | oracleagentmemory | Hippo | Built-in (CLAUDE.md) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **Type** | Memory engine — file-based, no server | Memory engine + MCP server | Memory layer API | Full agent runtime | Personal AI | Memory API + app | Vector memory (OSS) | Memory engine (Oracle DB) | Memory system | Static file |
+| **Retrieval R@5** | **93.2%** (LongMemEval-S, measured) | 95.2% (measured) | 68.5% (LoCoMo — different dataset) | 83.2% (LoCoMo) | N/A | Self-reported | ~96.6% (self-reported, unverified) | 94.4% (self-reported, unverified) | N/A | N/A (grep) |
+| **Auto-capture** | Session-end auto-enqueue → host-LLM draft → 1 human approval (no direct LLM API call, ever) | 12 hooks, zero manual effort | Manual `add()` calls | Agent self-edits | Manual | API-side extraction | Manual | API extraction | Manual | Manual editing |
+| **Search** | BM25 (FTS5) + Vector, RRF/rescue fusion — no graph stream | BM25 + Vector + Graph, RRF | Vector + Graph | Vector (archival) | Semantic | Vector + RAG | Vector-only | Vector + semantic | Decay-weighted | Loads everything into context |
+| **Multi-agent** | **None** (single-session, single-user by design) | MCP + REST + leases + signals | API (no coordination) | Within Letta runtime only | No | No | No | Scoped only | Multi-agent shared | Per-agent files |
+| **External deps** | **None** — Bun + 1 npm package (`yaml`) | "None" claimed, but requires `iii-engine` (separate Rust binary, license `Apache-2.0 AND Elastic-2.0`) | Qdrant / pgvector | Postgres + vector DB | Multiple | Managed cloud | Vector store | Oracle AI Database (enterprise) | None | None |
+| **Lifecycle** | Decay dry-run only, archive-gated — **no delete path, ever** | 4-tier consolidation + decay + auto-forget | Passive extraction | Agent-managed | Manual | Auto-forget | None | Not stated | Decay + consolidation | Manual pruning |
+| **Token cost** | **~184 tokens/query** (measured live), **$0/yr structurally** (no LLM-call code path exists) | ~1,900 tokens/session, ~$10/yr | Varies by integration | Core memory in context | Varies | Cloud pricing | No token budget | LLM-backed (varies) | Varies | 22K+ tokens at 240 obs |
+| **Real-time viewer** | No | Yes (port 3113) | Cloud dashboard | Cloud dashboard | Web UI | Cloud dashboard | No | No | No | No |
+| **Self-hosted** | Yes — the only option, no cloud variant exists | Yes (default); paid one-click cloud templates also offered | Optional | Optional | Yes | Repo says "runs fully locally" — conflicts with some vendor claims of cloud-only, not independently confirmed either way | Yes | Yes (Oracle DB) | Yes | Yes |
+
+**What we verified vs what we didn't.** mem0 / Letta / Khoj / supermemory / MemPalace license + star counts are pulled live from the GitHub API, not copied from anyone's marketing page. `oracleagentmemory` and `Hippo` have no independently discoverable public repo as of this writing — those two rows are carried over from other vendors' comparison tables and should be treated as unverified. Star counts drift; this table was last checked 2026-07. LoCoMo and LongMemEval are different datasets — the R@5 column is directional, not a controlled head-to-head, except between memory-brain and agentmemory (both LongMemEval-S).
+
+**Where memory-brain trails, honestly**: retrieval R@5 is 2pp behind agentmemory's on the same benchmark family; search has no graph stream; there's no real-time viewer; multi-agent coordination doesn't exist by design. These are open items, not silently ignored — see [`docs/RULES.md`](./docs/RULES.md) for the design principles that make some of these deliberate trade-offs rather than oversights (no MCP, no direct LLM API calls, delete-never).
+
+---
+
 ## 🧩 Why: four pain points
 
 - **Context bloat** — cramming all knowledge into CLAUDE.md every session burns tokens and focus.
@@ -381,4 +404,4 @@ bun run typecheck
 
 ## License
 
-MIT
+[MIT](./LICENSE)
