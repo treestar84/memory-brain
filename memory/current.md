@@ -68,6 +68,12 @@
 - **보안 리뷰 시정 (커밋 직후 배경 리뷰 발견)**: 최초 구현은 `SessionStart` 훅이 승인 없이 `bun install && bun link` 자동 실행 — supply-chain-rce / silent-failure / silent-global-side-effect 3건 지적. **수정**: 훅은 읽기 전용 안내로 축소, 실제 설치는 `/memory-brain:setup` 이 Claude 의 정상 Bash 승인 흐름을 거쳐 사용자 동의 후 실행하도록 재설계.
 - 검증: 1102/1102 pass.
 
+## README 한국어 메인 전환 + 차별화 이미지 (2026-07-26) ✅
+
+- 사용자 피드백: "README가 일반 사용자에게 이해하기 어렵다" → 언어 우선순위 역전(한국어 `README.md` 메인, 영어 상세판 `README.en.md`) + 구조 간소화(전문용어 대신 이미지→데모→"왜 다른가 3가지"→설치 순).
+- `docs/assets/why-memory-brain.{svg,png}` 신설 — 서버·API비용·저장형식·답변근거·부패관리 5행 비교 인포그래픽. dataviz 스킬 절차(상태색+아이콘+라벨 동반) 준수, librsvg 로 실제 렌더링 검증.
+- 검증: 1102/1102 pass.
+
 ## 다음 단계 후보
 
 - **90일 rot 실사용 시뮬레이션**: 자동 capture + UsageLog 가 몇 주 누적되면 회상빈도·supersede 신호가 있는 실사용 기반 rot 측정 가능 (V3.37 이 남긴 한계의 해소 경로).

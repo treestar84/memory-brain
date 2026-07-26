@@ -5,6 +5,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Docs — README 한국어 메인 전환 + 차별화 이미지 (2026-07-26)
+- **README 언어 우선순위 역전**: `README.md` 가 다시 한국어 메인(일반 사용자 대상, 간결화)이 되고, 기존 영어 상세판은 `README.en.md` 로 이동(아키텍처·전체 CLI·고급 기능 포함, 내용 무변경). `README.ko.md` 는 새 `README.md` 로 대체돼 삭제.
+- **한국어 README 재구성 (approachability 우선)**: 전문용어("Claim-Grounded, Persona-Aware...", 7-layer 등) 로 시작하지 않고 이미지 → 30초 데모 → "왜 다른가 3가지"(평서문) → 설치 → 벤치마크 요약(2줄 표) → 더 알아보기 링크 순으로 재배치. 벤치마크 mermaid 차트·type별 표·아키텍처 다이어그램 등 깊은 내용은 README.en.md/docs/ 로 위임.
+- **`docs/assets/why-memory-brain.{svg,png}`** (신규) — memory-brain vs 일반 클라우드 메모리 도구 5행 비교 인포그래픽(서버·API비용·저장형식·답변근거·부패관리). dataviz 스킬 절차 준수(상태색 good=녹색 체크 + 아이콘·라벨 항상 동반, 색상 단독 식별 금지). librsvg 로 실제 래스터화해 텍스트 겹침·정렬 육안 검증.
+- 데모 캡처 트리밍 과정에서 claim id 목록을 "~" 범위 표기로, 안내문을 패러프레이즈로 축약했던 초안을 실제 CLI 출력 그대로로 되돌림 (실캡처만 사용 원칙 준수).
+- 검증: 1102/1102 pass · typecheck OK · 코드펜스 균형(README.md 12 / README.en.md 46, 둘 다 짝수).
+
 ### Docs — 문서 정합성 정리 (2026-07-26)
 - **README.ko.md 동기화** — V3.38~V3.40 에서 영어 README 에만 반영되고 한국어판엔 빠져 있던 4곳을 채움: 데모 GIF 임베드, "Memory rot, measured" 후크 섹션(수치·mermaid 원본과 100% 대조 확인), Quick Start 의 "가장 빠른 설치(플러그인)"/"수동 설치" 분리, 문서 지도에 `docs/ROT-BENCH.md` 행 추가.
 - **`memory/current.md` 정리** — 자체 운영 규칙("~100줄 상한, 초과 시 journal 이관")을 오래 위반한 상태(287줄, PR-V3.2~V3.17 시절 이력까지 누적)를 시정. PR-V3.2~V3.31 구간을 `memory/journal/2026-07-26.md` 로 전량 이관(내용 손실 없음)하고, V3.32~V3.40 최근 이력 + 다음 단계 후보(90일 rot 실사용 시뮬레이션·Show HN·특허 상담)만 남겨 78줄로 축소.
