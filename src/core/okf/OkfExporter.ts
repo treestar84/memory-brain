@@ -26,10 +26,14 @@ export interface OkfExportOptions {
   includeAllStatuses?: boolean;
 }
 
+// "note" (V3.41, frontmatter 없는 원문) 은 cfgm-okf-export 의 canonical 3-dir
+// 스캔에 절대 포함되지 않는다 — 여기 있는 건 Record<WikiType,...> 타입 완전성
+// 때문. 실제로 note 페이지가 이 함수에 들어오면 캐치되지 않은 상위 버그다.
 const TYPE_DIRS: Record<WikiType, string> = {
   project: "projects",
   concept: "concepts",
   decision: "decisions",
+  note: "notes",
 };
 
 const WIKILINK_RE = /\[\[([\w.-]+)\]\]/g;

@@ -105,6 +105,56 @@ describe("Indexer", () => {
     expect(r.wikiCount).toBe(3);
   });
 
+  test("rebuild — current.md + journal/ + reports/ 도 note 로 스캔되어 검색된다 (V3.41)", async () => {
+    await writeFile(join(memoryDir, "current.md"), "# 현재 작업\n\nRotAdapter clearTimeout 누수 수정.\n");
+    await mkdir(join(memoryDir, "journal"), { recursive: true });
+    await writeFile(join(memoryDir, "journal", "2026-07-26.md"), "# Journal\n\nSessionConsolidator 폐기 — recall 파괴.\n");
+    await mkdir(join(memoryDir, "reports"), { recursive: true });
+    await writeFile(join(memoryDir, "reports", "rot-latest.md"), "# Rot Report\n\nR@5 93.2%.\n");
+
+    const r = await indexer.rebuild();
+    expect(r.wikiCount).toBe(3);
+
+    const rotHits = searchIndex.searchWiki("clearTimeout");
+    expect(rotHits).toHaveLength(1);
+    expect(rotHits[0]!.pageId).toBe("note.current");
+    expect(rotHits[0]!.type).toBe("note");
+
+    expect(searchIndex.searchWiki("SessionConsolidator")).toHaveLength(1);
+    expect(searchIndex.searchWiki("93.2")).toHaveLength(1);
+  });
+
+  test("rebuild — 여러 주제가 섞인 current.md 는 ## 헤딩 단위 chunk 로 쪼개져 랭킹이 정확해진다", async () => {
+    await writeFile(
+      join(memoryDir, "current.md"),
+      [
+        "# memory/current.md",
+        "",
+        "## V3.39 RotAdapter 버그",
+        "",
+        "setTimeout 이 clearTimeout 안 돼서 안 끝났다.",
+        "",
+        "## V3.37 SessionConsolidator 폐기",
+        "",
+        "recall 파괴로 기각했다.",
+        "",
+      ].join("\n"),
+    );
+
+    const r = await indexer.rebuild();
+    expect(r.wikiCount).toBeGreaterThan(1); // 서문 + 헤딩 2개 = chunk 3개
+
+    const consolidatorHits = searchIndex.searchWiki("SessionConsolidator");
+    expect(consolidatorHits).toHaveLength(1);
+    expect(consolidatorHits[0]!.snippet).toContain("recall");
+    expect(consolidatorHits[0]!.snippet).not.toContain("clearTimeout");
+  });
+
+  test("rebuild — current.md 없으면 조용히 건너뛴다 (0건, 에러 없음)", async () => {
+    const r = await indexer.rebuild();
+    expect(r.wikiCount).toBe(0);
+  });
+
   test("rebuild 두 번 — 이전 인덱스 정상 갱신 (idempotent)", async () => {
     await writeFile(
       join(memoryDir, "decisions", "v1.md"),

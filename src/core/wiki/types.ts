@@ -5,8 +5,15 @@
  * `memory/sources/` 는 raw evidence 라 본 형식 적용 안 함.
  */
 
-export const WIKI_TYPES = ["project", "concept", "decision"] as const;
+export const WIKI_TYPES = ["project", "concept", "decision", "note"] as const;
 export type WikiType = (typeof WIKI_TYPES)[number];
+
+/**
+ * "note" (V3.41) — frontmatter 없는 원문 markdown(`current.md`, `journal/*.md`,
+ * `reports/*.md`)을 검색 가능하게 만드는 합성 type. WikiReader 가 파일에서
+ * 자동 부여하며 canonical wiki citizen 이 아니다 — decay/OKF export 대상 제외,
+ * search/ask 의 FTS 대상에만 포함된다.
+ */
 
 export const WIKI_STATUSES = [
   "active",

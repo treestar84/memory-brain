@@ -749,13 +749,26 @@ function stemOf(token: string): string | null {
   return null;
 }
 
+// 한글 음절/자모는 유니코드 \p{L}(letter) 범주라 "SessionConsolidator를" 처럼
+// 로마자 뒤에 조사가 공백 없이 붙으면 하나의 토큰으로 묶여 FTS 매칭이 깨진다
+// (SQLite FTS5 unicode61 자체도 동일 — 실측 확인, V3.41). 이미 고쳤던 FTS5
+// 하이픈 크래시와 같은 계열의 문제. 로마자/숫자 ↔ 한글 경계에 공백을 끼워
+// 넣어 조사를 분리한다 — 짧은 조사 토큰(를/가/은/는 등)은 기존 길이 필터가
+// 자연히 걸러낸다.
+const HANGUL_CHARS = "\\uac00-\\ud7a3\\u1100-\\u11ff\\u3130-\\u318f";
+const LATIN_HANGUL_BOUNDARY_RE = new RegExp(`([a-z0-9])([${HANGUL_CHARS}])`, "gu");
+const HANGUL_LATIN_BOUNDARY_RE = new RegExp(`([${HANGUL_CHARS}])([a-z0-9])`, "gu");
+
+function splitScriptBoundary(text: string): string {
+  return text.replace(LATIN_HANGUL_BOUNDARY_RE, "$1 $2").replace(HANGUL_LATIN_BOUNDARY_RE, "$1 $2");
+}
+
 /**
  * Content-token FTS 쿼리 (V3.30) — stopword·상대시간 어휘 제거 + 경량 스테밍.
  * content 토큰이 0개면 빈 문자열 반환 (호출측이 loose 로 fallback).
  */
 export function toContentFtsQuery(raw: string): string {
-  const tokens = raw
-    .toLowerCase()
+  const tokens = splitScriptBoundary(raw.toLowerCase())
     .split(/[^\p{L}\p{N}]+/u)
     .filter((t) => t.length > 0);
   const content = tokens.filter(
@@ -776,8 +789,7 @@ export function toContentFtsQuery(raw: string): string {
 // and OR them together so 'failure' matches 'failures', 'doc' matches
 // 'documentation', etc. Skill discovery must be morphology-tolerant.
 function toLooseFtsQuery(raw: string): string {
-  const tokens = raw
-    .toLowerCase()
+  const tokens = splitScriptBoundary(raw.toLowerCase())
     .split(/[^\p{L}\p{N}]+/u)
     .filter((t) => t.length > 0);
   if (tokens.length === 0) return "";

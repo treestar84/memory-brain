@@ -61,6 +61,25 @@ describe("toContentFtsQuery (V3.30 P1)", () => {
   });
 });
 
+describe("toContentFtsQuery — 한글 조사가 로마자에 붙은 경우 (V3.41)", () => {
+  test("영문 용어 뒤에 조사(를)가 공백 없이 붙어도 용어가 독립 토큰으로 분리된다", () => {
+    const q = toContentFtsQuery("SessionConsolidator를 왜 폐기했지");
+    expect(q).toContain("sessionconsolidator*");
+    expect(q).not.toContain("sessionconsolidator를");
+  });
+
+  test("여러 조사 패턴(가/는/에서) 전부 분리된다", () => {
+    expect(toContentFtsQuery("RotAdapter가 멈췄다")).toContain("rotadapter*");
+    expect(toContentFtsQuery("WikiReader는 무엇을 읽나")).toContain("wikireader*");
+    expect(toContentFtsQuery("SessionStart에서 실행된다")).toContain("sessionstart*");
+  });
+
+  test("이미 공백으로 분리된 경우(기존 동작)는 그대로 유지", () => {
+    const q = toContentFtsQuery("SessionConsolidator 폐기 이유");
+    expect(q).toContain("sessionconsolidator*");
+  });
+});
+
 describe("TemporalQuery (V3.30 P3-a)", () => {
   const REF = "2023/06/01 (Thu) 12:00"; // epoch day 기준 목요일
 

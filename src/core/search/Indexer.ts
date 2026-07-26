@@ -12,6 +12,13 @@ const WIKI_SUBDIRS = ["projects", "concepts", "decisions"];
 // SSL JSON skeletons don't leak into wiki_pages as malformed pages.
 const WIKI_SUBDIR_EXCLUDE_PREFIX = "_";
 
+// V3.41: frontmatter 없는 원문(운영 일지, 벤치마크 리포트)도 검색 대상에 넣는다.
+// WIKI_SUBDIRS 와 분리해두는 이유는 decay/OKF export 등 canonical wiki 전용
+// 파이프라인이 이 파일들을 절대 건드리지 않게 하기 위함 — WikiReader 가
+// type: "note" 로 합성하므로 governance 로직 쪽에서 자연히 걸러진다.
+const NOTE_ROOT_FILES = ["current.md"];
+const NOTE_DIRS = ["journal", "reports"];
+
 /**
  * Search index rebuild orchestrator (PR-V3.6, extended PR-V3.14).
  *
@@ -39,6 +46,13 @@ export class Indexer {
         if (p.path.split("/").some((seg) => seg.startsWith(WIKI_SUBDIR_EXCLUDE_PREFIX))) continue;
         wikiPages.push(p);
       }
+    }
+
+    for (const file of NOTE_ROOT_FILES) {
+      wikiPages.push(...(await this.wikiReader.readNoteChunks(file)));
+    }
+    for (const dir of NOTE_DIRS) {
+      wikiPages.push(...(await this.wikiReader.readAllInDirAsNoteChunks(dir)));
     }
 
     const claims = await this.claimStore.list();

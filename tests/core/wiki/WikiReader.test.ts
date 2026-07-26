@@ -65,8 +65,37 @@ describe("WikiReader.parse", () => {
     expect(page.evidence[2]).toContain("사용자 발화");
   });
 
-  test("frontmatter 누락 → null", () => {
-    expect(reader.parse("p.md", "# no frontmatter")).toBeNull();
+  test("frontmatter 누락 → note type 로 합성 (V3.41, null 아님)", () => {
+    const page = reader.parse("p.md", "# no frontmatter");
+    expect(page).not.toBeNull();
+    expect(page!.frontmatter.type).toBe("note");
+    expect(page!.frontmatter.status).toBe("draft");
+    expect(page!.body).toBe("# no frontmatter");
+  });
+
+  test("frontmatter 누락 + 빈 본문 → null", () => {
+    expect(reader.parse("p.md", "   \n\n")).toBeNull();
+  });
+
+  test("note id 는 경로에서 유도되고 note. 네임스페이스를 쓴다", () => {
+    const page = reader.parse("journal/2026-07-26.md", "# 일지")!;
+    expect(page.frontmatter.id).toBe("note.journal.2026-07-26");
+  });
+
+  test("note updated_at — fallback 미지정 시 unknown", () => {
+    const page = reader.parse("current.md", "# 현재")!;
+    expect(page.frontmatter.updated_at).toBe("unknown");
+  });
+
+  test("note updated_at — fallback 지정 시 그대로 사용 (read() 가 mtime 전달)", () => {
+    const page = reader.parse("current.md", "# 현재", "2026-07-26T00:00:00.000Z")!;
+    expect(page.frontmatter.updated_at).toBe("2026-07-26T00:00:00.000Z");
+  });
+
+  test("note 도 claim 마커가 있으면 그대로 추출된다", () => {
+    const text = "# 일지\n\n<!-- claim:cl-note-1 -->\n어떤 사실.\n";
+    const page = reader.parse("current.md", text)!;
+    expect(page.claimIds).toEqual(["cl-note-1"]);
   });
 
   test("frontmatter id 누락 → null", () => {
@@ -146,5 +175,86 @@ describe("WikiReader.read (실제 파일)", () => {
     const pages = await reader.readAllInDir("decisions");
     expect(pages).toHaveLength(1);
     expect(pages[0]!.frontmatter.id).toBe("decision.test-policy");
+  });
+
+  test("read — frontmatter 없는 실제 파일도 note 로 읽히고 mtime 이 updated_at 이 된다", async () => {
+    await writeFile(join(dir, "current.md"), "# memory/current.md\n\n작업 로그.\n");
+    const page = await reader.read("current.md");
+    expect(page).not.toBeNull();
+    expect(page!.frontmatter.type).toBe("note");
+    expect(page!.frontmatter.id).toBe("note.current");
+    expect(Number.isNaN(Date.parse(page!.frontmatter.updated_at))).toBe(false);
+  });
+});
+
+describe("WikiReader.readNoteChunks — ## 헤딩 단위 분할 (V3.41)", () => {
+  let dir: string;
+  let reader: WikiReader;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), "wiki-chunks-"));
+    reader = new WikiReader(dir);
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  const MULTI_TOPIC = `# memory/current.md — 현재 작업
+
+> 운영 규칙 서문.
+
+## V3.39 RotAdapter 버그 수정
+
+setTimeout 이 clearTimeout 안 돼서 30초씩 안 끝났다.
+
+## V3.40 플러그인 보안 리뷰
+
+SessionStart 훅이 승인 없이 bun install 실행 — supply-chain-rce 지적.
+`;
+
+  test("## 헤딩 2개 → chunk 3개 (서문 + 헤딩별 1개씩), 각기 다른 id", async () => {
+    await writeFile(join(dir, "current.md"), MULTI_TOPIC);
+    const pages = await reader.readNoteChunks("current.md");
+    expect(pages).toHaveLength(3);
+    expect(pages.map((p) => p.frontmatter.id)).toEqual(["note.current.1", "note.current.2", "note.current.3"]);
+    expect(pages.every((p) => p.frontmatter.type === "note")).toBe(true);
+  });
+
+  test("각 chunk 는 자기 주제만 담는다 — 무관한 주제가 섞이지 않는다", async () => {
+    await writeFile(join(dir, "current.md"), MULTI_TOPIC);
+    const pages = await reader.readNoteChunks("current.md");
+    const rotChunk = pages.find((p) => p.body.includes("clearTimeout"));
+    const secChunk = pages.find((p) => p.body.includes("supply-chain-rce"));
+    expect(rotChunk).toBeDefined();
+    expect(secChunk).toBeDefined();
+    expect(rotChunk!.body).not.toContain("supply-chain-rce");
+    expect(secChunk!.body).not.toContain("clearTimeout");
+  });
+
+  test("## 헤딩 없는 파일 → chunk 1개 (기존 단일 페이지 동작 유지)", async () => {
+    await writeFile(join(dir, "current.md"), "# 짧은 노트\n\n헤딩 없음.\n");
+    const pages = await reader.readNoteChunks("current.md");
+    expect(pages).toHaveLength(1);
+    expect(pages[0]!.frontmatter.id).toBe("note.current");
+  });
+
+  test("frontmatter 있는 정식 wiki page → 쪼개지 않고 그대로 1개", async () => {
+    await writeFile(join(dir, "sample.md"), SAMPLE_PAGE);
+    const pages = await reader.readNoteChunks("sample.md");
+    expect(pages).toHaveLength(1);
+    expect(pages[0]!.frontmatter.id).toBe("decision.test-policy");
+  });
+
+  test("파일 없음 → 빈 배열", async () => {
+    expect(await reader.readNoteChunks("nope.md")).toEqual([]);
+  });
+
+  test("readAllInDirAsNoteChunks — 디렉토리 내 모든 파일을 chunk 로 확장", async () => {
+    await mkdir(join(dir, "journal"), { recursive: true });
+    await writeFile(join(dir, "journal", "a.md"), MULTI_TOPIC);
+    await writeFile(join(dir, "journal", "README.md"), "# 목차\n");
+    const pages = await reader.readAllInDirAsNoteChunks("journal");
+    expect(pages).toHaveLength(3);
   });
 });

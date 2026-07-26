@@ -1,6 +1,6 @@
 # Memory Quality Benchmark
 
-> 생성: 2026-07-21T15:25:18.463Z · corpus: wiki 5 pages / skills 12 / vector dims 256
+> 생성: 2026-07-26T11:53:30.073Z · corpus: wiki 6 pages / skills 12 / vector dims 256
 > 실행: `bun run bench` (fixtures/bench/cases.json). 수치는 실제 memory/ 코퍼스 대상 측정값.
 
 ## Router 적중률 (RouterMappings.resolve)
