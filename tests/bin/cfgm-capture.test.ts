@@ -147,4 +147,62 @@ describe("cfgm-capture CLI", () => {
     const resTraversal = accept(projectDir, ["../../etc/passwd", "--type", "concept"]);
     expect(resTraversal.status).toBe(1);
   });
+
+  test("capture-accept <slug> — --type 생략해도 frontmatter 로 자동 추론 승격 (V3.42)", async () => {
+    const draftsDir = join(projectDir, "memory/_pending/capture/drafts");
+    await mkdir(draftsDir, { recursive: true });
+    await writeFile(
+      join(draftsDir, "auto-typed.md"),
+      "---\nid: decision.auto-typed\ntype: decision\nstatus: draft\nconfidence: high\nupdated_at: 2026-07-26\n---\n\n# auto\n",
+    );
+
+    const res = accept(projectDir, ["auto-typed"]);
+    expect(res.status).toBe(0);
+    expect(await Bun.file(join(projectDir, "memory/decisions/auto-typed.md")).exists()).toBe(true);
+  });
+
+  test("capture-accept --all — 서로 다른 type 의 draft 여러 개를 한 번에 승격, 실패는 격리 (V3.42)", async () => {
+    const draftsDir = join(projectDir, "memory/_pending/capture/drafts");
+    await mkdir(draftsDir, { recursive: true });
+    await writeFile(
+      join(draftsDir, "d1.md"),
+      "---\nid: decision.d1\ntype: decision\nstatus: draft\nconfidence: high\nupdated_at: 2026-07-26\n---\n\n# d1\n",
+    );
+    await writeFile(
+      join(draftsDir, "c1.md"),
+      "---\nid: concept.c1\ntype: concept\nstatus: draft\nconfidence: high\nupdated_at: 2026-07-26\n---\n\n# c1\n",
+    );
+    await writeFile(join(draftsDir, "broken.md"), "# no frontmatter at all\n");
+
+    const res = accept(projectDir, ["--all", "--json"]);
+    expect(res.status).toBe(1); // broken.md 1건 실패가 있어 exit 1
+
+    const parsed = JSON.parse(res.stdout);
+    expect(parsed.accepted).toHaveLength(2);
+    expect(parsed.failed).toHaveLength(1);
+    expect(parsed.failed[0].slug).toBe("broken");
+
+    expect(await Bun.file(join(projectDir, "memory/decisions/d1.md")).exists()).toBe(true);
+    expect(await Bun.file(join(projectDir, "memory/concepts/c1.md")).exists()).toBe(true);
+  });
+
+  test("capture-accept --all --reindex — 승격 직후 검색 인덱스까지 자동 재생성 (V3.42)", async () => {
+    const draftsDir = join(projectDir, "memory/_pending/capture/drafts");
+    await mkdir(draftsDir, { recursive: true });
+    await writeFile(
+      join(draftsDir, "reindex-me.md"),
+      "---\nid: decision.reindex-me\ntype: decision\nstatus: draft\nconfidence: high\nupdated_at: 2026-07-26\n---\n\n# reindex-me\n\nfindable content here.\n",
+    );
+
+    const res = accept(projectDir, ["--all", "--reindex"]);
+    expect(res.status).toBe(0);
+    expect(res.stdout).toContain("인덱스 재생성 완료");
+
+    const search = spawnSync("bun", ["run", "bin/cfgm-search.ts", "findable"], {
+      cwd: process.cwd(),
+      env: { ...process.env, CFGM_PROJECT_ROOT: projectDir },
+      encoding: "utf-8",
+    });
+    expect(search.stdout).toContain("decision.reindex-me");
+  });
 });
