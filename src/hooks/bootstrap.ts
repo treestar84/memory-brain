@@ -1,5 +1,4 @@
 import { resolve, dirname } from "node:path";
-import { homedir } from "node:os";
 import { existsSync, readFileSync } from "node:fs";
 
 import { FsStorage } from "../core/storage/FsStorage";
@@ -32,12 +31,21 @@ import { SessionStartBudget } from "../core/context-budget/SessionStartBudget";
 import { LearningLedger } from "../core/learning/LearningLedger";
 import { DetectorWeight } from "../core/learning/DetectorWeight";
 
+/**
+ * V3.43 실효성 검증 시뮬레이션에서 실제로 재현된 사고: env var 미지정 시 이 함수가
+ * 고정된 홈 디렉터리 경로(`~/.claude-brain/memory-brain`)로 폴백했던 반면
+ * `resolveRepoRoot()`는 cwd 기준으로 프로젝트별로 갈렸다. 그 결과 검색 인덱스가
+ * 프로젝트 간에 전역 공유되어, 한 프로젝트에서 `rebuild-index`를 돌리면 다른
+ * 프로젝트(또는 memory-brain 툴 저장소 자신)의 검색 결과가 조용히 사라졌다.
+ * `resolveRepoRoot()`와 동일하게 cwd 기준으로 폴백하도록 맞춰 프로젝트별 분리를
+ * 보장한다. `CFGM_HOME`은 사용자가 명시적으로 전역 공유를 원할 때 쓰는 override로
+ * 그대로 유지한다.
+ */
 export function resolveStorageRoot(): string {
   if (process.env.CFGM_HOME) return process.env.CFGM_HOME;
   if (process.env.CFGM_PROJECT) return resolve(process.env.CFGM_PROJECT, ".memory-brain");
   if (process.env.CFGM_PROJECT_ROOT) return resolve(process.env.CFGM_PROJECT_ROOT, ".memory-brain");
-  const home = process.env.HOME || homedir();
-  return resolve(home, ".claude-brain", "memory-brain");
+  return resolve(process.cwd(), ".memory-brain");
 }
 
 export function resolveProjectRoot(): string {
