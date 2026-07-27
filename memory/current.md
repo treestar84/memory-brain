@@ -74,6 +74,15 @@
 - `docs/assets/why-memory-brain.{svg,png}` 신설 — 서버·API비용·저장형식·답변근거·부패관리 5행 비교 인포그래픽. dataviz 스킬 절차(상태색+아이콘+라벨 동반) 준수, librsvg 로 실제 렌더링 검증.
 - 검증: 1102/1102 pass.
 
+## V3.41~42 검색 버그 3종 + capture 리팩터링 + resolveRepoRoot 안전장치 (2026-07-27) ✅
+
+- 실사용 재검증(current.md/journal/reports 대상 blind query)으로 frontmatter 없는 노트가 검색에서 통째로 빠지던 결함 발견·수정, `## ` 헤딩 청킹, 한글 조사-로마자 FTS 토큰화 버그 수정.
+- `cfgm capture-accept` 를 `CaptureAccepter.ts` 로 분리(기존 테스트 0건) + `--all`/`--reindex`.
+- LICENSE 신설(그동안 파일 자체가 없었음) + 경쟁 도구 9개 비교표 README 양쪽에.
+- **클린 서브에이전트 2개(A=1일차 작업, B=블라인드 인수인계) 실효성 검증 1라운드**: A가 `CFGM_PROJECT_ROOT` 미지정으로 자기 기억을 툴 저장소 자체에 기록 → 오케스트레이터가 오염 정리(=삭제)하며 A의 유일한 사본 파괴 → B 인수인계 시 데이터 전무. 도구 실패가 아니라 실제 데이터 유실 경로였음을 확인, `resolveRepoRoot()` 안전장치로 근본 수정(23개 bin 스크립트 통합, 경고 실증 확인).
+- 검증: 1144/1144 pass. **로컬 커밋 4개, 아직 push 안 함.**
+- **다음 세션 필수 확인**: `memory/_pending/simulation/handoff-2026-07-28.md` — 검증 1라운드가 방법론적으로 불완전했음(진짜 검증 목표를 못 잼) → A→C(독립 체크포인트)→B 3단계로 재설계된 프로토콜과 실행 전 확인해야 할 미결 사항(세트 수) 정리됨.
+
 ## 다음 단계 후보
 
 - **90일 rot 실사용 시뮬레이션**: 자동 capture + UsageLog 가 몇 주 누적되면 회상빈도·supersede 신호가 있는 실사용 기반 rot 측정 가능 (V3.37 이 남긴 한계의 해소 경로).
