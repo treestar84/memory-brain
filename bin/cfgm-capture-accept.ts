@@ -62,16 +62,21 @@ function parseArgs(argv: string[]): {
   return { slug: positional[0] ?? null, all, type, force, json, reindex, embeddings, draftsDir };
 }
 
+const USAGE =
+  "사용법: cfgm capture-accept <slug> [--type concept|decision|project] [--force] | cfgm capture-accept --all [--force]";
+
+const rawArgv = process.argv.slice(2);
+if (rawArgv.includes("--help") || rawArgv.includes("-h")) {
+  console.log(USAGE);
+  process.exit(0);
+}
+
 const repoRoot = resolveRepoRoot();
 const memoryDir = resolve(repoRoot, "memory");
-const { slug, all, type, force, json, reindex, embeddings, draftsDir: draftsDirArg } = parseArgs(
-  process.argv.slice(2),
-);
+const { slug, all, type, force, json, reindex, embeddings, draftsDir: draftsDirArg } = parseArgs(rawArgv);
 
 if (!slug && !all) {
-  console.error(
-    "사용법: cfgm capture-accept <slug> [--type concept|decision|project] [--force] | cfgm capture-accept --all [--force]",
-  );
+  console.error(USAGE);
   process.exit(2);
 }
 
@@ -142,6 +147,12 @@ if (draftsDirArg) {
   if (repoExists && storageExists) {
     console.error(
       `draft "${slug}" 가 repo 큐(${repoDraftsDir})와 storage 큐(${storageDraftsDir}) 양쪽에 존재합니다 — --drafts-dir 로 위치를 명시하세요.`,
+    );
+    process.exit(1);
+  }
+  if (!repoExists && !storageExists) {
+    console.error(
+      `draft "${slug}" 를 다음 두 위치 어디에서도 찾을 수 없습니다:\n  - repo 큐: ${repoCandidate}\n  - storage 큐: ${storageCandidate}`,
     );
     process.exit(1);
   }

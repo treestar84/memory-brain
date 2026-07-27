@@ -205,4 +205,45 @@ describe("cfgm-capture CLI", () => {
     });
     expect(search.stdout).toContain("decision.reindex-me");
   });
+
+  test("capture-accept --help/-h → 사용법 출력하고 exit 0 (슬러그로 오인해 draft 조회 시도하지 않음)", async () => {
+    const resHelp = accept(projectDir, ["--help"]);
+    expect(resHelp.status).toBe(0);
+    expect(resHelp.stdout).toContain("사용법:");
+
+    const resH = accept(projectDir, ["-h"]);
+    expect(resH.status).toBe(0);
+    expect(resH.stdout).toContain("사용법:");
+  });
+
+  test("capture-accept <slug> — repo/storage 어느 큐에도 없으면 두 경로를 모두 알려준다", async () => {
+    const res = accept(projectDir, ["totally-missing-slug"]);
+    expect(res.status).toBe(1);
+    expect(res.stderr).toContain("memory/_pending/capture/drafts/totally-missing-slug.md");
+    expect(res.stderr).toContain(".memory-brain");
+    expect(res.stderr).toContain("totally-missing-slug.md");
+  });
+
+  test("capture — 신규 프로젝트에 _spec/prompt.md, WIKI-FORMAT.md 가 없으면 자동 스캐폴드", async () => {
+    expect(await Bun.file(join(projectDir, "memory/_pending/capture/_spec/prompt.md")).exists()).toBe(false);
+    expect(await Bun.file(join(projectDir, "memory/WIKI-FORMAT.md")).exists()).toBe(false);
+
+    const res = capture(projectDir, ["--input", join(projectDir, "note.md")]);
+    expect(res.status).toBe(0);
+
+    expect(await Bun.file(join(projectDir, "memory/_pending/capture/_spec/prompt.md")).exists()).toBe(true);
+    expect(await Bun.file(join(projectDir, "memory/WIKI-FORMAT.md")).exists()).toBe(true);
+  });
+
+  test("capture — 이미 프로젝트가 자체 _spec/prompt.md 를 갖고 있으면 덮어쓰지 않는다", async () => {
+    const specDir = join(projectDir, "memory/_pending/capture/_spec");
+    await mkdir(specDir, { recursive: true });
+    await writeFile(join(specDir, "prompt.md"), "custom project-specific prompt\n");
+
+    const res = capture(projectDir, ["--input", join(projectDir, "note.md")]);
+    expect(res.status).toBe(0);
+
+    const content = await Bun.file(join(specDir, "prompt.md")).text();
+    expect(content).toBe("custom project-specific prompt\n");
+  });
 });

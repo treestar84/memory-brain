@@ -1,9 +1,31 @@
 #!/usr/bin/env bun
 import { Glob } from "bun";
-import { resolve, relative, extname } from "node:path";
-import { mkdir, stat } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { resolve, relative, extname, dirname } from "node:path";
+import { mkdir, stat, copyFile } from "node:fs/promises";
 import { enqueueSource } from "../src/core/capture/CaptureEnqueuer";
 import { resolveRepoRoot } from "../src/hooks/bootstrap";
+
+const TOOL_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+/**
+ * 신규 프로젝트에는 job 이 참조하는 `_spec/prompt.md`/`WIKI-FORMAT.md` 가 없다
+ * (V3.43 실효성 검증 시뮬레이션에서 세 프로젝트 모두 재현됨) — job 파일 지시를 따를
+ * 수 없는 상태로 남는다. 이미 있으면 건드리지 않고, 없을 때만 툴 저장소의 canonical
+ * 사본을 복사해 채운다.
+ */
+async function scaffoldCaptureDocs(memoryDir: string): Promise<void> {
+  const targets = [
+    { from: resolve(TOOL_ROOT, "memory/_pending/capture/_spec/prompt.md"), to: resolve(memoryDir, "_pending/capture/_spec/prompt.md") },
+    { from: resolve(TOOL_ROOT, "memory/WIKI-FORMAT.md"), to: resolve(memoryDir, "WIKI-FORMAT.md") },
+  ];
+  for (const { from, to } of targets) {
+    if (await Bun.file(to).exists()) continue;
+    if (!(await Bun.file(from).exists())) continue;
+    await mkdir(dirname(to), { recursive: true });
+    await copyFile(from, to);
+  }
+}
 
 /**
  * cfgm-capture — 세션 transcript/노트 파일을 wiki page draft 추출용 큐로 enqueue.
@@ -72,6 +94,7 @@ try {
 
 await mkdir(args.jobsDir, { recursive: true });
 await mkdir(args.draftsDir, { recursive: true });
+await scaffoldCaptureDocs(resolve(REPO_ROOT, "memory"));
 
 const filesToProcess: string[] = [];
 if (inputStat.isDirectory()) {
