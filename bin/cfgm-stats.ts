@@ -2,7 +2,7 @@
 import { resolve } from "node:path";
 import { UsageLog } from "../src/core/stats/UsageLog";
 import { FsStorage } from "../src/core/storage/FsStorage";
-import { resolveStorageRoot } from "../src/hooks/bootstrap";
+import { resolveStorageRoot, resolveRepoRoot } from "../src/hooks/bootstrap";
 import { estimateMemoryCorpusTokens } from "../src/core/stats/TokenEstimate";
 import { t } from "../src/core/i18n/messages";
 
@@ -35,7 +35,7 @@ const log = new UsageLog(new FsStorage(storageRoot));
 const agg = await log.aggregate({ days });
 
 // wiki 원본 위치는 cfgm-ask/cfgm-rebuild-index 와 동일한 규칙으로 해석한다 (storage root 와 다름).
-const repoRoot = process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+const repoRoot = resolveRepoRoot();
 const memoryDir = resolve(repoRoot, "memory");
 const corpusTokens = await estimateMemoryCorpusTokens(memoryDir);
 const callCount = agg.totalSearches + agg.totalAsks;

@@ -10,7 +10,7 @@ import { SearchIndex } from "../src/core/search/SearchIndex";
 import { SSLReader } from "../src/core/search/SSLReader";
 import { SSLRiskDetector } from "../src/core/governance/reports/SSLRiskDetector";
 import { SSL_VERSION, type SSLDocument } from "../src/core/ontology/ssl";
-import { resolveStorageRoot } from "../src/hooks/bootstrap";
+import { resolveStorageRoot, resolveRepoRoot } from "../src/hooks/bootstrap";
 
 /**
  * cfgm-ssl-viewer — KG-Brain 대시보드.
@@ -39,7 +39,7 @@ interface WorkflowAction {
   effects: string[];
 }
 
-const REPO_ROOT = process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+const REPO_ROOT = resolveRepoRoot();
 const PORT = Number(process.env.CFGM_SSL_VIEWER_PORT ?? 4041);
 const MEMORY_DIR = resolve(REPO_ROOT, "memory");
 const JOBS_DIR = resolve(MEMORY_DIR, "_pending/normalize/jobs");

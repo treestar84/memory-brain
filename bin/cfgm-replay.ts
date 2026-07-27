@@ -23,6 +23,7 @@ import { Database } from "bun:sqlite";
 import type { SSLDocument, StructuralNode, LogicalNode, DecisionNode, InteractionNode, EvidenceNode, ProtocolNode } from "../src/core/ontology/ssl";
 import { SCENES } from "../src/core/ontology/ssl";
 import { KGComposer } from "../src/core/search/KGComposer";
+import { resolveRepoRoot } from "../src/hooks/bootstrap";
 
 interface ParsedArgs {
   slug: string | null;
@@ -36,7 +37,7 @@ interface ParsedArgs {
 
 function parseArgs(argv: string[]): ParsedArgs {
   const repoRoot =
-    process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+    resolveRepoRoot();
   const out: ParsedArgs = {
     slug: null,
     query: null,
@@ -473,7 +474,7 @@ export async function buildChainReplayPlan(
 // Main — guarded so that test imports don't trigger CLI execution
 if (import.meta.main) {
 const args = parseArgs(process.argv.slice(2));
-const repoRoot = process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+const repoRoot = resolveRepoRoot();
 
 if (!args.slug && !args.query && !args.list) {
   usage();

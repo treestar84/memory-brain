@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { resolveRepoRoot } from "../src/hooks/bootstrap";
 import { resolve, join } from "node:path";
 import { existsSync } from "node:fs";
 import * as readline from "node:readline";
@@ -58,7 +59,7 @@ if (!/^[a-z0-9][a-z0-9_-]{0,62}$/.test(opts.skill)) {
   process.exit(3);
 }
 
-const repoRoot = process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+const repoRoot = resolveRepoRoot();
 const REPLAY_DIR = resolve(repoRoot, "memory/_pending/replay");
 
 // SSL JSON 탐색: memory/concepts/_ssl/<slug>.json

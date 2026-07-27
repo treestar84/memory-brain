@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
-import { resolveStorageRoot, buildClaimStorage } from "../src/hooks/bootstrap";
+import { resolveStorageRoot, buildClaimStorage, resolveRepoRoot } from "../src/hooks/bootstrap";
 import { acceptDraft, acceptAllDrafts, listDraftSlugs, CaptureAcceptError } from "../src/core/capture/CaptureAccepter";
 import { WikiReader } from "../src/core/wiki/WikiReader";
 import { ClaimStore } from "../src/core/claim/ClaimStore";
@@ -62,7 +62,7 @@ function parseArgs(argv: string[]): {
   return { slug: positional[0] ?? null, all, type, force, json, reindex, embeddings, draftsDir };
 }
 
-const repoRoot = process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+const repoRoot = resolveRepoRoot();
 const memoryDir = resolve(repoRoot, "memory");
 const { slug, all, type, force, json, reindex, embeddings, draftsDir: draftsDirArg } = parseArgs(
   process.argv.slice(2),

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { resolveRepoRoot } from "../src/hooks/bootstrap";
 import { resolve, dirname } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { HashedNgramEmbedder } from "../src/core/search/Embedder";
@@ -25,7 +26,7 @@ import {
  * cfgm-lme-enqueue (host-위임) 참조.
  */
 
-const repoRoot = process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+const repoRoot = resolveRepoRoot();
 const args = process.argv.slice(2);
 const json = args.includes("--json");
 

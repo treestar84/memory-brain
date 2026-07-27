@@ -3,6 +3,7 @@ import { Glob } from "bun";
 import { resolve } from "node:path";
 import { stat } from "node:fs/promises";
 import { reapJob } from "../src/core/normalizer/JobLifecycle";
+import { resolveRepoRoot } from "../src/hooks/bootstrap";
 
 /**
  * cfgm-ssl-reap — orphan in_progress job 회수 (V3.28 실패 시맨틱).
@@ -20,7 +21,7 @@ import { reapJob } from "../src/core/normalizer/JobLifecycle";
  *   bun run bin/cfgm-ssl-reap.ts --json
  */
 
-const repoRoot = process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+const repoRoot = resolveRepoRoot();
 const args = process.argv.slice(2);
 const json = args.includes("--json");
 const dryRun = args.includes("--dry-run");

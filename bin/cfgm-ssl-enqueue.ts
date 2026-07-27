@@ -3,6 +3,7 @@ import { Glob } from "bun";
 import { resolve, relative } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { SkillNormalizer } from "../src/core/normalizer/SkillNormalizer";
+import { resolveRepoRoot } from "../src/hooks/bootstrap";
 
 /**
  * cfgm-ssl-enqueue — heuristic 1차 + warnings 있는 skill 을 host LLM 작업 큐로 enqueue
@@ -34,7 +35,7 @@ interface ParsedArgs {
 }
 
 function parseArgs(argv: string[]): ParsedArgs {
-  const repoRoot = process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+  const repoRoot = resolveRepoRoot();
   const out: ParsedArgs = {
     inputDir: resolve(repoRoot, ".claude/skills"),
     outDir: resolve(repoRoot, "memory/concepts/_ssl"),

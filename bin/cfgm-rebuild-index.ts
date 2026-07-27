@@ -9,7 +9,7 @@ import { Indexer } from "../src/core/search/Indexer";
 import { SSLReader } from "../src/core/search/SSLReader";
 import { FsStorage } from "../src/core/storage/FsStorage";
 import { RealClock } from "../src/core/clock/Clock";
-import { resolveStorageRoot, buildClaimStorage } from "../src/hooks/bootstrap";
+import { resolveStorageRoot, buildClaimStorage, resolveRepoRoot } from "../src/hooks/bootstrap";
 import { AutoTrigger } from "../src/core/auto-trigger/AutoTrigger";
 
 /**
@@ -29,7 +29,7 @@ const json = args.includes("--json");
 const withEmbeddings = args.includes("--embeddings");
 
 const repoRoot =
-  process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+  resolveRepoRoot();
 const memoryDir = resolve(repoRoot, "memory");
 const storageRoot = resolveStorageRoot();
 const indexDir = resolve(storageRoot, "indexes");

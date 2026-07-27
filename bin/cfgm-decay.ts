@@ -7,7 +7,7 @@ import { WikiReader } from "../src/core/wiki/WikiReader";
 import { UsageLog } from "../src/core/stats/UsageLog";
 import { FsStorage } from "../src/core/storage/FsStorage";
 import { RealClock } from "../src/core/clock/Clock";
-import { resolveStorageRoot } from "../src/hooks/bootstrap";
+import { resolveStorageRoot, resolveRepoRoot } from "../src/hooks/bootstrap";
 import { evaluateWikiDecay, type WikiDecayFinding, type WikiDecayPageInput } from "../src/core/governance/WikiDecayEngine";
 import type { WikiType } from "../src/core/wiki/types";
 
@@ -34,7 +34,7 @@ const json = args.includes("--json");
 const archiveIdx = args.indexOf("--archive");
 const archivePageId = archiveIdx >= 0 ? args[archiveIdx + 1] : null;
 
-const repoRoot = process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+const repoRoot = resolveRepoRoot();
 const memoryDir = resolve(repoRoot, "memory");
 const storageRoot = resolveStorageRoot();
 

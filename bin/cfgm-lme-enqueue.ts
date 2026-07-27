@@ -4,6 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { HashedNgramEmbedder } from "../src/core/search/Embedder";
 import { parseLmeQuestions, retrieveTopSessions, splitOf } from "../src/core/bench/LongMemEval";
 import { buildAnswerJob } from "../src/core/bench/LmeQa";
+import { resolveRepoRoot } from "../src/hooks/bootstrap";
 
 /**
  * cfgm-lme-enqueue — LongMemEval 풀 QA 트랙: answer job 생성 (V3.29 ②).
@@ -20,7 +21,7 @@ import { buildAnswerJob } from "../src/core/bench/LmeQa";
  * 처리 후 채점: bin/cfgm-lme-score.ts 참조.
  */
 
-const repoRoot = process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+const repoRoot = resolveRepoRoot();
 const args = process.argv.slice(2);
 const json = args.includes("--json");
 

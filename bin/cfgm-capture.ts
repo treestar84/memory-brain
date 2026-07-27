@@ -3,6 +3,7 @@ import { Glob } from "bun";
 import { resolve, relative, extname } from "node:path";
 import { mkdir, stat } from "node:fs/promises";
 import { enqueueSource } from "../src/core/capture/CaptureEnqueuer";
+import { resolveRepoRoot } from "../src/hooks/bootstrap";
 
 /**
  * cfgm-capture — 세션 transcript/노트 파일을 wiki page draft 추출용 큐로 enqueue.
@@ -31,7 +32,7 @@ interface ParsedArgs {
 }
 
 const ALLOWED_EXT = new Set([".md", ".txt", ".jsonl"]);
-const REPO_ROOT = process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+const REPO_ROOT = resolveRepoRoot();
 
 function parseArgs(argv: string[]): ParsedArgs {
   const repoRoot = REPO_ROOT;

@@ -3,6 +3,7 @@ import { resolve, dirname } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { WikiReader } from "../src/core/wiki/WikiReader";
 import { buildOkfBundle } from "../src/core/okf/OkfExporter";
+import { resolveRepoRoot } from "../src/hooks/bootstrap";
 
 /**
  * cfgm-okf-export — L3 wiki → OKF (Open Knowledge Format) v0.1 번들 (V3.28).
@@ -18,7 +19,7 @@ import { buildOkfBundle } from "../src/core/okf/OkfExporter";
  * wiki 스키마가 truth-source — 본 번들은 파생물이며 재실행으로 재생성.
  */
 
-const repoRoot = process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+const repoRoot = resolveRepoRoot();
 const args = process.argv.slice(2);
 const json = args.includes("--json");
 const activeOnly = args.includes("--active-only");

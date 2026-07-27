@@ -6,7 +6,7 @@ import { FlowGraphStore } from "../src/core/flow/FlowGraphStore";
 import { FlowGraphProjector } from "../src/core/flow/FlowGraphProjector";
 import { ActiveProblemStore } from "../src/core/binder/ActiveProblemStore";
 import { resolve } from "node:path";
-import { resolveStorageRoot } from "../src/hooks/bootstrap";
+import { resolveStorageRoot, resolveRepoRoot } from "../src/hooks/bootstrap";
 import { UsageLog } from "../src/core/stats/UsageLog";
 import { estimateMemoryCorpusTokens } from "../src/core/stats/TokenEstimate";
 
@@ -44,7 +44,7 @@ const server = Bun.serve({
       const daysParam = Number.parseInt(url.searchParams.get("days") ?? "", 10);
       const days = Number.isFinite(daysParam) && daysParam > 0 ? daysParam : 7;
       const agg = await usageLog.aggregate({ days });
-      const repoRoot = process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+      const repoRoot = resolveRepoRoot();
       const memoryDir = resolve(repoRoot, "memory");
       const corpusTokens = await estimateMemoryCorpusTokens(memoryDir);
       const callCount = agg.totalSearches + agg.totalAsks;

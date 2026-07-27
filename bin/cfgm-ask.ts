@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { existsSync } from "node:fs";
 import { SearchIndex } from "../src/core/search/SearchIndex";
 import { HashedNgramEmbedder } from "../src/core/search/Embedder";
-import { resolveStorageRoot } from "../src/hooks/bootstrap";
+import { resolveStorageRoot, resolveRepoRoot } from "../src/hooks/bootstrap";
 import { UsageLog } from "../src/core/stats/UsageLog";
 import { FsStorage } from "../src/core/storage/FsStorage";
 import { estimateTokens, estimateMemoryCorpusTokens } from "../src/core/stats/TokenEstimate";
@@ -55,7 +55,7 @@ if (!existsSync(indexPath)) {
 
 // wiki 원본 위치는 rebuild-index 와 동일한 규칙으로 해석한다 (storage root 와 다름).
 const repoRoot =
-  process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+  resolveRepoRoot();
 const memoryDir = resolve(repoRoot, "memory");
 
 const index = new SearchIndex(indexPath);

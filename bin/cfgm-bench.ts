@@ -8,6 +8,7 @@ import { HashedNgramEmbedder } from "../src/core/search/Embedder";
 import { BenchRunner, parseBenchCases } from "../src/core/bench/BenchRunner";
 import { renderBenchReport } from "../src/core/bench/report";
 import type { BenchReport } from "../src/core/bench/types";
+import { resolveRepoRoot } from "../src/hooks/bootstrap";
 
 /**
  * cfgm-bench — memory quality benchmark (V3.28).
@@ -26,7 +27,7 @@ import type { BenchReport } from "../src/core/bench/types";
  * 출력: memory/reports/benchmark-latest.md (L7 governance 표면)
  */
 
-const repoRoot = process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+const repoRoot = resolveRepoRoot();
 const args = process.argv.slice(2);
 const json = args.includes("--json");
 const noReport = args.includes("--no-report");

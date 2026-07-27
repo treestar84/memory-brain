@@ -3,6 +3,7 @@ import { Glob } from "bun";
 import { resolve, relative } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { SkillNormalizer } from "../src/core/normalizer/SkillNormalizer";
+import { resolveRepoRoot } from "../src/hooks/bootstrap";
 
 /**
  * cfgm-ssl-normalize — SKILL.md → SSL JSON 변환기 (PR-V3.12 CLI, V3.14 우호).
@@ -27,7 +28,7 @@ interface ParsedArgs {
 
 function parseArgs(argv: string[]): ParsedArgs {
   const repoRoot =
-    process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+    resolveRepoRoot();
   const out: ParsedArgs = {
     input: resolve(repoRoot, ".claude/skills"),
     output: resolve(repoRoot, "memory/concepts/_ssl"),

@@ -10,7 +10,7 @@ import { StaleClaimsDetector } from "../src/core/governance/reports/StaleClaimsD
 import { ContradictionsDetector } from "../src/core/governance/reports/ContradictionsDetector";
 import { LowConfidenceDetector } from "../src/core/governance/reports/LowConfidenceDetector";
 import { ReviewQueueDetector } from "../src/core/governance/reports/ReviewQueueDetector";
-import { resolveStorageRoot, buildClaimStorage } from "../src/hooks/bootstrap";
+import { resolveStorageRoot, buildClaimStorage, resolveRepoRoot } from "../src/hooks/bootstrap";
 import { AutoTrigger } from "../src/core/auto-trigger/AutoTrigger";
 import type { GovernanceDetector, GovernanceInput } from "../src/core/governance/reports/types";
 
@@ -26,7 +26,7 @@ const args = process.argv.slice(2);
 const json = args.includes("--json");
 
 const repoRoot =
-  process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+  resolveRepoRoot();
 const memoryDir = resolve(repoRoot, "memory");
 const storageRoot = resolveStorageRoot();
 

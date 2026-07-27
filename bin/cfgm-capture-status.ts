@@ -2,7 +2,7 @@
 import { Glob } from "bun";
 import { resolve } from "node:path";
 import { stat } from "node:fs/promises";
-import { resolveStorageRoot } from "../src/hooks/bootstrap";
+import { resolveStorageRoot, resolveRepoRoot } from "../src/hooks/bootstrap";
 
 /**
  * cfgm-capture-status — capture 큐 (jobs) + drafts 상태 보기.
@@ -16,7 +16,7 @@ import { resolveStorageRoot } from "../src/hooks/bootstrap";
  *   bun run bin/cfgm-capture-status.ts --json
  */
 
-const repoRoot = process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+const repoRoot = resolveRepoRoot();
 const json = process.argv.includes("--json");
 
 interface JobSummary {

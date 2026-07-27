@@ -3,6 +3,7 @@ import { Glob } from "bun";
 import { resolve } from "node:path";
 import { stat } from "node:fs/promises";
 import { parseJob, isStale } from "../src/core/normalizer/JobLifecycle";
+import { resolveRepoRoot } from "../src/hooks/bootstrap";
 
 /**
  * cfgm-ssl-status — pending normalize queue 상태 보기.
@@ -15,7 +16,7 @@ import { parseJob, isStale } from "../src/core/normalizer/JobLifecycle";
  * stale (lease 만료 in_progress, V3.28) 카운트. stale > 0 이면 cfgm-ssl-reap 권고.
  */
 
-const repoRoot = process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT ?? process.cwd();
+const repoRoot = resolveRepoRoot();
 const json = process.argv.includes("--json");
 const jobsDir = resolve(repoRoot, "memory/_pending/normalize/jobs");
 
