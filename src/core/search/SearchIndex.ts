@@ -391,6 +391,19 @@ export class SearchIndex {
     return scored.slice(0, limit);
   }
 
+  /**
+   * 인덱스에 있는 wiki page 목록을 그대로 나열한다 (검색 매칭 아님, 전수 스캔).
+   * `ask`/`search` 가 0건일 때 "이 인덱스에 뭐가 있는지" 를 보여줘 사용자가 검색
+   * 어휘를 추측할 실마리를 주는 용도(V3.43) — 블라인드 인수인계자가 도메인 어휘를
+   * 몰라 자연어 질의가 0건일 때, 실제 존재하는 page id 목록이 다음 질의의 단서가 된다.
+   */
+  listWikiPages(limit = 20): Array<{ pageId: string; pagePath: string; type: string; status: string }> {
+    const rows = this.db
+      .query("SELECT page_id, page_path, type, status FROM wiki_pages ORDER BY page_id LIMIT ?")
+      .all(limit) as Array<{ page_id: string; page_path: string; type: string; status: string }>;
+    return rows.map((r) => ({ pageId: r.page_id, pagePath: r.page_path, type: r.type, status: r.status }));
+  }
+
   private wikiMetaById(pageId: string): Omit<WikiSearchHit, "rank"> | null {
     const row = this.db
       .query(

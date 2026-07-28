@@ -28,8 +28,8 @@ const MESSAGES: Record<string, MessageEntry> = {
     en: "(none)",
   },
   "index.notFound": {
-    ko: "검색 인덱스가 없습니다 — 먼저 실행: cfgm rebuild-index --embeddings",
-    en: "Search index not found — run first: cfgm rebuild-index --embeddings",
+    ko: "검색 인덱스가 없습니다 — 먼저 실행: cfgm rebuild-index",
+    en: "Search index not found — run first: cfgm rebuild-index",
   },
 
   // ---- cfgm search ----
@@ -56,6 +56,14 @@ const MESSAGES: Record<string, MessageEntry> = {
     ko: (query: string) => `"${query}" — 근거 없음. 인덱스에 관련 wiki page 가 없거나 어휘가 다를 수 있습니다.`,
     en: (query: string) =>
       `"${query}" — no grounds. The index may not have a related wiki page, or the wording may differ.`,
+  },
+  "ask.noGroundsSuggestions": {
+    ko: () => `\n인덱스에 있는 페이지 (질의 어휘를 이 목록에서 골라 다시 물어보세요):`,
+    en: () => `\nPages in the index (try rephrasing your query using terms from this list):`,
+  },
+  "ask.noGroundsSuggestionLine": {
+    ko: (pageId: string, type: string) => `  - ${pageId} [${type}]`,
+    en: (pageId: string, type: string) => `  - ${pageId} [${type}]`,
   },
   "ask.groundsHeader": {
     ko: (query: string, count: number) => `질의: "${query}" — 근거 ${count}건\n`,
@@ -178,16 +186,16 @@ const MESSAGES: Record<string, MessageEntry> = {
     en: (indexPath: string, ageDays: number) => `${indexPath} (updated ${ageDays} day(s) ago)`,
   },
   "doctor.check.index.fix.stale": {
-    ko: "cfgm rebuild-index --embeddings  # 7일 이상 경과 — 재생성 권장",
-    en: "cfgm rebuild-index --embeddings  # over 7 days old — rebuild recommended",
+    ko: "cfgm rebuild-index  # 7일 이상 경과 — 재생성 권장",
+    en: "cfgm rebuild-index  # over 7 days old — rebuild recommended",
   },
   "doctor.check.index.detail.missing": {
     ko: "미생성 (최초 실행 시 정상)",
     en: "not built yet (normal on first run)",
   },
   "doctor.check.index.fix.missing": {
-    ko: "cfgm rebuild-index --embeddings",
-    en: "cfgm rebuild-index --embeddings",
+    ko: "cfgm rebuild-index",
+    en: "cfgm rebuild-index",
   },
   "doctor.check.sslQueue.name": {
     ko: "SSL 큐",

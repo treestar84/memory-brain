@@ -46,7 +46,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
   {
     title: "검색·인덱스",
     commands: [
-      { name: "rebuild-index", script: "cfgm-rebuild-index", desc: "wiki+claim+SSL 인덱스 재생성 (--embeddings: hybrid)" },
+      { name: "rebuild-index", script: "cfgm-rebuild-index", desc: "wiki+claim+SSL 인덱스 재생성 (기본 하이브리드, --no-embeddings 로 lexical-only)" },
       { name: "search", script: "cfgm-search", desc: "wiki 자연어 검색 — \"cfgm search \\\"질의\\\"\"" },
       { name: "ask", script: "cfgm-ask", desc: "질의 → claim id 인용 근거 번들 (host LLM 프롬프트 컴포저)" },
       { name: "stats", script: "cfgm-stats", desc: "search/ask 사용 통계 요약 (--days N, --json)" },

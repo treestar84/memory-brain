@@ -61,6 +61,7 @@ const memoryDir = resolve(repoRoot, "memory");
 const index = new SearchIndex(indexPath);
 const embedder = new HashedNgramEmbedder();
 const hits = index.searchWikiHybrid(query, embedder, { limit });
+const suggestions = hits.length === 0 ? index.listWikiPages(20) : [];
 index.close();
 
 async function extractClaimIds(pagePath: string): Promise<string[]> {
@@ -101,6 +102,10 @@ const instruction = t("ask.instruction", query);
 const bundleLines: string[] = [];
 if (grounds.length === 0) {
   bundleLines.push(t("ask.noGrounds", query));
+  if (suggestions.length > 0) {
+    bundleLines.push(t("ask.noGroundsSuggestions"));
+    for (const s of suggestions) bundleLines.push(t("ask.noGroundsSuggestionLine", s.pageId, s.type));
+  }
 } else {
   bundleLines.push(t("ask.groundsHeader", query, grounds.length));
   for (const g of grounds) {
@@ -129,7 +134,7 @@ await new UsageLog(new FsStorage(storageRoot)).record({
 if (json) {
   console.log(
     JSON.stringify(
-      { query, limit, grounds, instruction, tokens: { bundle: bundleTokens, corpus: corpusTokens, pct } },
+      { query, limit, grounds, suggestions, instruction, tokens: { bundle: bundleTokens, corpus: corpusTokens, pct } },
       null,
       2,
     ),
@@ -139,6 +144,10 @@ if (json) {
 
 if (grounds.length === 0) {
   console.log(t("ask.noGrounds", query));
+  if (suggestions.length > 0) {
+    console.log(t("ask.noGroundsSuggestions"));
+    for (const s of suggestions) console.log(t("ask.noGroundsSuggestionLine", s.pageId, s.type));
+  }
   process.exit(0);
 }
 

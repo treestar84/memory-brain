@@ -190,6 +190,6 @@ async function runArchive(pageId: string): Promise<number> {
 
   console.log(`✓ archived: ${target.path} → ${join(typeDir, "_archive", basename(srcPath))}`);
   console.log(`  status: archived, archived_at: ${nowIso}`);
-  console.log(`\n인덱스 갱신 필요: cfgm rebuild-index --embeddings 재실행 필요`);
+  console.log(`\n인덱스 갱신 필요: cfgm rebuild-index 재실행 필요`);
   return 0;
 }

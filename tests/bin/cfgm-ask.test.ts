@@ -109,4 +109,61 @@ describe("cfgm-ask — evidence pointer 근거 번들 컴포저", () => {
     expect(res.status).toBe(1);
     expect(res.stderr).toContain("rebuild-index");
   });
+
+  describe("0건 질의 — 제안 목록 (V3.43)", () => {
+    let noHitEnv: Record<string, string>;
+
+    beforeAll(async () => {
+      const noHitRoot = mkdtempSync(join(tmpdir(), "cfgm-ask-nohit-"));
+      const memoryDir = join(noHitRoot, "memory", "concepts");
+      await mkdir(memoryDir, { recursive: true });
+      await writeFile(
+        join(memoryDir, "example.md"),
+        [
+          "---",
+          "id: concept.example-topic",
+          "type: concept",
+          "status: active",
+          "updated_at: 2026-07-23",
+          "---",
+          "",
+          "# 예시 개념",
+          "",
+          "## Summary",
+          "",
+          "<!-- claim:cl-ex-001 -->",
+          "온보딩 검증용 고유 키워드 자몽바나나 를 포함한 문서.",
+          "",
+        ].join("\n"),
+      );
+      noHitEnv = { CFGM_PROJECT_ROOT: noHitRoot };
+      // 하이브리드(기본) 대신 lexical-only 로 빌드 — 벡터 rescue 없이 진짜 0건을 보장한다.
+      const r = spawnSync("bun", ["run", "bin/cfgm-rebuild-index.ts", "--no-embeddings"], {
+        cwd: process.cwd(),
+        env: { ...process.env, ...noHitEnv },
+        encoding: "utf-8",
+      });
+      expect(r.status).toBe(0);
+      expect(r.stdout).toContain("embeddings: off");
+    });
+
+    test("근거 없음 + 인덱스 내 페이지 목록을 제안으로 보여준다", () => {
+      const res = cfgm(["완전히 무관한 질의 없음"], noHitEnv);
+      expect(res.status).toBe(0);
+      const out = cfgm(["완전히 무관한 질의 없음", "--json"], noHitEnv);
+      const parsed = JSON.parse(out.stdout);
+      expect(parsed.grounds).toHaveLength(0);
+      expect(res.stdout).toContain("근거 없음");
+      expect(res.stdout).toContain("concept.example-topic");
+    });
+
+    test("--json → suggestions 배열에 페이지 id 가 담긴다", () => {
+      const res = cfgm(["완전히 무관한 질의 없음", "--json"], noHitEnv);
+      expect(res.status).toBe(0);
+      const parsed = JSON.parse(res.stdout);
+      expect(parsed.grounds).toHaveLength(0);
+      expect(Array.isArray(parsed.suggestions)).toBe(true);
+      expect(parsed.suggestions.some((s: { pageId: string }) => s.pageId === "concept.example-topic")).toBe(true);
+    });
+  });
 });

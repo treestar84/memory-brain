@@ -18,7 +18,7 @@ import { RealClock } from "../src/core/clock/Clock";
  *   bun run bin/cfgm-capture-accept.ts <slug> [--type concept|decision|project] [--force]
  *   bun run bin/cfgm-capture-accept.ts --all [--force]              # 큐의 draft 전부 일괄 승격
  *   bun run bin/cfgm-capture-accept.ts <slug|--all> --drafts-dir <경로>
- *   bun run bin/cfgm-capture-accept.ts <slug|--all> --reindex [--embeddings]  # 승격 후 인덱스 자동 재생성
+ *   bun run bin/cfgm-capture-accept.ts <slug|--all> --reindex [--no-embeddings]  # 승격 후 인덱스 자동 재생성(기본 하이브리드)
  *
  * type 은 draft frontmatter 에서 자동 추론된다(WIKI-FORMAT.md 필수 필드) — --type 은
  * 일치 검증용 옵션일 뿐 필수 아니다(V3.42). --all 은 draft 마다 서로 다른 type 이어도
@@ -37,7 +37,7 @@ function parseArgs(argv: string[]): {
   force: boolean;
   json: boolean;
   reindex: boolean;
-  embeddings: boolean;
+  noEmbeddings: boolean;
   draftsDir: string | null;
 } {
   let type: string | null = null;
@@ -45,7 +45,7 @@ function parseArgs(argv: string[]): {
   let json = false;
   let all = false;
   let reindex = false;
-  let embeddings = false;
+  let noEmbeddings = false;
   let draftsDir: string | null = null;
   const positional: string[] = [];
   for (let i = 0; i < argv.length; i++) {
@@ -55,11 +55,12 @@ function parseArgs(argv: string[]): {
     if (a === "--json") { json = true; continue; }
     if (a === "--all") { all = true; continue; }
     if (a === "--reindex") { reindex = true; continue; }
-    if (a === "--embeddings") { embeddings = true; continue; }
+    if (a === "--no-embeddings") { noEmbeddings = true; continue; }
+    if (a === "--embeddings") { continue; } // 기본값이 됐다(V3.43) — 하위호환을 위해 no-op 로 허용
     if (a === "--drafts-dir" && argv[i + 1]) { draftsDir = argv[++i]!; continue; }
     positional.push(a!);
   }
-  return { slug: positional[0] ?? null, all, type, force, json, reindex, embeddings, draftsDir };
+  return { slug: positional[0] ?? null, all, type, force, json, reindex, noEmbeddings, draftsDir };
 }
 
 const USAGE =
@@ -73,7 +74,7 @@ if (rawArgv.includes("--help") || rawArgv.includes("-h")) {
 
 const repoRoot = resolveRepoRoot();
 const memoryDir = resolve(repoRoot, "memory");
-const { slug, all, type, force, json, reindex, embeddings, draftsDir: draftsDirArg } = parseArgs(rawArgv);
+const { slug, all, type, force, json, reindex, noEmbeddings, draftsDir: draftsDirArg } = parseArgs(rawArgv);
 
 if (!slug && !all) {
   console.error(USAGE);
@@ -94,7 +95,7 @@ async function runReindex(): Promise<void> {
   const clock = new RealClock();
   const claimStore = new ClaimStore(buildClaimStorage(), clock);
   const searchIndex = new SearchIndex(indexPath);
-  const embedder = embeddings ? new HashedNgramEmbedder() : undefined;
+  const embedder = noEmbeddings ? undefined : new HashedNgramEmbedder();
   const indexer = new Indexer(wikiReader, claimStore, searchIndex, sslReader, embedder);
   const result = await indexer.rebuild();
   searchIndex.close();
@@ -128,7 +129,7 @@ if (all) {
   }
 
   if (reindex && accepted.length > 0) await runReindex();
-  else if (accepted.length > 0 && !json) console.log(`\n→ cfgm rebuild-index --embeddings 재실행 필요 (검색 인덱스 갱신).`);
+  else if (accepted.length > 0 && !json) console.log(`\n→ cfgm rebuild-index 재실행 필요 (검색 인덱스 갱신).`);
 
   process.exit(failed.length > 0 ? 1 : 0);
 }
@@ -174,7 +175,7 @@ try {
     if (result.archivePath) console.log(`기존 page 는 ${result.archivePath} 로 보관되었습니다.`);
   }
   if (reindex) await runReindex();
-  else if (!json) console.log(`\n→ cfgm rebuild-index --embeddings 재실행 필요 (검색 인덱스 갱신).`);
+  else if (!json) console.log(`\n→ cfgm rebuild-index 재실행 필요 (검색 인덱스 갱신).`);
 } catch (e) {
   if (e instanceof CaptureAcceptError) {
     console.error(e.message);

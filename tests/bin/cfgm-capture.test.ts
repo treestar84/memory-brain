@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { Database } from "bun:sqlite";
 import { mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -204,6 +205,41 @@ describe("cfgm-capture CLI", () => {
       encoding: "utf-8",
     });
     expect(search.stdout).toContain("decision.reindex-me");
+  });
+
+  test("capture-accept --all --reindex — 기본값이 하이브리드라 벡터가 채워진다 (V3.43)", async () => {
+    const draftsDir = join(projectDir, "memory/_pending/capture/drafts");
+    await mkdir(draftsDir, { recursive: true });
+    await writeFile(
+      join(draftsDir, "hybrid-default.md"),
+      "---\nid: decision.hybrid-default\ntype: decision\nstatus: draft\nconfidence: high\nupdated_at: 2026-07-28\n---\n\n# hybrid-default\n\nplain findable content.\n",
+    );
+
+    const res = accept(projectDir, ["--all", "--reindex"]);
+    expect(res.status).toBe(0);
+
+    const db = new Database(join(projectDir, ".memory-brain/indexes/search.sqlite"));
+    const count = db.query("SELECT COUNT(*) AS c FROM vectors").get() as { c: number };
+    expect(count.c).toBeGreaterThan(0);
+    db.close();
+  });
+
+  test("capture-accept --all --reindex --no-embeddings — 벡터 없이 lexical-only 인덱스도 재생성 가능 (V3.43)", async () => {
+    const draftsDir = join(projectDir, "memory/_pending/capture/drafts");
+    await mkdir(draftsDir, { recursive: true });
+    await writeFile(
+      join(draftsDir, "lexical-only.md"),
+      "---\nid: decision.lexical-only\ntype: decision\nstatus: draft\nconfidence: high\nupdated_at: 2026-07-28\n---\n\n# lexical-only\n\nplain findable content.\n",
+    );
+
+    const res = accept(projectDir, ["--all", "--reindex", "--no-embeddings"]);
+    expect(res.status).toBe(0);
+    expect(res.stdout).toContain("인덱스 재생성 완료");
+
+    const db = new Database(join(projectDir, ".memory-brain/indexes/search.sqlite"));
+    const count = db.query("SELECT COUNT(*) AS c FROM vectors").get() as { c: number };
+    expect(count.c).toBe(0);
+    db.close();
   });
 
   test("capture-accept --help/-h → 사용법 출력하고 exit 0 (슬러그로 오인해 draft 조회 시도하지 않음)", async () => {
