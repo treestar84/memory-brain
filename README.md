@@ -97,6 +97,7 @@ cfgm ask "<질의>"         # 검색 + 근거 인용 답변
 cfgm capture --input <파일>   # 세션 노트 → 기억 후보 큐
 cfgm decay                # 오래되고 안 쓰는 기억 찾기 (삭제 없음, 보관만)
 cfgm stats                # 내 사용 통계
+cfgm dashboard            # 위키/검색/capture 큐 실시간 대시보드 (localhost:4040, 로컬 전용)
 ```
 
 전체 명령은 `cfgm help`. 더 깊은 기능(지식그래프, 워크플로우 재실행 등)은 [영문 문서](./README.en.md)의 "Advanced features" 섹션에 정리돼 있습니다.

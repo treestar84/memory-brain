@@ -6,6 +6,9 @@ import type { WikiPage, WikiPageFrontmatter } from "./types";
 const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
 const CLAIM_ID_RE = /<!--\s*claim:(cl-[\w-]+)\s*-->/g;
 
+/** Indexer.rebuild() 가 wiki_pages 인덱스에 넣는 canonical 서브디렉토리 집합. */
+export const CANONICAL_WIKI_SUBDIRS = ["projects", "concepts", "decisions"] as const;
+
 /**
  * Wiki Layer 1차 reader (PR-V3.4).
  *
@@ -88,6 +91,24 @@ export class WikiReader {
       if (file.endsWith("README.md")) continue;
       const p = await this.read(file);
       if (p) pages.push(p);
+    }
+    return pages;
+  }
+
+  /**
+   * canonical wiki page 전체 나열(projects/concepts/decisions, `_` 프리픽스
+   * 서브디렉토리 제외 — Indexer.rebuild() 가 wiki_pages 인덱스에 넣는 것과
+   * 동일한 집합). 대시보드/뷰어처럼 "지금 인덱스에 뭐가 있는지" 를 그대로
+   * 보여줘야 하는 곳에서 쓴다.
+   */
+  async listCanonicalPages(): Promise<WikiPage[]> {
+    const pages: WikiPage[] = [];
+    for (const dir of CANONICAL_WIKI_SUBDIRS) {
+      const dirPages = await this.readAllInDir(dir);
+      for (const p of dirPages) {
+        if (p.path.split("/").some((seg) => seg.startsWith("_"))) continue;
+        pages.push(p);
+      }
     }
     return pages;
   }

@@ -197,15 +197,16 @@ Same category axes used across the memory-tool ecosystem's own comparisons (retr
 | **Auto-capture** | Session-end auto-enqueue → host-LLM draft → 1 human approval (no direct LLM API call, ever) | 12 hooks, zero manual effort | Manual `add()` calls | Agent self-edits | Manual | API-side extraction | Manual | API extraction | Manual | Manual editing |
 | **Search** | BM25 (FTS5) + Vector, RRF/rescue fusion — no graph stream | BM25 + Vector + Graph, RRF | Vector + Graph | Vector (archival) | Semantic | Vector + RAG | Vector-only | Vector + semantic | Decay-weighted | Loads everything into context |
 | **Multi-agent** | **None** (single-session, single-user by design) | MCP + REST + leases + signals | API (no coordination) | Within Letta runtime only | No | No | No | Scoped only | Multi-agent shared | Per-agent files |
+| **Framework lock-in** | **None** — plain markdown + SQLite, no MCP server required (any coding CLI can shell out to `cfgm`) | None (any MCP client) | None (library you call from your own code) | **High** — must run inside the Letta runtime/cloud | Standalone (Khoj *is* the assistant, not a layer you embed) | None | None | **High** — requires Oracle Database | None (unverified — no independently discoverable public repo, see note below) | Per-agent format (whatever convention that agent's file loader expects) |
 | **External deps** | **None** — Bun + 1 npm package (`yaml`) | "None" claimed, but requires `iii-engine` (separate Rust binary, license `Apache-2.0 AND Elastic-2.0`) | Qdrant / pgvector | Postgres + vector DB | Multiple | Managed cloud | Vector store | Oracle AI Database (enterprise) | None | None |
 | **Lifecycle** | Decay dry-run only, archive-gated — **no delete path, ever** | 4-tier consolidation + decay + auto-forget | Passive extraction | Agent-managed | Manual | Auto-forget | None | Not stated | Decay + consolidation | Manual pruning |
 | **Token cost** | **~184 tokens/query** (measured live), **$0/yr structurally** (no LLM-call code path exists) | ~1,900 tokens/session, ~$10/yr | Varies by integration | Core memory in context | Varies | Cloud pricing | No token budget | LLM-backed (varies) | Varies | 22K+ tokens at 240 obs |
-| **Real-time viewer** | No | Yes (port 3113) | Cloud dashboard | Cloud dashboard | Web UI | Cloud dashboard | No | No | No | No |
+| **Real-time viewer** | **Yes** — `cfgm dashboard` (localhost:4040, local-only, no cloud) | Yes (port 3113) | Cloud dashboard | Cloud dashboard | Web UI | Cloud dashboard | No | No | No | No |
 | **Self-hosted** | Yes — the only option, no cloud variant exists | Yes (default); paid one-click cloud templates also offered | Optional | Optional | Yes | Repo says "runs fully locally" — conflicts with some vendor claims of cloud-only, not independently confirmed either way | Yes | Yes (Oracle DB) | Yes | Yes |
 
 **What we verified vs what we didn't.** mem0 / Letta / Khoj / supermemory / MemPalace license + star counts are pulled live from the GitHub API, not copied from anyone's marketing page. `oracleagentmemory` and `Hippo` have no independently discoverable public repo as of this writing — those two rows are carried over from other vendors' comparison tables and should be treated as unverified. Star counts drift; this table was last checked 2026-07. LoCoMo and LongMemEval are different datasets — the R@5 column is directional, not a controlled head-to-head, except between memory-brain and agentmemory (both LongMemEval-S).
 
-**Where memory-brain trails, honestly**: retrieval R@5 is 2pp behind agentmemory's on the same benchmark family; search has no graph stream; there's no real-time viewer; multi-agent coordination doesn't exist by design. These are open items, not silently ignored — see [`docs/RULES.md`](./docs/RULES.md) for the design principles that make some of these deliberate trade-offs rather than oversights (no MCP, no direct LLM API calls, delete-never).
+**Where memory-brain trails, honestly**: retrieval R@5 is 2pp behind agentmemory's on the same benchmark family — this is a structural gap (aggregation-style multi-session questions exceed retrieval depth, and the zero-dependency hashed n-gram embedder can't catch synonym/hypernym matches the way a real embedding model or benchmark-derived dictionary could) that we've chosen not to close by giving up the zero-LLM-call, zero-external-dep design; search has no graph stream; multi-agent coordination doesn't exist by design. These are open items, not silently ignored — see [`docs/RULES.md`](./docs/RULES.md) for the design principles that make some of these deliberate trade-offs rather than oversights (no MCP, no direct LLM API calls, delete-never).
 
 ---
 
@@ -322,6 +323,7 @@ cfgm bench               # internal memory quality benchmark
 cfgm bench-lme           # LongMemEval external benchmark
 cfgm ssl-status           # SSL normalize queue status (+stale)
 cfgm viewer               # KG-Brain dashboard (localhost:4041)
+cfgm dashboard            # wiki/search/capture-queue live dashboard (localhost:4040, local-only)
 cfgm run --skill <slug>  # SSL skill execution plan / --interactive
 ```
 

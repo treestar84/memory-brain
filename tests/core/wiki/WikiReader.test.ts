@@ -257,4 +257,20 @@ SessionStart 훅이 승인 없이 bun install 실행 — supply-chain-rce 지적
     const pages = await reader.readAllInDirAsNoteChunks("journal");
     expect(pages).toHaveLength(3);
   });
+
+  test("listCanonicalPages — projects/concepts/decisions 를 모아 반환, `_` 프리픽스 서브디렉토리 제외", async () => {
+    await mkdir(join(dir, "concepts"), { recursive: true });
+    await mkdir(join(dir, "decisions"), { recursive: true });
+    await mkdir(join(dir, "concepts", "_ssl"), { recursive: true });
+    await writeFile(join(dir, "concepts", "example.md"), SAMPLE_PAGE.replace("decision.test-policy", "concept.example"));
+    await writeFile(join(dir, "decisions", "sample.md"), SAMPLE_PAGE);
+    await writeFile(
+      join(dir, "concepts", "_ssl", "hidden.md"),
+      SAMPLE_PAGE.replace("decision.test-policy", "concept.should-not-appear"),
+    );
+
+    const pages = await reader.listCanonicalPages();
+    const ids = pages.map((p) => p.frontmatter.id).sort();
+    expect(ids).toEqual(["concept.example", "decision.test-policy"]);
+  });
 });

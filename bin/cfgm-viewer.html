@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>memory-brain · Flow Graph Viewer</title>
+<title>memory-brain · Dashboard</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -83,13 +83,49 @@
   .block-meta { margin-top: 6px; font-size: 10px; color: #52525b; }
   .empty { color: #52525b; padding: 60px 20px; text-align: center; font-size: 13px; }
   .error { color: #f87171; padding: 20px; background: #7f1d1d22; border-radius: 6px; white-space: pre-wrap; }
+
+  #memory { border-bottom: 1px solid #27272a; padding: 16px 22px 18px; }
+  #memory .search-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  #memory input[type="text"] { flex: 1; background: #17171b; border: 1px solid #27272a; border-radius: 6px;
+    color: #e4e4e7; padding: 8px 10px; font-size: 13px; font-family: inherit; }
+  #memory input[type="text"]:focus { outline: none; border-color: #52525b; }
+  #memory-cols { display: grid; grid-template-columns: 1fr 220px 220px; gap: 16px; align-items: start; }
+  #memory-cols h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #71717a;
+    margin: 0 0 8px; font-weight: 600; }
+  .wiki-row, .hit-row { padding: 6px 8px; border-radius: 4px; font-size: 12px; margin-bottom: 2px; }
+  .wiki-row:hover, .hit-row:hover { background: #17171b; }
+  .wiki-row .id, .hit-row .id { color: #e4e4e7; }
+  .wiki-row .badge, .hit-row .badge { font-size: 10px; color: #71717a; margin-left: 6px; }
+  .hit-row .snippet { color: #71717a; font-size: 11px; margin-top: 2px; }
+  .status-line { font-size: 12px; color: #a1a1aa; margin-bottom: 4px; }
+  .status-line .num { color: #e4e4e7; font-weight: 600; }
+  .status-line.warn { color: #fbbf24; }
 </style>
 </head>
 <body>
 <header>
-  <h1>🧠 memory-brain · Flow Graph Viewer</h1>
+  <h1>🧠 memory-brain · Dashboard</h1>
   <span class="refresh mono" id="refresh">-</span>
 </header>
+<section id="memory">
+  <div class="search-row">
+    <input type="text" id="search-input" placeholder='검색어 입력 후 Enter (예: "rate limiter")' />
+  </div>
+  <div id="memory-cols">
+    <div>
+      <h3 id="results-label">위키 페이지</h3>
+      <div id="memory-results"></div>
+    </div>
+    <div>
+      <h3>인덱스 상태</h3>
+      <div id="index-status"></div>
+    </div>
+    <div>
+      <h3>Capture 큐</h3>
+      <div id="capture-status"></div>
+    </div>
+  </div>
+</section>
 <main>
   <aside id="problems"></aside>
   <section id="graph"></section>
@@ -355,10 +391,135 @@ function buildBarGroup(label, rows, keyFn) {
   return group;
 }
 
+// ---- memory panel (wiki / search / index status / capture queue) ----
+
+let lastQuery = '';
+
+async function loadWiki() {
+  if (lastQuery) return; // 검색 결과를 보고 있으면 위키 목록으로 덮어쓰지 않는다
+  const root = document.getElementById('memory-results');
+  try {
+    const res = await fetch('/api/wiki');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    document.getElementById('results-label').textContent = '위키 페이지 (' + data.count + ')';
+    renderWikiPages(root, data.pages || []);
+  } catch (e) {
+    setMessage(root, String(e && e.message || e), 'error');
+  }
+}
+
+function renderWikiPages(root, pages) {
+  clear(root);
+  if (!pages.length) {
+    setMessage(root, '아직 캡처된 위키 페이지가 없습니다.');
+    return;
+  }
+  for (const p of pages) {
+    root.appendChild(
+      el('div', { class: 'wiki-row' },
+        el('span', { class: 'id mono' }, p.id),
+        el('span', { class: 'badge' }, '[' + p.type + '/' + p.status + ']'),
+      )
+    );
+  }
+}
+
+async function runSearch(query) {
+  lastQuery = query.trim();
+  const root = document.getElementById('memory-results');
+  if (!lastQuery) {
+    document.getElementById('results-label').textContent = '위키 페이지';
+    await loadWiki();
+    return;
+  }
+  document.getElementById('results-label').textContent = '"' + lastQuery + '" 검색 결과';
+  try {
+    const res = await fetch('/api/search?q=' + encodeURIComponent(lastQuery));
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    renderSearchHits(root, data);
+  } catch (e) {
+    setMessage(root, String(e && e.message || e), 'error');
+  }
+}
+
+function renderSearchHits(root, data) {
+  clear(root);
+  if (data.indexMissing) {
+    setMessage(root, '검색 인덱스가 없습니다 — cfgm rebuild-index 를 먼저 실행하세요.');
+    return;
+  }
+  const hits = data.hits || [];
+  if (!hits.length) {
+    setMessage(root, '"' + data.query + '" — 근거 없음.');
+    return;
+  }
+  for (const h of hits) {
+    root.appendChild(
+      el('div', { class: 'hit-row' },
+        el('div', null,
+          el('span', { class: 'id mono' }, h.pageId),
+          el('span', { class: 'badge' }, '[' + h.type + '/' + h.status + ']'),
+        ),
+        el('div', { class: 'snippet' }, h.snippet),
+      )
+    );
+  }
+}
+
+async function loadIndexStatus() {
+  const root = document.getElementById('index-status');
+  try {
+    const res = await fetch('/api/index-status');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    clear(root);
+    if (!data.exists) {
+      root.appendChild(el('div', { class: 'status-line warn' }, '인덱스 없음 — cfgm rebuild-index 실행 필요'));
+      return;
+    }
+    const rebuiltAt = data.rebuiltAt ? new Date(data.rebuiltAt).toLocaleString('ko-KR') : '-';
+    root.appendChild(el('div', { class: 'status-line' }, '위키 ', el('span', { class: 'num' }, String(data.wikiCount)), '건'));
+    root.appendChild(el('div', { class: 'status-line' }, '클레임 ', el('span', { class: 'num' }, String(data.claimCount)), '건'));
+    root.appendChild(el('div', { class: 'status-line' }, '재생성: ' + rebuiltAt));
+    root.appendChild(el('div', { class: 'status-line' }, data.vectorDims > 0 ? '하이브리드(벡터 ' + data.vectorDims + '차원)' : 'lexical-only'));
+  } catch (e) {
+    setMessage(root, String(e && e.message || e), 'error');
+  }
+}
+
+async function loadCaptureStatus() {
+  const root = document.getElementById('capture-status');
+  try {
+    const res = await fetch('/api/capture-status');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    clear(root);
+    const c = data.counts || {};
+    root.appendChild(el('div', { class: 'status-line' + (c.pending > 0 ? ' warn' : '') }, 'pending ', el('span', { class: 'num' }, String(c.pending || 0))));
+    root.appendChild(el('div', { class: 'status-line' }, 'done ', el('span', { class: 'num' }, String(c.done || 0))));
+    root.appendChild(el('div', { class: 'status-line' + (c.failed > 0 ? ' warn' : '') }, 'failed ', el('span', { class: 'num' }, String(c.failed || 0))));
+    root.appendChild(el('div', { class: 'status-line' }, 'draft ', el('span', { class: 'num' }, String(data.draftCount || 0))));
+  } catch (e) {
+    setMessage(root, String(e && e.message || e), 'error');
+  }
+}
+
+document.getElementById('search-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') runSearch(e.target.value);
+});
+
 loadProblems();
 loadStats();
+loadWiki();
+loadIndexStatus();
+loadCaptureStatus();
 setInterval(loadProblems, 3000);
 setInterval(loadStats, 5000);
+setInterval(loadWiki, 5000);
+setInterval(loadIndexStatus, 5000);
+setInterval(loadCaptureStatus, 5000);
 </script>
 </body>
 </html>
