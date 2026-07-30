@@ -16,6 +16,7 @@ import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { resolveStorageRoot, resolveProjectRoot } from "../src/hooks/bootstrap";
 import { KGComposer } from "../src/core/search/KGComposer";
+import { KGGraph } from "../src/core/search/KGGraph";
 
 const args = process.argv.slice(2);
 const jsonMode = args.includes("--json");
@@ -40,9 +41,11 @@ if (!existsSync(indexPath)) {
 const db = new Database(indexPath, { readonly: true });
 
 let result;
+let danglingCount = 0;
 try {
   const composer = new KGComposer(db);
   result = composer.compose();
+  danglingCount = new KGGraph(db).stats().danglingCount;
 } finally {
   db.close();
 }
@@ -75,8 +78,13 @@ if (result.triples.length > 0) {
       console.log(`    → ${t.toSkill}  (${depthLabel})  ${t.path}`);
     }
   }
+} else if (danglingCount > 0) {
+  console.log(
+    `\n  (0 resolved DELEGATES_TO edges — but ${danglingCount} dangling edge(s) exist, pointing to a skill outside the` +
+      ` normalized set. Run \`cfgm graph-query dangling\` to see them; rebuilding the index won't resolve them.)`,
+  );
 } else {
-  console.log("\n  (no DELEGATES_TO edges found — run cfgm-rebuild-index first)");
+  console.log("\n  (no DELEGATES_TO edges found in this skill set)");
 }
 
 if (result.cycles.length > 0) {
