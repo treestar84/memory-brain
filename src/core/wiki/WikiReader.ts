@@ -87,10 +87,17 @@ export class WikiReader {
   async readAllInDir(subdir: string): Promise<WikiPage[]> {
     const glob = new Glob(`${subdir}/**/*.md`);
     const pages: WikiPage[] = [];
-    for await (const file of glob.scan({ cwd: this.memoryDir })) {
-      if (file.endsWith("README.md")) continue;
-      const p = await this.read(file);
-      if (p) pages.push(p);
+    try {
+      // `memoryDir` 자체가 아직 없으면(신규 프로젝트, 아직 캡처 0건) Glob.scan 의 cwd
+      // open 이 ENOENT 를 던진다 — 정상적인 "아직 아무것도 없음" 상태이니 빈 배열로 처리한다.
+      for await (const file of glob.scan({ cwd: this.memoryDir })) {
+        if (file.endsWith("README.md")) continue;
+        const p = await this.read(file);
+        if (p) pages.push(p);
+      }
+    } catch (e) {
+      if ((e as { code?: string }).code === "ENOENT") return pages;
+      throw e;
     }
     return pages;
   }

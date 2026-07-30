@@ -96,6 +96,7 @@ cfgm search "<질의>"      # 자연어 검색
 cfgm ask "<질의>"         # 검색 + 근거 인용 답변
 cfgm capture --input <파일>   # 세션 노트 → 기억 후보 큐
 cfgm decay                # 오래되고 안 쓰는 기억 찾기 (삭제 없음, 보관만)
+cfgm governance-report    # 중복·stale·모순 감지 → memory/reports/ (cfgm doctor 에도 요약 표시됨)
 cfgm stats                # 내 사용 통계
 cfgm dashboard            # 위키/검색/capture 큐 실시간 대시보드 (localhost:4040, 로컬 전용)
 ```

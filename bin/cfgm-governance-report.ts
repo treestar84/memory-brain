@@ -5,14 +5,10 @@ import { RealClock } from "../src/core/clock/Clock";
 import { ClaimStore } from "../src/core/claim/ClaimStore";
 import { WikiReader } from "../src/core/wiki/WikiReader";
 import { ReportWriter } from "../src/core/governance/reports/ReportWriter";
-import { DuplicateCandidatesDetector } from "../src/core/governance/reports/DuplicateCandidatesDetector";
-import { StaleClaimsDetector } from "../src/core/governance/reports/StaleClaimsDetector";
-import { ContradictionsDetector } from "../src/core/governance/reports/ContradictionsDetector";
-import { LowConfidenceDetector } from "../src/core/governance/reports/LowConfidenceDetector";
-import { ReviewQueueDetector } from "../src/core/governance/reports/ReviewQueueDetector";
+import { runGovernanceDetectors } from "../src/core/governance/reports/runDetectors";
 import { resolveStorageRoot, buildClaimStorage, resolveRepoRoot } from "../src/hooks/bootstrap";
 import { AutoTrigger } from "../src/core/auto-trigger/AutoTrigger";
-import type { GovernanceDetector, GovernanceInput } from "../src/core/governance/reports/types";
+import type { GovernanceInput } from "../src/core/governance/reports/types";
 
 /**
  * cfgm-governance-report — 5 detector 실행 → reports/<id>.md 작성 (PR-V3.7).
@@ -36,14 +32,6 @@ const claimStore = new ClaimStore(buildClaimStorage(), clock);
 const wikiReader = new WikiReader(memoryDir);
 const writer = new ReportWriter(storage);
 
-const detectors: GovernanceDetector[] = [
-  new DuplicateCandidatesDetector(),
-  new StaleClaimsDetector(),
-  new ContradictionsDetector(),
-  new LowConfidenceDetector(),
-  new ReviewQueueDetector(),
-];
-
 const claims = await claimStore.list();
 const wikiPages = [];
 for (const dir of ["projects", "concepts", "decisions"]) {
@@ -52,11 +40,11 @@ for (const dir of ["projects", "concepts", "decisions"]) {
 
 const input: GovernanceInput = { claims, wikiPages, now: clock.isoNow() };
 
+const reports = runGovernanceDetectors(input);
 const summary: Array<{ id: string; findings: number; path: string }> = [];
-for (const d of detectors) {
-  const report = d.detect(input);
+for (const report of reports) {
   const path = await writer.write(report);
-  summary.push({ id: d.id, findings: report.findings.length, path });
+  summary.push({ id: report.detectorId, findings: report.findings.length, path });
 }
 
 const autoTrigger = new AutoTrigger(storage, clock);

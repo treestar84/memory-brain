@@ -10,6 +10,8 @@ import { HashedNgramEmbedder } from "../src/core/search/Embedder";
 import { Indexer } from "../src/core/search/Indexer";
 import { SSLReader } from "../src/core/search/SSLReader";
 import { RealClock } from "../src/core/clock/Clock";
+import { Redactor } from "../src/core/security/Redactor";
+import { FsStorage } from "../src/core/storage/FsStorage";
 
 /**
  * cfgm-capture-accept — capture draft 를 정식 wiki page 로 승격.
@@ -84,6 +86,13 @@ if (!slug && !all) {
 const repoDraftsDir = resolve(repoRoot, "memory/_pending/capture/drafts");
 const storageDraftsDir = resolve(resolveStorageRoot(), "_pending/capture/drafts");
 
+/**
+ * host LLM 이 draft 를 작성하는 단계는 우리 코드가 못 보므로, git 추적 canonical
+ * wiki page 로 넘어가기 직전인 이 승격 시점이 시크릿 유출을 막을 유일한 관문이다
+ * (V3.43 — 이전엔 이 파이프라인에 redaction 이 전혀 연결돼 있지 않았다).
+ */
+const redactor = new Redactor(new FsStorage(resolveStorageRoot()), new RealClock());
+
 async function runReindex(): Promise<void> {
   const storageRoot = resolveStorageRoot();
   const indexDir = resolve(storageRoot, "indexes");
@@ -105,7 +114,7 @@ async function runReindex(): Promise<void> {
 if (all) {
   let draftsDir = draftsDirArg ? resolve(repoRoot, draftsDirArg) : repoDraftsDir;
 
-  const { accepted, failed } = await acceptAllDrafts({ draftsDir, memoryDir, force });
+  const { accepted, failed } = await acceptAllDrafts({ draftsDir, memoryDir, force, redactor });
 
   if (!draftsDirArg) {
     const storageIsDistinct = resolve(storageDraftsDir) !== resolve(repoDraftsDir);
@@ -124,7 +133,10 @@ if (all) {
     console.log(JSON.stringify({ draftsDir, accepted, failed }, null, 2));
   } else {
     console.log(`일괄 승격 — 성공 ${accepted.length}건 / 실패 ${failed.length}건`);
-    for (const r of accepted) console.log(`  ✓ ${r.slug} (${r.type}) → ${r.targetPath}`);
+    for (const r of accepted) {
+      console.log(`  ✓ ${r.slug} (${r.type}) → ${r.targetPath}`);
+      if (r.redacted) console.log(`    ⚠ 시크릿 패턴 감지 — 마스킹 후 저장됨 (security/redacted.jsonl 참조)`);
+    }
     for (const f of failed) console.log(`  ✗ ${f.slug}: ${f.reason}`);
   }
 
@@ -161,11 +173,18 @@ if (draftsDirArg) {
 }
 
 try {
-  const result = await acceptDraft({ slug: slug!, draftsDir, memoryDir, type: type ?? undefined, force });
+  const result = await acceptDraft({ slug: slug!, draftsDir, memoryDir, type: type ?? undefined, force, redactor });
   if (json) {
     console.log(
       JSON.stringify(
-        { slug: result.slug, type: result.type, draftsDir, targetPath: result.targetPath, supersededExisting: result.supersededExisting },
+        {
+          slug: result.slug,
+          type: result.type,
+          draftsDir,
+          targetPath: result.targetPath,
+          supersededExisting: result.supersededExisting,
+          redacted: result.redacted,
+        },
         null,
         2,
       ),
@@ -173,6 +192,7 @@ try {
   } else {
     console.log(`승격 완료: ${result.draftPath} → ${result.targetPath}`);
     if (result.archivePath) console.log(`기존 page 는 ${result.archivePath} 로 보관되었습니다.`);
+    if (result.redacted) console.log(`⚠ 시크릿 패턴 감지 — 마스킹 후 저장됨 (security/redacted.jsonl 참조)`);
   }
   if (reindex) await runReindex();
   else if (!json) console.log(`\n→ cfgm rebuild-index 재실행 필요 (검색 인덱스 갱신).`);

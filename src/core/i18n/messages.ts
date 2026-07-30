@@ -209,6 +209,14 @@ const MESSAGES: Record<string, MessageEntry> = {
     ko: "PAI 세션에서 처리: CLAUDE_CONFIG_DIR=.claude-pai claude",
     en: "Process in a PAI session: CLAUDE_CONFIG_DIR=.claude-pai claude",
   },
+  "doctor.check.governance.name": {
+    ko: "Governance (중복/stale/모순)",
+    en: "Governance (duplicate/stale/contradiction)",
+  },
+  "doctor.check.governance.fix": {
+    ko: "cfgm governance-report 실행 후 memory/reports/ 검토",
+    en: "Run cfgm governance-report and review memory/reports/",
+  },
   "doctor.check.brain.name": {
     ko: "Brain 프로파일 (선택)",
     en: "Brain profile (optional)",

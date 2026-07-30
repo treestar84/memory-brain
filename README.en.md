@@ -206,7 +206,7 @@ Same category axes used across the memory-tool ecosystem's own comparisons (retr
 | **Consolidation tiers** | No fixed tiers — single human-gated promotion pipeline (`cfgm capture` → draft → 1 approval → canonical page, `src/core/capture/CaptureAccepter.ts`) | ✅ Working→episodic→semantic→procedural | ❌ | OS-inspired tiers | ❌ | ❌ | ❌ | ❌ | Episodic + semantic | ❌ |
 | **Version / supersession** | Yes — `--force` archives the superseded page to `_archive/` before writing the new one (git-diffable, `CaptureAccepter.ts:97-111`); duplicates/contradictions are flagged for human review, not auto-merged (`src/core/governance/reports/DuplicateCandidatesDetector.ts`) | ✅ Jaccard-based | Passive | ❌ | ❌ | ✅ Auto-resolve | ❌ | ❌ | ❌ | ❌ |
 | **Token cost** | **~184 tokens/query** (measured live), **$0/yr structurally** (no LLM-call code path exists) | ~1,900 tokens/session, ~$10/yr | Varies by integration | Core memory in context | Varies | Cloud pricing | No token budget | LLM-backed (varies) | Varies | 22K+ tokens at 240 obs |
-| **Privacy filtering** | Yes — regex secret redaction before storage (Anthropic/OpenAI/AWS keys, JWTs, password/secret fields — `src/core/security/patterns.ts`), wired into the observation pipeline (`src/hooks/bootstrap.ts:153`) | ✅ Strips secrets pre-store | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Privacy filtering** | Yes — regex secret redaction (Anthropic/OpenAI/AWS keys, JWTs, password/secret fields — `src/core/security/patterns.ts`) runs at `cfgm capture-accept`, the last point before a page becomes git-tracked (`src/core/capture/CaptureAccepter.ts`), plus separately on the flow-graph observation pipeline (`src/hooks/bootstrap.ts:153`). Fixed 2026-07-30 — it previously covered only the latter, not the actual wiki-capture path | ✅ Strips secrets pre-store | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Obsidian / vault export** | No export step needed — `memory/` is already a plain markdown + YAML-frontmatter folder tree, opens natively as an Obsidian vault (Google OKF v0.1 export also available via `cfgm okf-export`) | ✅ Built-in | ❌ | ❌ | Native format | ❌ | ❌ | ❌ | ❌ | Already markdown, but no frontmatter schema |
 | **Audit trail** | Yes, two layers — append-only hashed observation ledger (`src/core/ledger/RawLedger.ts`) + wiki pages are git-tracked markdown (full diffable history, revertable) | ✅ All mutations logged | ❌ | Limited | ❌ | ❌ | ❌ | ❌ | ❌ | Git history, if the file happens to be in a repo |
 | **Language SDKs** | None — single Bun/TypeScript CLI (`cfgm`), invoked via shell exec from any language or agent | Any (REST + MCP) | Python + TS | Python only | API | Python + TS | Python | Python only | Node | N/A |
@@ -322,12 +322,13 @@ To also get Claude Code hook integration (session-persistent memory), run `./ins
 A single entry point for 52 scripts. Run `cfgm help` for the full list by group:
 
 ```bash
-cfgm doctor              # install/environment self-check (7 checks + fix commands)
+cfgm doctor              # install/environment self-check (8 checks + fix commands, incl. governance)
 cfgm search "<query>"    # natural-language wiki search — feel the value right after install
 cfgm ask "<query>"       # search + evidence pointer bundle — host LLM produces a cited answer
 cfgm capture --input <file>  # session notes → wiki draft intake queue (host-delegated, reviewed before merge)
 cfgm stats               # local usage stats (0 sent externally) — weekly search/ask + context token savings
 cfgm decay               # wiki forgetting judgment (age × recall frequency) — never deletes, archiving needs explicit approval
+cfgm governance-report   # duplicate/stale/contradiction/low-confidence/review-queue detectors → memory/reports/
 cfgm bench               # internal memory quality benchmark
 cfgm bench-lme           # LongMemEval external benchmark
 cfgm ssl-status           # SSL normalize queue status (+stale)

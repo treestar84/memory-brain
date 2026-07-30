@@ -2,6 +2,7 @@ import { mkdir, rename, readFile, writeFile, unlink } from "node:fs/promises";
 import { resolve } from "node:path";
 import { Glob } from "bun";
 import yaml from "yaml";
+import type { Redactor } from "../security/Redactor";
 
 /**
  * CaptureAccepter — capture draft → 정식 wiki page 승격의 공용 로직 (V3.42).
@@ -52,6 +53,13 @@ export interface AcceptDraftOptions {
   /** 생략 시 draft frontmatter 의 type 을 그대로 쓴다. 지정 시 불일치하면 에러. */
   type?: string;
   force?: boolean;
+  /**
+   * 승격 직전 draft 본문에서 시크릿을 마스킹한다 (V3.43). host LLM 이 draft 를
+   * 작성하는 단계는 우리 코드가 관여하지 않으므로, git 추적 대상인 canonical
+   * wiki page 로 넘어가는 이 마지막 관문이 유일하게 통제 가능한 지점이다.
+   * 생략하면(테스트 등) 검사하지 않는다 — CLI 는 항상 넘긴다.
+   */
+  redactor?: Redactor;
 }
 
 export interface AcceptDraftResult {
@@ -61,6 +69,7 @@ export interface AcceptDraftResult {
   targetPath: string;
   supersededExisting: boolean;
   archivePath?: string;
+  redacted: boolean;
 }
 
 export async function acceptDraft(opts: AcceptDraftOptions): Promise<AcceptDraftResult> {
@@ -111,7 +120,13 @@ export async function acceptDraft(opts: AcceptDraftOptions): Promise<AcceptDraft
     await rename(targetPath, archivePath);
   }
 
-  const content = draftContent.replace(/^status:\s*draft\s*$/m, "status: active");
+  let content = draftContent.replace(/^status:\s*draft\s*$/m, "status: active");
+  let redacted = false;
+  if (opts.redactor) {
+    const result = await opts.redactor.redact(content);
+    content = result.text;
+    redacted = result.redacted;
+  }
   await writeFile(targetPath, content, "utf-8");
   try {
     await unlink(draftPath);
@@ -119,7 +134,7 @@ export async function acceptDraft(opts: AcceptDraftOptions): Promise<AcceptDraft
     // 삭제 실패해도 승격은 이미 완료 — draft 잔존은 사람이 정리
   }
 
-  return { slug, type, draftPath, targetPath, supersededExisting: targetExists, archivePath };
+  return { slug, type, draftPath, targetPath, supersededExisting: targetExists, archivePath, redacted };
 }
 
 /** draftsDir 안의 모든 draft slug (확장자 제외, 정렬됨). */
@@ -149,6 +164,7 @@ export async function acceptAllDrafts(opts: {
   draftsDir: string;
   memoryDir: string;
   force?: boolean;
+  redactor?: Redactor;
 }): Promise<AcceptAllResult> {
   const slugs = await listDraftSlugs(opts.draftsDir);
   const accepted: AcceptDraftResult[] = [];
@@ -160,6 +176,7 @@ export async function acceptAllDrafts(opts: {
         draftsDir: opts.draftsDir,
         memoryDir: opts.memoryDir,
         force: opts.force,
+        redactor: opts.redactor,
       });
       accepted.push(result);
     } catch (e) {

@@ -10,6 +10,9 @@ import {
   isSafeSlug,
   CaptureAcceptError,
 } from "../../../src/core/capture/CaptureAccepter";
+import { Redactor } from "../../../src/core/security/Redactor";
+import { MemoryStorage } from "../../../src/core/storage/MemoryStorage";
+import { RealClock } from "../../../src/core/clock/Clock";
 
 function draftText(opts: { id: string; type: string; status?: string }): string {
   return `---\nid: ${opts.id}\ntype: ${opts.type}\nstatus: ${opts.status ?? "draft"}\nconfidence: high\nupdated_at: 2026-07-26\n---\n\n# ${opts.id}\n\nbody.\n`;
@@ -156,5 +159,86 @@ describe("listDraftSlugs / acceptAllDrafts", () => {
     const { accepted, failed } = await acceptAllDrafts({ draftsDir, memoryDir });
     expect(accepted).toEqual([]);
     expect(failed).toEqual([]);
+  });
+});
+
+/**
+ * V3.43 — host LLM 이 draft 를 작성하는 단계는 우리 코드가 관여하지 않으므로,
+ * git 추적 canonical wiki page 로 넘어가기 직전인 승격(accept) 시점이 시크릿
+ * 유출을 막을 유일한 관문이다. redactor 를 안 넘기면(기존 테스트들) 검사하지
+ * 않는 것도 그대로 유지되는지 함께 확인한다.
+ */
+describe("acceptDraft / acceptAllDrafts — redactor 연동", () => {
+  let dir: string;
+  let draftsDir: string;
+  let memoryDir: string;
+  let storage: MemoryStorage;
+  let redactor: Redactor;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), "capture-accept-redact-"));
+    draftsDir = resolve(dir, "drafts");
+    memoryDir = resolve(dir, "memory");
+    await mkdir(draftsDir, { recursive: true });
+    await mkdir(memoryDir, { recursive: true });
+    storage = new MemoryStorage();
+    redactor = new Redactor(storage, new RealClock());
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  const SECRET_DRAFT = draftText({ id: "concept.leaky", type: "concept" }).replace(
+    "body.",
+    "body. api key: sk-ant-1234567890abcdefghijklmnop",
+  );
+
+  test("draft 에 시크릿이 있으면 승격된 페이지에서 마스킹되고 원문은 안 남는다", async () => {
+    await writeFile(join(draftsDir, "leaky.md"), SECRET_DRAFT);
+
+    const result = await acceptDraft({ slug: "leaky", draftsDir, memoryDir, redactor });
+    expect(result.redacted).toBe(true);
+
+    const written = await Bun.file(result.targetPath).text();
+    expect(written).not.toContain("sk-ant-1234567890abcdefghijklmnop");
+    expect(written).toContain("<REDACTED:anthropic-key>");
+  });
+
+  test("마스킹 발생 시 security/redacted.jsonl 에 감사 로그가 남는다", async () => {
+    await writeFile(join(draftsDir, "leaky.md"), SECRET_DRAFT);
+    await acceptDraft({ slug: "leaky", draftsDir, memoryDir, redactor });
+
+    const log = await storage.readJsonl<{ patternName: string }>("security/redacted.jsonl");
+    expect(log).toHaveLength(1);
+    expect(log[0]!.patternName).toBe("anthropic-key");
+  });
+
+  test("시크릿 없는 draft → redacted: false, 원문 그대로", async () => {
+    const clean = draftText({ id: "concept.clean", type: "concept" });
+    await writeFile(join(draftsDir, "clean.md"), clean);
+
+    const result = await acceptDraft({ slug: "clean", draftsDir, memoryDir, redactor });
+    expect(result.redacted).toBe(false);
+    expect(await Bun.file(result.targetPath).text()).toContain("body.");
+  });
+
+  test("redactor 를 안 넘기면 검사하지 않는다 (기존 호출부 하위호환)", async () => {
+    await writeFile(join(draftsDir, "leaky.md"), SECRET_DRAFT);
+    const result = await acceptDraft({ slug: "leaky", draftsDir, memoryDir });
+    expect(result.redacted).toBe(false);
+    expect(await Bun.file(result.targetPath).text()).toContain("sk-ant-1234567890abcdefghijklmnop");
+  });
+
+  test("acceptAllDrafts 도 redactor 를 각 draft 에 전달한다", async () => {
+    await writeFile(join(draftsDir, "leaky.md"), SECRET_DRAFT);
+    await writeFile(join(draftsDir, "clean.md"), draftText({ id: "concept.clean2", type: "concept" }));
+
+    const { accepted } = await acceptAllDrafts({ draftsDir, memoryDir, redactor });
+    const leaky = accepted.find((r) => r.slug === "leaky")!;
+    const clean = accepted.find((r) => r.slug === "clean")!;
+    expect(leaky.redacted).toBe(true);
+    expect(clean.redacted).toBe(false);
+    expect(await Bun.file(leaky.targetPath).text()).not.toContain("sk-ant-1234567890abcdefghijklmnop");
   });
 });

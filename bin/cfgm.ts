@@ -2,8 +2,12 @@
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync, statSync } from "node:fs";
-import { resolveStorageRoot } from "../src/hooks/bootstrap";
+import { resolveStorageRoot, resolveRepoRoot, buildClaimStorage } from "../src/hooks/bootstrap";
 import { t } from "../src/core/i18n/messages";
+import { ClaimStore } from "../src/core/claim/ClaimStore";
+import { RealClock } from "../src/core/clock/Clock";
+import { WikiReader } from "../src/core/wiki/WikiReader";
+import { runGovernanceDetectors } from "../src/core/governance/reports/runDetectors";
 
 /**
  * cfgm — CFGM-OS 통합 CLI (V3.31).
@@ -199,7 +203,28 @@ async function runDoctor(): Promise<number> {
           : undefined,
   });
 
-  // 6. Brain 프로파일 (선택)
+  // 6. Governance — 중복/stale/모순 감지 (읽기 전용, 파일 안 씀. cfgm governance-report 가 실제 기록)
+  try {
+    const projectRoot = resolveRepoRoot();
+    const memoryDir = join(projectRoot, "memory");
+    const clock = new RealClock();
+    const claimStore = new ClaimStore(buildClaimStorage(), clock);
+    const wikiReader = new WikiReader(memoryDir);
+    const claims = await claimStore.list();
+    const wikiPages = await wikiReader.listCanonicalPages();
+    const reports = runGovernanceDetectors({ claims, wikiPages, now: clock.isoNow() });
+    const totalFindings = reports.reduce((sum, r) => sum + r.findings.length, 0);
+    checks.push({
+      name: t("doctor.check.governance.name"),
+      ok: totalFindings === 0,
+      detail: reports.map((r) => `${r.detectorId}=${r.findings.length}`).join(" "),
+      fix: totalFindings > 0 ? t("doctor.check.governance.fix") : undefined,
+    });
+  } catch {
+    // 프로젝트 memory/ 가 아직 없는 등 — governance 체크는 선택 사항이라 건너뛴다
+  }
+
+  // 7. Brain 프로파일 (선택)
   const brainHome = process.env.CFGM_BRAIN_HOME ?? join(process.env.HOME ?? "", ".claude-brain");
   const brainInstalled = existsSync(brainHome);
   checks.push({
@@ -209,7 +234,7 @@ async function runDoctor(): Promise<number> {
     fix: brainInstalled ? undefined : t("doctor.check.brain.fix"),
   });
 
-  // 7. LongMemEval 데이터셋 (선택)
+  // 8. LongMemEval 데이터셋 (선택)
   const lmeData = join(REPO_ROOT, "data", "longmemeval", "longmemeval_s_cleaned.json");
   checks.push({
     name: t("doctor.check.lme.name"),

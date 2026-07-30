@@ -177,6 +177,17 @@ describe("WikiReader.read (실제 파일)", () => {
     expect(pages[0]!.frontmatter.id).toBe("decision.test-policy");
   });
 
+  test("readAllInDir — memoryDir 자체가 없어도(신규 프로젝트, 캡처 0건) 예외 대신 빈 배열", async () => {
+    const emptyProjectDir = await mkdtemp(join(tmpdir(), "wiki-reader-no-memory-"));
+    try {
+      const freshReader = new WikiReader(join(emptyProjectDir, "memory"));
+      expect(await freshReader.readAllInDir("decisions")).toEqual([]);
+      expect(await freshReader.listCanonicalPages()).toEqual([]);
+    } finally {
+      await rm(emptyProjectDir, { recursive: true, force: true });
+    }
+  });
+
   test("read — frontmatter 없는 실제 파일도 note 로 읽히고 mtime 이 updated_at 이 된다", async () => {
     await writeFile(join(dir, "current.md"), "# memory/current.md\n\n작업 로그.\n");
     const page = await reader.read("current.md");
