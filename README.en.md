@@ -165,7 +165,7 @@ xychart-beta
 
 ### Why you can trust these numbers
 
-| ✅ Safeguard | Detail |
+| Safeguard | Detail |
 |---|---|
 | Held-out split | dev 245 (tuning only) / test 255 (confirmed once) — deterministic hash split, blocks overfitting |
 | Data integrity | dataset SHA-256 published — refutable against tampering or version drift |
