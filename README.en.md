@@ -319,7 +319,7 @@ To also get Claude Code hook integration (session-persistent memory), run `./ins
 
 ## ⌨️ Unified CLI — `cfgm`
 
-A single entry point for 52 scripts. Run `cfgm help` for the full list by group:
+A single entry point for 55 scripts. Run `cfgm help` for the full list by group:
 
 ```bash
 cfgm doctor              # install/environment self-check (8 checks + fix commands, incl. governance)

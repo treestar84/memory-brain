@@ -207,6 +207,21 @@ describe("cfgm-capture CLI", () => {
     expect(search.stdout).toContain("decision.reindex-me");
   });
 
+  test("capture-accept --all --reindex — AutoTrigger 에 search-index 실행을 기록한다 (V3.43, 배선 매트릭스 파일럿에서 발견된 누락 수정)", async () => {
+    const draftsDir = join(projectDir, "memory/_pending/capture/drafts");
+    await mkdir(draftsDir, { recursive: true });
+    await writeFile(
+      join(draftsDir, "trigger-me.md"),
+      "---\nid: decision.trigger-me\ntype: decision\nstatus: draft\nconfidence: high\nupdated_at: 2026-07-26\n---\n\n# trigger-me\n\ncontent.\n",
+    );
+
+    const res = accept(projectDir, ["--all", "--reindex"]);
+    expect(res.status).toBe(0);
+
+    const state = JSON.parse(await Bun.file(join(projectDir, ".memory-brain/state/auto-trigger.json")).text());
+    expect(typeof state.lastRun["search-index"]).toBe("string");
+  });
+
   test("capture-accept --all --reindex — 기본값이 하이브리드라 벡터가 채워진다 (V3.43)", async () => {
     const draftsDir = join(projectDir, "memory/_pending/capture/drafts");
     await mkdir(draftsDir, { recursive: true });

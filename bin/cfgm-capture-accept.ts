@@ -12,6 +12,7 @@ import { SSLReader } from "../src/core/search/SSLReader";
 import { RealClock } from "../src/core/clock/Clock";
 import { Redactor } from "../src/core/security/Redactor";
 import { FsStorage } from "../src/core/storage/FsStorage";
+import { AutoTrigger } from "../src/core/auto-trigger/AutoTrigger";
 
 /**
  * cfgm-capture-accept — capture draft 를 정식 wiki page 로 승격.
@@ -108,6 +109,11 @@ async function runReindex(): Promise<void> {
   const indexer = new Indexer(wikiReader, claimStore, searchIndex, sslReader, embedder);
   const result = await indexer.rebuild();
   searchIndex.close();
+
+  // cfgm rebuild-index 와 동일하게 기록 — 안 하면 session-start 의 "24h 미실행"
+  // 넛지가 방금 재생성했는데도 계속 뜬다(V3.43, 배선 매트릭스 파일럿에서 발견).
+  const autoTrigger = new AutoTrigger(new FsStorage(storageRoot), clock);
+  await autoTrigger.markRun("search-index");
   console.log(`  → 인덱스 재생성 완료: wiki ${result.wikiCount}건 (${result.durationMs}ms)`);
 }
 
