@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach } from "bun:test";
+import { describe, test, expect, beforeEach, spyOn } from "bun:test";
 import { MemoryStorage } from "../../../src/core/storage/MemoryStorage";
 import { FsStorage } from "../../../src/core/storage/FsStorage";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -167,6 +167,15 @@ function contractSuite(
       expect(records.length).toBe(50);
       const indices = records.map((r) => r.i).sort((a, b) => a - b);
       expect(indices).toEqual(Array.from({ length: 50 }, (_, i) => i));
+      await cleanup();
+    });
+
+    test("readJsonl — 마지막 줄이 손상돼도(크래시 mid-append 시뮬레이션) 앞선 온전한 줄은 그대로 읽힌다 (V3.43)", async () => {
+      await storage.writeRaw("crash.jsonl", '{"a":1}\n{"b":2}\n{"c":3, broken tail');
+      const errSpy = spyOn(console, "error").mockImplementation(() => {});
+      const records = await storage.readJsonl<Record<string, number>>("crash.jsonl");
+      errSpy.mockRestore();
+      expect(records).toEqual([{ a: 1 }, { b: 2 }]);
       await cleanup();
     });
   });

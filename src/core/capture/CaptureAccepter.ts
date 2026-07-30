@@ -1,8 +1,9 @@
-import { mkdir, rename, readFile, writeFile, unlink } from "node:fs/promises";
+import { mkdir, rename, readFile, unlink } from "node:fs/promises";
 import { resolve } from "node:path";
 import { Glob } from "bun";
 import yaml from "yaml";
 import type { Redactor } from "../security/Redactor";
+import { writeFileAtomic } from "../util/atomicWrite";
 
 /**
  * CaptureAccepter — capture draft → 정식 wiki page 승격의 공용 로직 (V3.42).
@@ -127,7 +128,7 @@ export async function acceptDraft(opts: AcceptDraftOptions): Promise<AcceptDraft
     content = result.text;
     redacted = result.redacted;
   }
-  await writeFile(targetPath, content, "utf-8");
+  await writeFileAtomic(targetPath, content);
   try {
     await unlink(draftPath);
   } catch {

@@ -1,4 +1,5 @@
 import type { Storage } from "./Storage";
+import { parseJsonlLenient } from "./jsonl";
 
 export class MemoryStorage implements Storage {
   private files = new Map<string, string>();
@@ -19,7 +20,7 @@ export class MemoryStorage implements Storage {
   async readJsonl<T = unknown>(path: string): Promise<T[]> {
     const content = this.files.get(path);
     if (!content) return [];
-    return content.trim().split("\n").filter(Boolean).map((line) => JSON.parse(line) as T);
+    return parseJsonlLenient<T>(content, path);
   }
 
   async readJson<T = unknown>(path: string): Promise<T | null> {

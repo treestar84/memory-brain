@@ -20,6 +20,7 @@ import { SkillNormalizer } from "../src/core/normalizer/SkillNormalizer";
 import { resolveRepoRoot, resolveStorageRoot } from "../src/hooks/bootstrap";
 import { Redactor } from "../src/core/security/Redactor";
 import { FsStorage } from "../src/core/storage/FsStorage";
+import { writeFileAtomic } from "../src/core/util/atomicWrite";
 import { RealClock } from "../src/core/clock/Clock";
 
 interface ParsedArgs {
@@ -205,7 +206,7 @@ const rendered = renderSkillMd(slug, args.goal, args.trigger, steps);
 const { text: skillMd, redacted } = await redactor.redact(rendered);
 
 await mkdir(args.workflowsDir, { recursive: true });
-await Bun.write(skillPath, skillMd);
+await writeFileAtomic(skillPath, skillMd);
 
 // SSL normalize
 await mkdir(args.outDir, { recursive: true });

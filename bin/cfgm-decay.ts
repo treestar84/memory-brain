@@ -9,6 +9,7 @@ import { FsStorage } from "../src/core/storage/FsStorage";
 import { RealClock } from "../src/core/clock/Clock";
 import { resolveStorageRoot, resolveRepoRoot } from "../src/hooks/bootstrap";
 import { evaluateWikiDecay, type WikiDecayFinding, type WikiDecayPageInput } from "../src/core/governance/WikiDecayEngine";
+import { writeFileAtomic } from "../src/core/util/atomicWrite";
 import type { WikiType } from "../src/core/wiki/types";
 
 /**
@@ -185,7 +186,7 @@ async function runArchive(pageId: string): Promise<number> {
   const newContent = `---\n${stringify(updated).trimEnd()}\n---\n${body}`;
 
   await mkdir(destDir, { recursive: true });
-  await Bun.write(destPath, newContent);
+  await writeFileAtomic(destPath, newContent);
   await unlink(srcPath);
 
   console.log(`✓ archived: ${target.path} → ${join(typeDir, "_archive", basename(srcPath))}`);

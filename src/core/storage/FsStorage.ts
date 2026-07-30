@@ -13,6 +13,7 @@ import {
 import { join, dirname } from "node:path";
 import { existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
+import { parseJsonlLenient } from "./jsonl";
 
 export class FsStorage implements Storage {
   constructor(private readonly root: string) {}
@@ -39,7 +40,7 @@ export class FsStorage implements Storage {
   async readJsonl<T = unknown>(path: string): Promise<T[]> {
     try {
       const content = await readFile(this.resolve(path), "utf-8");
-      return content.trim().split("\n").filter(Boolean).map((l) => JSON.parse(l) as T);
+      return parseJsonlLenient<T>(content, path);
     } catch (e: any) {
       if (e.code === "ENOENT") return [];
       throw e;
