@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { loadCanonicalActions, defaultCanonicalActionsPath } from "../src/core/ontology/canonical";
 import { CanonicalCandidatesDetector, buildKnownSignatures } from "../src/core/governance/reports/CanonicalCandidatesDetector";
 import type { SSLDocument } from "../src/core/ontology/ssl";
+import { resolveRepoRoot } from "../src/hooks/bootstrap";
 
 /**
  * cfgm-ssl-stats — V3.17 효과 측정.
@@ -18,7 +19,7 @@ import type { SSLDocument } from "../src/core/ontology/ssl";
  * 사용법: bun run bin/cfgm-ssl-stats.ts [--json]
  */
 
-const repoRoot = process.env.CFGM_PROJECT_ROOT ?? process.cwd();
+const repoRoot = resolveRepoRoot();
 const json = process.argv.includes("--json");
 const sslDir = resolve(repoRoot, "memory/concepts/_ssl");
 const memoryDir = resolve(repoRoot, "memory");

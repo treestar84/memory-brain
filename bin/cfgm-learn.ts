@@ -17,7 +17,10 @@
 import { resolve, relative } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { SkillNormalizer } from "../src/core/normalizer/SkillNormalizer";
-import { resolveRepoRoot } from "../src/hooks/bootstrap";
+import { resolveRepoRoot, resolveStorageRoot } from "../src/hooks/bootstrap";
+import { Redactor } from "../src/core/security/Redactor";
+import { FsStorage } from "../src/core/storage/FsStorage";
+import { RealClock } from "../src/core/clock/Clock";
 
 interface ParsedArgs {
   name: string | null;
@@ -194,7 +197,12 @@ if (!steps) {
 }
 
 // Generate SKILL.md
-const skillMd = renderSkillMd(slug, args.goal, args.trigger, steps);
+// 사용자가 --goal/--trigger/steps 로 직접 기술한 텍스트가 git 추적 memory/workflows/
+// 로 그대로 저장되므로, capture-accept 와 동일하게 쓰기 직전에 시크릿을 마스킹한다
+// (V3.43 — 배선 매트릭스 전수 감사에서 발견된 두 번째 누락 지점).
+const redactor = new Redactor(new FsStorage(resolveStorageRoot()), new RealClock());
+const rendered = renderSkillMd(slug, args.goal, args.trigger, steps);
+const { text: skillMd, redacted } = await redactor.redact(rendered);
 
 await mkdir(args.workflowsDir, { recursive: true });
 await Bun.write(skillPath, skillMd);
@@ -249,6 +257,7 @@ if (args.json) {
     skillPath: relSkillPath,
     sslResult,
     warnings: allWarnings.length,
+    redacted,
   }, null, 2));
 } else {
   console.log(`cfgm-learn — 워크플로우 학습`);
@@ -257,5 +266,8 @@ if (args.json) {
   console.log(`  ssl:       ${sslResult}`);
   if (allWarnings.length > 0) {
     console.log(`  warnings:  ${allWarnings.join(", ")}`);
+  }
+  if (redacted) {
+    console.log(`  ⚠ 시크릿 패턴 감지 — 마스킹 후 저장됨 (security/redacted.jsonl 참조)`);
   }
 }

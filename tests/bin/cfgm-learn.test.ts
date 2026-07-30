@@ -104,4 +104,34 @@ describe("cfgm-learn CLI", () => {
     const out = JSON.parse(res.stdout);
     expect(out.name).toMatch(/^[a-z0-9_-]+$/);
   });
+
+  test("steps 에 시크릿이 있으면 memory/workflows/*.md 에 저장되기 전에 마스킹된다 (V3.43)", async () => {
+    const stepsFile = join(projectDir, "steps.md");
+    await writeFile(stepsFile, "Step 1: export key sk-ant-1234567890abcdefghijklmnop\nStep 2: run it\n");
+    const res = cli(projectDir, [
+      "--name", "leaky-flow",
+      "--goal", "leaky test",
+      "--steps-file", stepsFile,
+      "--json",
+    ]);
+    expect(res.status).toBe(0);
+    const out = JSON.parse(res.stdout);
+    expect(out.redacted).toBe(true);
+
+    const content = await Bun.file(join(projectDir, "memory/workflows/leaky-flow.md")).text();
+    expect(content).not.toContain("sk-ant-1234567890abcdefghijklmnop");
+    expect(content).toContain("<REDACTED:anthropic-key>");
+
+    const log = JSON.parse(await Bun.file(join(projectDir, ".memory-brain/security/redacted.jsonl")).text());
+    expect(log.patternName).toBe("anthropic-key");
+  });
+
+  test("시크릿 없는 steps → redacted: false", () => {
+    const res = cli(projectDir, ["--name", "clean-flow", "--goal", "clean test", "--json"], {
+      input: "Step 1: do something ordinary\n",
+    });
+    expect(res.status).toBe(0);
+    const out = JSON.parse(res.stdout);
+    expect(out.redacted).toBe(false);
+  });
 });
