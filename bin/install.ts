@@ -1,9 +1,10 @@
 import { readFile, writeFile, mkdir, symlink } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { existsSync } from "node:fs";
+import { homedir } from "node:os";
 
 const MARKER = "cfgm-os";
-const HOME = process.env.HOME!;
+const HOME = process.env.HOME || homedir();
 const PROJECT = process.env.CFGM_PROJECT || process.cwd();
 const SETTINGS_PATH = join(HOME, ".claude", "settings.json");
 const HOOKS_DIR = resolve(PROJECT, "src/hooks");

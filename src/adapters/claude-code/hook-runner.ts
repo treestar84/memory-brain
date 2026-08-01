@@ -19,9 +19,12 @@ export async function runHook(handler: (event: CanonicalEvent) => Promise<string
   } catch (e) {
     try {
       const { appendFileSync, mkdirSync } = await import("node:fs");
-      const home = process.env.CFGM_HOME || `${process.env.HOME}/.memory-brain`;
-      mkdirSync(`${home}/security`, { recursive: true });
-      appendFileSync(`${home}/security/hook-errors.jsonl`, JSON.stringify({ error: String(e), ts: new Date().toISOString() }) + "\n");
+      const { homedir } = await import("node:os");
+      const { join } = await import("node:path");
+      const home = process.env.CFGM_HOME || join(process.env.HOME || homedir(), ".memory-brain");
+      const securityDir = join(home, "security");
+      mkdirSync(securityDir, { recursive: true });
+      appendFileSync(join(securityDir, "hook-errors.jsonl"), JSON.stringify({ error: String(e), ts: new Date().toISOString() }) + "\n");
     } catch {}
   }
 }

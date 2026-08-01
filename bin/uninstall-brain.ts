@@ -1,10 +1,11 @@
 import { readFile, writeFile, unlink, rm, readlink, rmdir, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { existsSync, lstatSync } from "node:fs";
+import { homedir } from "node:os";
 import { BEGIN_MARKER, END_MARKER, isManagedCommand } from "./install-brain";
 
 const MARKER = "cfgm-os-brain";
-const HOME = process.env.HOME!;
+const HOME = process.env.HOME || homedir();
 const BRAIN_HOME = process.env.CFGM_BRAIN_HOME || join(HOME, ".claude-brain");
 const SETTINGS_PATH = join(BRAIN_HOME, "settings.json");
 const SKILL_LINK = join(BRAIN_HOME, "skills", "CFGM-OS");

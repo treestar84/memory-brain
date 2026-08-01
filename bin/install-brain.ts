@@ -1,10 +1,11 @@
 import { readFile, writeFile, mkdir, symlink, chmod, readlink, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { existsSync } from "node:fs";
+import { homedir } from "node:os";
 import { createHash } from "node:crypto";
 
 const MARKER = "cfgm-os-brain";
-const HOME = process.env.HOME!;
+const HOME = process.env.HOME || homedir();
 const PROJECT = process.env.CFGM_PROJECT || process.cwd();
 const BRAIN_HOME = process.env.CFGM_BRAIN_HOME || join(HOME, ".claude-brain");
 const SETTINGS_PATH = join(BRAIN_HOME, "settings.json");
@@ -64,12 +65,20 @@ const HOOK_FILES: Record<HookType, string> = {
   PreCompact: "pre-compact",
 };
 
+/** install-project.ts 의 shQuote 와 동일 (순환 의존 방지를 위해 로컬 사본 유지). */
+function shQuote(s: string): string {
+  return `'${s.replace(/'/g, `'\\''`)}'`;
+}
+
 function buildHookEntries(): Record<HookType, HookEntry> {
+  // V3.44 (Windows 지원): `/usr/bin/env VAR=val cmd` 는 POSIX 셸 전용이라 Windows
+  // 에서 전부 실패했다. `--home` 을 argv 로 넘기면 셸 종류를 덜 탄다 —
+  // bootstrap.ts 의 resolveStorageRoot 가 이 값을 최우선으로 읽는다.
   const entry = (type: HookType): HookEntry => ({
     matcher: MARKER,
     hooks: [{
       type: "command",
-      command: `/usr/bin/env CFGM_HOME=${MEM_HOME} bun run ${HOOKS_DIR}/${HOOK_FILES[type]}.ts`,
+      command: `bun run ${shQuote(join(HOOKS_DIR, `${HOOK_FILES[type]}.ts`))} --home ${shQuote(MEM_HOME)}`,
     }],
   });
   return {

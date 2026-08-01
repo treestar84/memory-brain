@@ -49,7 +49,8 @@ describe("install-project.ts", () => {
       const entry = settings.hooks[t].find((h: any) => h.matcher === MARKER);
       expect(entry).toBeDefined();
       expect(entry.hooks[0].type).toBe("command");
-      expect(entry.hooks[0].command).toContain(`CFGM_PROJECT_ROOT='${projectDir}'`);
+      expect(entry.hooks[0].command).toContain(`--project-root '${projectDir}'`);
+      expect(entry.hooks[0].command).not.toContain("/usr/bin/env"); // Windows 지원 — env 접두사 제거
     }
   });
 
@@ -210,8 +211,8 @@ describe("install-project.ts", () => {
 
     const settings = await readSettings(spacedDir);
     const command = settings.hooks.SessionStart[0].hooks[0].command as string;
-    expect(command).toContain(`CFGM_PROJECT_ROOT='${spacedDir}'`);
-    expect(command).toMatch(/bun run '.*session-start\.ts'/);
+    expect(command).toContain(`--project-root '${spacedDir}'`);
+    expect(command).toMatch(/bun run '.*session-start\.ts' --project-root/);
   });
 
   test("--project pointing at a file (not a directory) errors cleanly", async () => {

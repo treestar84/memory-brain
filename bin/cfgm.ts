@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { homedir } from "node:os";
 import { existsSync, statSync } from "node:fs";
 import { resolveStorageRoot, resolveRepoRoot, buildClaimStorage } from "../src/hooks/bootstrap";
 import { t } from "../src/core/i18n/messages";
@@ -280,7 +281,7 @@ async function runDoctor(): Promise<number> {
   }
 
   // 7. Brain 프로파일 (선택)
-  const brainHome = process.env.CFGM_BRAIN_HOME ?? join(process.env.HOME ?? "", ".claude-brain");
+  const brainHome = process.env.CFGM_BRAIN_HOME ?? join(process.env.HOME || homedir(), ".claude-brain");
   const brainInstalled = existsSync(brainHome);
   checks.push({
     name: t("doctor.check.brain.name"),

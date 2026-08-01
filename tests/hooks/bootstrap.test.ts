@@ -179,3 +179,88 @@ describe("resolveStorageRoot", () => {
     }
   });
 });
+
+/**
+ * argv `--project-root` 지원 (V3.44, Windows 지원) — 훅 command 가 더 이상
+ * `/usr/bin/env CFGM_PROJECT_ROOT=<path> bun run <script>` (POSIX 전용) 형태가
+ * 아니라 `bun run <script> --project-root <path>` 로 값을 넘기므로, 우선순위를
+ * 명시적으로 고정한다: argv > CFGM_HOME > CFGM_PROJECT > CFGM_PROJECT_ROOT > cwd.
+ * 기존 env-접두사 방식으로 이미 설치된 훅(argv 없음)은 이 우선순위 변경으로
+ * 동작이 전혀 바뀌지 않아야 한다(하위호환) — 그 케이스도 별도로 고정한다.
+ */
+describe("argv --project-root 우선순위", () => {
+  const originalCwd = process.cwd();
+  const originalProjectRoot = process.env.CFGM_PROJECT_ROOT;
+  const originalProject = process.env.CFGM_PROJECT;
+  const originalHome = process.env.CFGM_HOME;
+
+  afterEach(() => {
+    process.chdir(originalCwd);
+    if (originalProjectRoot === undefined) delete process.env.CFGM_PROJECT_ROOT;
+    else process.env.CFGM_PROJECT_ROOT = originalProjectRoot;
+    if (originalProject === undefined) delete process.env.CFGM_PROJECT;
+    else process.env.CFGM_PROJECT = originalProject;
+    if (originalHome === undefined) delete process.env.CFGM_HOME;
+    else process.env.CFGM_HOME = originalHome;
+  });
+
+  beforeEach(() => {
+    delete process.env.CFGM_PROJECT_ROOT;
+    delete process.env.CFGM_PROJECT;
+    delete process.env.CFGM_HOME;
+  });
+
+  test("resolveStorageRoot — argv --home 은 install-brain.ts 용, .memory-brain 안 붙이고 그 값 그대로", () => {
+    const argv = ["bun", "run", "session-start.ts", "--home", "/tmp/brain-home/memory-brain"];
+    expect(resolveStorageRoot(argv)).toBe("/tmp/brain-home/memory-brain");
+  });
+
+  test("resolveStorageRoot — --home 이 --project-root 보다 우선 (동시 지정은 실제로 안 생기지만 결정론 고정)", () => {
+    const argv = ["bun", "run", "session-start.ts", "--home", "/tmp/home-wins", "--project-root", "/tmp/ignored"];
+    expect(resolveStorageRoot(argv)).toBe("/tmp/home-wins");
+  });
+
+  test("resolveStorageRoot — argv --project-root 만 있으면 그걸로 <path>/.memory-brain", () => {
+    const argv = ["bun", "run", "session-start.ts", "--project-root", "/tmp/argv-project"];
+    expect(resolveStorageRoot(argv)).toBe(resolve("/tmp/argv-project", ".memory-brain"));
+  });
+
+  test("resolveStorageRoot — argv 가 CFGM_HOME/CFGM_PROJECT/CFGM_PROJECT_ROOT 전부보다 우선", () => {
+    process.env.CFGM_HOME = "/tmp/env-home";
+    process.env.CFGM_PROJECT = "/tmp/env-project";
+    process.env.CFGM_PROJECT_ROOT = "/tmp/env-project-root";
+    const argv = ["bun", "run", "session-start.ts", "--project-root", "/tmp/argv-wins"];
+    expect(resolveStorageRoot(argv)).toBe(resolve("/tmp/argv-wins", ".memory-brain"));
+  });
+
+  test("resolveProjectRoot — argv --project-root 최우선", () => {
+    process.env.CFGM_PROJECT_ROOT = "/tmp/env-project-root";
+    const argv = ["bun", "run", "session-start.ts", "--project-root", "/tmp/argv-project"];
+    expect(resolveProjectRoot(argv)).toBe(resolve("/tmp/argv-project"));
+  });
+
+  test("resolveRepoRoot — argv --project-root 최우선", () => {
+    process.env.CFGM_PROJECT_ROOT = "/tmp/env-project-root";
+    const argv = ["bun", "run", "cfgm.ts", "--project-root", "/tmp/argv-project"];
+    expect(resolveRepoRoot(argv)).toBe(resolve("/tmp/argv-project"));
+  });
+
+  test("하위호환 — argv 에 --project-root 가 없으면(기존 env-접두사 설치) 기존 env 우선순위 그대로", () => {
+    process.env.CFGM_PROJECT_ROOT = "/tmp/legacy-env-project";
+    const legacyArgv = ["bun", "run", "session-start.ts"]; // 구버전 훅 — argv 에 project-root 없음
+    expect(resolveStorageRoot(legacyArgv)).toBe(resolve("/tmp/legacy-env-project", ".memory-brain"));
+    expect(resolveProjectRoot(legacyArgv)).toBe(resolve("/tmp/legacy-env-project"));
+    expect(resolveRepoRoot(legacyArgv)).toBe(resolve("/tmp/legacy-env-project"));
+  });
+
+  test("--project-root 뒤에 값이 없으면(잘못된 호출) 무시하고 다음 우선순위로 폴백", () => {
+    process.env.CFGM_PROJECT_ROOT = "/tmp/fallback-project";
+    const malformedArgv = ["bun", "run", "session-start.ts", "--project-root"]; // 값 누락
+    expect(resolveStorageRoot(malformedArgv)).toBe(resolve("/tmp/fallback-project", ".memory-brain"));
+  });
+
+  test("기본 인자 없이 호출 시 process.argv 를 쓴다 (테스트 러너 argv 엔 --project-root 없음 → env 로 폴백)", () => {
+    process.env.CFGM_PROJECT_ROOT = "/tmp/default-arg-project";
+    expect(resolveStorageRoot()).toBe(resolve("/tmp/default-arg-project", ".memory-brain"));
+  });
+});

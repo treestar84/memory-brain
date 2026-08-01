@@ -53,7 +53,8 @@ describe("install-brain.ts", () => {
     expect(settings.hooks).toBeDefined();
     const s = JSON.stringify(settings.hooks);
     expect(s).toContain(MARKER);
-    expect(s).toContain(`CFGM_HOME=${join(brainHome, "memory-brain")}`);
+    expect(s).toContain(`--home '${join(brainHome, "memory-brain")}'`);
+    expect(s).not.toContain("/usr/bin/env"); // Windows 지원 — env 접두사 제거
     // 6 hook types present, each hook entry shape: { matcher, hooks: [{type:"command", command}] }
     for (const t of [
       "SessionStart", "UserPromptSubmit", "PreToolUse",

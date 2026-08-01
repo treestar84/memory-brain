@@ -2,8 +2,9 @@ import { readFile, writeFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { existsSync } from "node:fs";
 import { parse, stringify } from "yaml";
+import { homedir } from "node:os";
 
-const HOME = process.env.HOME!;
+const HOME = process.env.HOME || homedir();
 const BRAIN_HOME = process.env.CFGM_BRAIN_HOME || join(HOME, ".claude-brain");
 const IDENTITY_HOME = join(BRAIN_HOME, "memory-brain", "identity");
 const GOALS_HOME = join(IDENTITY_HOME, "goals");

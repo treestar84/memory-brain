@@ -41,17 +41,52 @@ import { DetectorWeight } from "../core/learning/DetectorWeight";
  * 보장한다. `CFGM_HOME`은 사용자가 명시적으로 전역 공유를 원할 때 쓰는 override로
  * 그대로 유지한다.
  */
-export function resolveStorageRoot(): string {
+/**
+ * 훅 command 문자열에서 `--project-root <path>` 를 읽는다 (V3.44, Windows 지원).
+ * 기존엔 훅 command 가 `/usr/bin/env CFGM_PROJECT_ROOT=<path> bun run <script>`
+ * 형태였는데, `/usr/bin/env` 도 `VAR=val cmd` 인라인 환경변수 문법도 POSIX 셸
+ * 전용이라 Windows 에서 훅이 전부 실패했다. 이제 새로 설치되는 훅은 env 접두사
+ * 대신 `bun run <script> --project-root <path>` 로 값을 넘긴다(순수 프로그램+인자
+ * 형태라 셸 종류를 덜 탄다). 기존 설치(env 접두사 방식)는 재설치 전까지 그대로
+ * 남아있으므로, CFGM_PROJECT_ROOT 환경변수 경로는 하위호환을 위해 계속 지원한다.
+ */
+function readArgFlag(argv: string[], flag: string): string | null {
+  const i = argv.indexOf(flag);
+  return i >= 0 && argv[i + 1] ? argv[i + 1]! : null;
+}
+
+function readProjectRootArg(argv: string[]): string | null {
+  return readArgFlag(argv, "--project-root");
+}
+
+/**
+ * 우선순위: argv `--home`/`--project-root` > CFGM_HOME > CFGM_PROJECT > CFGM_PROJECT_ROOT > cwd.
+ * argv 를 최우선으로 둔 이유: 훅 스크립트를 호출한 그 명령 자체가 가장 구체적인
+ * 지시이고(대부분의 CLI 관행과 동일 — 플래그가 환경변수보다 우선), 이렇게 하면
+ * 설치된 훅의 목적지가 그 훅을 부른 프로세스 환경의 우연한 env var 값에 좌우되지
+ * 않는다. 기존 env-접두사 방식 설치는 argv 자체가 없으므로 동작이 전혀 안 바뀐다.
+ * `--home` 은 install-brain.ts(전역 ~/.claude-brain 프로필, 이전엔 `CFGM_HOME=<path>`
+ * env 접두사)이 쓰고, `--project-root` 는 install-project.ts(프로젝트별 설치,
+ * 이전엔 `CFGM_PROJECT_ROOT=<path>`)가 쓴다 — CFGM_HOME 은 storage root 값
+ * 그 자체(뒤에 `.memory-brain` 안 붙음)이므로 `--home` 도 동일하게 처리한다.
+ */
+export function resolveStorageRoot(argv: string[] = process.argv): string {
+  const homeArg = readArgFlag(argv, "--home");
+  if (homeArg) return homeArg;
+  const argvRoot = readProjectRootArg(argv);
+  if (argvRoot) return resolve(argvRoot, ".memory-brain");
   if (process.env.CFGM_HOME) return process.env.CFGM_HOME;
   if (process.env.CFGM_PROJECT) return resolve(process.env.CFGM_PROJECT, ".memory-brain");
   if (process.env.CFGM_PROJECT_ROOT) return resolve(process.env.CFGM_PROJECT_ROOT, ".memory-brain");
   return resolve(process.cwd(), ".memory-brain");
 }
 
-export function resolveProjectRoot(): string {
+export function resolveProjectRoot(argv: string[] = process.argv): string {
+  const argvRoot = readProjectRootArg(argv);
+  if (argvRoot) return resolve(argvRoot);
   if (process.env.CFGM_PROJECT) return resolve(process.env.CFGM_PROJECT);
   if (process.env.CFGM_PROJECT_ROOT) return resolve(process.env.CFGM_PROJECT_ROOT);
-  const storageRoot = resolveStorageRoot();
+  const storageRoot = resolveStorageRoot(argv);
   if (storageRoot.endsWith(".memory-brain")) return dirname(storageRoot);
   return storageRoot;
 }
@@ -72,8 +107,8 @@ let warnedRepoRootOnce = false;
  * 그 자리에서 알아채고 CFGM_PROJECT_ROOT 를 지정하도록 유도한다. 프로세스당 1회만
  * 출력해 반복 호출 시 노이즈가 되지 않게 한다.
  */
-export function resolveRepoRoot(): string {
-  const explicit = process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT;
+export function resolveRepoRoot(argv: string[] = process.argv): string {
+  const explicit = readProjectRootArg(argv) ?? process.env.CFGM_PROJECT_ROOT ?? process.env.CFGM_PROJECT;
   const root = resolve(explicit ?? process.cwd());
   if (!explicit && !warnedRepoRootOnce && isMemoryBrainToolRepo(root)) {
     warnedRepoRootOnce = true;

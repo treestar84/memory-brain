@@ -86,11 +86,15 @@ function shQuote(s: string): string {
 }
 
 export function buildHookEntries(paths: ProjectPaths): Record<HookType, HookEntry> {
+  // V3.44 (Windows 지원): `/usr/bin/env VAR=val cmd` 는 POSIX 셸 전용 문법이라
+  // Windows 에서 훅이 전부 실패했다. `--project-root` 를 argv 로 넘기면 순수
+  // 프로그램+인자 호출이라 셸 종류를 덜 탄다 — bootstrap.ts 의 resolveStorageRoot 등이
+  // 이 값을 최우선으로 읽는다(하위호환: 기존 env-접두사 설치는 재설치 전까지 그대로 동작).
   const entry = (type: HookType): HookEntry => ({
     matcher: MARKER,
     hooks: [{
       type: "command",
-      command: `/usr/bin/env CFGM_PROJECT_ROOT=${shQuote(paths.targetProject)} bun run ${shQuote(join(paths.hooksDir, `${HOOK_FILES[type]}.ts`))}`,
+      command: `bun run ${shQuote(join(paths.hooksDir, `${HOOK_FILES[type]}.ts`))} --project-root ${shQuote(paths.targetProject)}`,
     }],
   });
   return {

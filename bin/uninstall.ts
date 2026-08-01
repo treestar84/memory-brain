@@ -1,9 +1,10 @@
 import { readFile, writeFile, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { existsSync } from "node:fs";
+import { homedir } from "node:os";
 
 const MARKER = "cfgm-os";
-const HOME = process.env.HOME!;
+const HOME = process.env.HOME || homedir();
 const SETTINGS_PATH = join(HOME, ".claude", "settings.json");
 const SKILL_LINK = join(HOME, ".claude", "skills", "CFGM-OS");
 
