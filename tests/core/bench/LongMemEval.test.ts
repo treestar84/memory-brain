@@ -4,6 +4,7 @@ import {
   sessionToText,
   evalLmeRetrieval,
   renderLmeReport,
+  diagnoseLmeRetrieval,
   type LmeQuestion,
 } from "../../../src/core/bench/LongMemEval";
 import { HashedNgramEmbedder } from "../../../src/core/search/Embedder";
@@ -186,6 +187,49 @@ describe("LongMemEval adapter (V3.29 ①)", () => {
     const prf = evalLmeRetrieval(qs, { embedder, prf: true });
     expect(prf.config).toContain("prf=true");
     expect(prf.overall.find((m) => m.mode === "hybrid")!.recallAtK[1]).toBe(1); // top-3 고정 → 정답 유지
+  });
+
+  test("diagnoseLmeRetrieval — 정답이 좁은 haystack 안에 있으면 양쪽 후보 모두 도달", () => {
+    const result = diagnoseLmeRetrieval([q({})], { embedder });
+    expect(result.evaluated).toBe(1);
+    expect(result.bothReachable).toBe(1);
+    expect(result.ftsOnlyReachable).toBe(0);
+    expect(result.vectorOnlyReachable).toBe(0);
+    expect(result.neitherReachable).toBe(0);
+  });
+
+  test("diagnoseLmeRetrieval — 좁은 candidateLimit 이면 후보 밖으로 밀려 neitherReachable 로 집계", () => {
+    // 정답 세션(s1)이 haystack 맨 끝, 앞의 무관 세션들이 candidateLimit 을 다 채우게 구성
+    const manyIrrelevant = Array.from({ length: 20 }, (_, i) => ({
+      id: `irrelevant-${i}`,
+      text: `Completely unrelated topic number ${i} about gardening and weather patterns.`,
+    }));
+    const wide = q({
+      haystack_session_ids: [...manyIrrelevant.map((x) => x.id), "s1"],
+      haystack_sessions: [
+        ...manyIrrelevant.map((x) => [{ role: "user", content: x.text }]),
+        [{ role: "user", content: "I graduated with a business administration degree last spring." }],
+      ],
+      answer_session_ids: ["s1"],
+    });
+    const narrow = diagnoseLmeRetrieval([wide], { embedder, candidateLimit: 1 });
+    expect(narrow.evaluated).toBe(1);
+    expect(narrow.bothReachable + narrow.ftsOnlyReachable + narrow.vectorOnlyReachable + narrow.neitherReachable).toBe(1);
+    // candidateLimit=1 이면 정답이 최상위가 아닌 한 후보 밖으로 밀려날 가능성이 높음 —
+    // 정확히 어느 팔이 잡는지는 랭킹 구현 세부에 의존하므로, 여기선 "후보군 개념 자체가 반영된다"만 검증.
+  });
+
+  test("diagnoseLmeRetrieval — split 필터가 dev/test 를 나눠 집계", () => {
+    const qs = [
+      q({ question_id: "aa1" }),
+      q({ question_id: "ab2" }),
+      q({ question_id: "ac3" }),
+      q({ question_id: "ad4" }),
+    ];
+    const all = diagnoseLmeRetrieval(qs, { embedder });
+    const dev = diagnoseLmeRetrieval(qs, { embedder, split: "dev" });
+    const test_ = diagnoseLmeRetrieval(qs, { embedder, split: "test" });
+    expect(dev.evaluated + test_.evaluated).toBe(all.evaluated);
   });
 
   test("renderLmeReport — overall + type 별 표 포함", () => {

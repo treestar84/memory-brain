@@ -39,10 +39,19 @@
 | baseline (V3.30 구성) | 92.8% | 기준선 |
 | turn-level granularity + max-pooling | 89.7% | **기각** (-3.1pp — 발화 단절이 문맥 손실) |
 | PRF (top-3 고정 + 꼬리 RRF 재정렬) | **94.3%** | **채택** (+1.5pp, preference +11.1pp) |
+| HashedNgramEmbedder dims 256→512 | 93.8% | **기각** (-0.5pp) |
+| HashedNgramEmbedder dims 256→1024 | 93.8% | **기각** (-0.5pp) — dims 증설이 R@5 를 개선한다는 가설은 기각. 무관 문서 간 코사인 유사도 노이즈 바닥은 낮아지지만(변별력 개선), rescue-rerank 융합에서 벡터 팔은 rank 4+ 꼬리에만 관여해 R@5 상단(대부분 rank 1-3)엔 영향이 거의 없고, R@10 은 dims=1024 에서만 근소 개선(+0.1pp, 노이즈 범위). 프로덕션 기본값 256 유지. 재현: `cfgm bench-lme -- --split dev --prf --dims <n>` |
 
 - **확증 (test, 1회)**: R@5 **93.2%** · R@10 95.8% · MRR 0.921 — dev 와
   1.1pp 차이로 일반화 확인.
 - **전체 500 (추이 비교용)**: R@5 93.7% · R@10 96.5% · MRR 0.928.
+
+### Retrieval-ceiling 진단 (dev, candidateLimit=100)
+
+튜닝 전 필수 선행 점검 — 실패가 "후보군에 없어서"인지 "후보군엔 있는데 순위가 밀려서"인지 분리:
+`cfgm bench-lme -- --split dev --diagnose` → dev 245문항 **전부(100%)** 정답 세션이 FTS·벡터 양쪽
+후보(candidateLimit=100)에 존재. 즉 현재 R@5/R@10 미달분은 전량 순위/융합 문제이지 후보 생성
+문제가 아니다 — candidateLimit 을 더 넓히는 방향의 튜닝은 근거가 없다.
 
 ### 금지 사항
 

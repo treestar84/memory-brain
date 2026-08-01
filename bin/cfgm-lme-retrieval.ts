@@ -2,11 +2,12 @@
 import { resolveRepoRoot } from "../src/hooks/bootstrap";
 import { resolve, dirname } from "node:path";
 import { mkdir } from "node:fs/promises";
-import { createDefaultEmbedder } from "../src/core/search/Embedder";
+import { createDefaultEmbedder, HashedNgramEmbedder } from "../src/core/search/Embedder";
 import {
   parseLmeQuestions,
   evalLmeRetrieval,
   renderLmeReport,
+  diagnoseLmeRetrieval,
 } from "../src/core/bench/LongMemEval";
 
 /**
@@ -58,6 +59,8 @@ if (limitRaw && (!Number.isFinite(limit) || limit! <= 0)) {
   process.exit(1);
 }
 
+const diagnose = args.includes("--diagnose");
+
 const dataFile = Bun.file(dataPath);
 if (!(await dataFile.exists())) {
   console.error(`dataset not found: ${dataPath}`);
@@ -66,7 +69,32 @@ if (!(await dataFile.exists())) {
 }
 
 const questions = parseLmeQuestions(await dataFile.json());
-const embedder = createDefaultEmbedder();
+// --dims: dev-split 튜닝 실험 전용 오버라이드. 프로덕션 기본값(createDefaultEmbedder)엔
+// 영향 없음 — docs/BENCHMARK.md §2 규약(dev 만 사용, test 는 1회 확정)을 위한 손잡이.
+const dimsRaw = strFlag("--dims");
+if (dimsRaw && (!Number.isFinite(Number(dimsRaw)) || Number(dimsRaw) < 8)) {
+  console.error(`invalid --dims: ${dimsRaw}`);
+  process.exit(1);
+}
+const embedder = dimsRaw ? new HashedNgramEmbedder({ dims: Number(dimsRaw) }) : createDefaultEmbedder();
+
+if (diagnose) {
+  const started = performance.now();
+  const diag = diagnoseLmeRetrieval(questions, { embedder, split, limit });
+  const durationMs = Math.round(performance.now() - started);
+  if (json) {
+    console.log(JSON.stringify({ dataPath, durationMs, ...diag }, null, 2));
+  } else {
+    const pct = (n: number) => `${((n / diag.evaluated) * 100).toFixed(1)}%`;
+    console.log(`✓ LongMemEval retrieval-ceiling 진단 — ${diag.evaluated} 문항, candidateLimit=${diag.candidateLimit} (${durationMs}ms)`);
+    console.log(`  양쪽 후보 도달 (튜닝 대상)     — ${diag.bothReachable} (${pct(diag.bothReachable)})`);
+    console.log(`  FTS 후보만 도달              — ${diag.ftsOnlyReachable} (${pct(diag.ftsOnlyReachable)})`);
+    console.log(`  벡터 후보만 도달              — ${diag.vectorOnlyReachable} (${pct(diag.vectorOnlyReachable)})`);
+    console.log(`  어느 쪽 후보에도 없음 (상한)   — ${diag.neitherReachable} (${pct(diag.neitherReachable)})`);
+  }
+  process.exit(0);
+}
+
 const started = performance.now();
 const result = evalLmeRetrieval(questions, { embedder, limit, split, granularity, prf });
 const durationMs = Math.round(performance.now() - started);

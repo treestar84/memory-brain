@@ -102,6 +102,85 @@ export interface LmeRetrievalResult {
 
 const DEFAULT_KS = [1, 3, 5, 10];
 
+export interface LmeDiagnosisResult {
+  evaluated: number;
+  /** 근거 세션이 넓은 후보군(candidateLimit)에조차 없음 — 어떤 융합도 못 구제 */
+  neitherReachable: number;
+  /** FTS 후보에는 있으나 벡터 후보엔 없음 */
+  ftsOnlyReachable: number;
+  /** 벡터 후보에는 있으나 FTS 후보엔 없음 */
+  vectorOnlyReachable: number;
+  /** 양쪽 후보 모두에 있음 (순위 문제만 남음 — 융합 튜닝 대상) */
+  bothReachable: number;
+  candidateLimit: number;
+}
+
+/**
+ * Retrieval-ceiling 진단 (설계 1 우선순위 1) — dims/융합 파라미터를 튜닝하기
+ * 전에, R@5/R@10 실패가 "후보군에 애초에 없어서" 인지 "후보군엔 있는데
+ * 순위가 밀려서" 인지 분리한다. 전자가 다수면 임베더/융합 튜닝은 상한이
+ * 낮아 무의미하고, 후보 생성(candidateLimit) 자체를 넓혀야 한다.
+ *
+ * evalLmeRetrieval 과 별개 함수로 둔 이유: 이건 회귀 측정 대상이 아니라
+ * 1회성 진단 도구이고, 넓은 candidateLimit(기본 100)을 쓴다 — 실전
+ * hybrid 경로(HYBRID_CANDIDATE_FLOOR=30)와 의도적으로 다르다.
+ */
+export function diagnoseLmeRetrieval(
+  questions: LmeQuestion[],
+  opts: { embedder: Embedder; split?: "dev" | "test"; limit?: number; candidateLimit?: number },
+): LmeDiagnosisResult {
+  const candidateLimit = opts.candidateLimit ?? 100;
+  let pool = opts.limit ? questions.slice(0, opts.limit) : questions;
+  if (opts.split) pool = pool.filter((q) => splitOf(q.question_id) === opts.split);
+
+  let neitherReachable = 0;
+  let ftsOnlyReachable = 0;
+  let vectorOnlyReachable = 0;
+  let bothReachable = 0;
+  let evaluated = 0;
+
+  for (const q of pool) {
+    if (q.answer_session_ids.length === 0) continue;
+    const evidence = new Set(q.answer_session_ids);
+
+    const seen = new Set<string>();
+    const pages: WikiPage[] = [];
+    q.haystack_session_ids.forEach((sid, i) => {
+      if (seen.has(sid)) return;
+      seen.add(sid);
+      const turns = q.haystack_sessions[i] ?? [];
+      pages.push({
+        path: `sessions/${sid}.md`,
+        frontmatter: { id: sid, type: "concept", status: "active", updated_at: "2026-01-01" },
+        body: sessionToText(turns, q.haystack_dates?.[i]),
+        bodyUser: sessionToUserText(turns),
+        claimIds: [],
+        evidence: [],
+      });
+    });
+
+    const index = new SearchIndex(":memory:");
+    index.rebuild({ wikiPages: pages, claims: [], embedder: opts.embedder });
+
+    const ftsIds = new Set(index.searchWiki(q.question, { limit: candidateLimit }).map((h) => h.pageId));
+    const vecIds = new Set(
+      index.rankByVector("wiki", q.question, opts.embedder, candidateLimit).map((r) => r.docId),
+    );
+    index.close();
+
+    const inFts = [...evidence].some((sid) => ftsIds.has(sid));
+    const inVec = [...evidence].some((sid) => vecIds.has(sid));
+
+    if (inFts && inVec) bothReachable++;
+    else if (inFts) ftsOnlyReachable++;
+    else if (inVec) vectorOnlyReachable++;
+    else neitherReachable++;
+    evaluated++;
+  }
+
+  return { evaluated, neitherReachable, ftsOnlyReachable, vectorOnlyReachable, bothReachable, candidateLimit };
+}
+
 // question_id 는 파일 경로 (jobs/<id>.job.md, answers/<id>.json) 에 그대로
 // 쓰인다 — 외부 데이터셋이 입력이므로 path traversal 방어로 slug 형식 강제.
 const SAFE_ID_RE = /^[A-Za-z0-9_-]+$/;
