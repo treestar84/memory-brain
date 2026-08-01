@@ -313,7 +313,12 @@ cfgm search "memory routing"      # ← 60 seconds in. If you get results, it's 
 
 `cfgm search` searches `memory/{projects,concepts,decisions}/*.md` directly — this repo itself contains real memory for dogfooding, so you get results right after cloning. No separate data seeding needed.
 
-To also get Claude Code hook integration (session-persistent memory), run `./install.sh`. **Every CLI works standalone without the hooks.** Uninstall with `cfgm uninstall`.
+To also get Claude Code hook integration (session-persistent memory), choose one of two install scopes:
+
+- **User-level** (`./install.sh`) — one shared profile (`~/.claude-brain`) with its own launcher (`claude-pai`), used across all projects. Uninstall with `cfgm uninstall` (add `--purge` to also delete the identity/memory data under `~/.claude-brain`).
+- **Project-level** (`./install-project.sh [--project <path>]`) — registers hooks directly into `<project>/.claude/settings.json`, the config file Claude Code already reads natively for that directory. No launcher, no `CLAUDE_CONFIG_DIR` override — just run plain `claude` from the project. Memory data lives isolated at `<project>/.memory-brain/`. Existing `.claude/settings.json` content (other hooks, other settings keys) is preserved and merged, with a `.bak-<timestamp>` copy made before the first edit. Uninstall with `./uninstall-project.sh [--project <path>]` (add `--purge` to also delete `<project>/.memory-brain/`); add `--dry-run` to either script to preview changes with nothing written.
+
+**Every CLI works standalone without either install.**
 
 **Both Claude Code and Codex, at once** — Claude Code auto-injects `CLAUDE.md` + hooks; Codex CLI reads [`AGENTS.md`](./AGENTS.md) at the repo root directly on session start and follows the same memory rules. Both hosts share the same `memory/` directory, so data stays consistent even when you mix hosts. With no dependency on MCP or a host-specific SDK, the same approach (bootloader file + direct CLI calls) can be ported to other CLIs too.
 
@@ -412,7 +417,9 @@ bun run typecheck
 ## Storage Paths
 
 - User level: `~/.claude-brain/memory-brain/` (or `CFGM_HOME`)
-- Project level: `$PROJECT/.memory-brain/` (when `CFGM_PROJECT_ROOT` is set)
+- Project level: `$PROJECT/.memory-brain/` (default with no override, or explicit via `CFGM_PROJECT_ROOT`)
+
+This mirrors the two install scopes above: `./install.sh` registers hooks that resolve storage to the user-level path; `./install-project.sh` registers hooks that pin `CFGM_PROJECT_ROOT` to the target project, so storage resolves to the project-level path regardless of the two being installed side by side on the same machine.
 
 ## License
 

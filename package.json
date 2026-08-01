@@ -12,6 +12,8 @@
     "test:coverage": "bun test --coverage",
     "install:brain": "bun run bin/install-brain.ts",
     "uninstall:brain": "bun run bin/uninstall-brain.ts",
+    "install:project": "bun run bin/install-project.ts",
+    "uninstall:project": "bun run bin/uninstall-project.ts",
     "viewer": "bun run bin/cfgm-viewer.ts",
     "viewer:ssl": "bun run bin/cfgm-ssl-viewer.ts",
     "learn": "bun run bin/cfgm-learn.ts",

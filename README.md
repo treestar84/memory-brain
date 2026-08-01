@@ -86,6 +86,13 @@ cfgm search "메모리 라우팅"        # ← 여기까지 60초. 결과가 나
 
 이 저장소 자체가 실제로 쓰고 있는 기억(`memory/`)을 담고 있어서, 클론 직후에도 바로 검색 결과가 나옵니다. Claude Code 와 Codex 를 동시에 쓸 수도 있습니다 — 자세한 내용은 [`AGENTS.md`](./AGENTS.md) 참고.
 
+세션 훅(자동 기억 캡처)까지 쓰려면 설치 범위를 둘 중 하나로 고릅니다:
+
+- **사용자 레벨** (`./install.sh`) — `~/.claude-brain` 프로필 하나를 모든 프로젝트에서 공유(전용 launcher `claude-pai` 사용). 제거: `cfgm uninstall` (`--purge` 추가 시 identity·기억 데이터까지 삭제).
+- **프로젝트 레벨** (`./install-project.sh [--project <경로>]`) — 훅을 해당 프로젝트의 `<project>/.claude/settings.json` (Claude Code 가 그 디렉토리에서 네이티브로 읽는 설정 파일) 에 직접 등록. 별도 launcher·`CLAUDE_CONFIG_DIR` 불필요 — 그 프로젝트에서 평범한 `claude` 로 바로 동작. 기억 데이터는 `<project>/.memory-brain/` 에 격리. 기존 `.claude/settings.json` 내용(다른 훅·다른 설정)은 그대로 병합·보존되며, 처음 수정 전 `.bak-<timestamp>` 백업을 남깁니다. 제거: `./uninstall-project.sh [--project <경로>]` (`--purge` 추가 시 `<project>/.memory-brain/` 도 삭제). 두 스크립트 모두 `--dry-run` 으로 미리보기 가능(아무것도 쓰지 않음).
+
+**둘 다 설치하지 않아도 모든 CLI 명령은 독립적으로 동작합니다.**
+
 ---
 
 ## 자주 쓰는 명령
@@ -147,7 +154,9 @@ cfgm dashboard            # 위키/검색/capture 큐 실시간 대시보드 (lo
 ## Storage Paths
 
 - 사용자 레벨: `~/.claude-brain/memory-brain/` (또는 `CFGM_HOME`)
-- 프로젝트 레벨: `$PROJECT/.memory-brain/` (`CFGM_PROJECT_ROOT` 지정 시)
+- 프로젝트 레벨: `$PROJECT/.memory-brain/` (기본값, 또는 `CFGM_PROJECT_ROOT` 명시)
+
+위 두 설치 범위와 대응됩니다: `./install.sh` 가 등록하는 훅은 사용자 레벨 경로로, `./install-project.sh` 가 등록하는 훅은 대상 프로젝트에 `CFGM_PROJECT_ROOT` 를 고정해 프로젝트 레벨 경로로 저장소를 분리합니다 — 같은 머신에 둘 다 설치해도 서로 섞이지 않습니다.
 
 ## License
 

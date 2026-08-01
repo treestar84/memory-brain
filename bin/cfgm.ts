@@ -45,6 +45,8 @@ export const COMMAND_GROUPS: CommandGroup[] = [
       { name: "doctor", script: "(내장)", desc: "설치·환경 자가진단 + 권장 조치" },
       { name: "install", script: "install-brain", desc: "~/.claude-brain 프로파일 설치" },
       { name: "uninstall", script: "uninstall-brain", desc: "프로파일 제거" },
+      { name: "install-project", script: "install-project", desc: "프로젝트 단위 설치 (<project>/.claude/settings.json, 전역 프로필 미사용)" },
+      { name: "uninstall-project", script: "uninstall-project", desc: "프로젝트 단위 설치 제거 (--purge 로 .memory-brain/ 데이터까지 삭제)" },
     ],
   },
   {
