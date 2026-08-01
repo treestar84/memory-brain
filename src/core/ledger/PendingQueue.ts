@@ -9,8 +9,21 @@ export type PendingItem = {
   sessionId?: string;
 };
 
+type PendingRecord = PendingItem | { tombstone: true; id: string; at: string };
+
 const PENDING_PATH = "ledger/pending-analysis.jsonl";
 
+function isTombstone(r: PendingRecord): r is { tombstone: true; id: string; at: string } {
+  return (r as { tombstone?: boolean }).tombstone === true;
+}
+
+/**
+ * Append-only queue: `enqueue`/`dequeue`/`removeExpired`/`drainForSession` only ever
+ * append (item or tombstone) records, never rewrite the file. `list()` reduces the
+ * append log to live items. This avoids the read-modify-rewrite race that two
+ * concurrent hook processes would otherwise hit (each rewrite silently discarding
+ * whatever the other process appended in between).
+ */
 export class PendingQueue {
   constructor(
     private readonly storage: Storage,
@@ -34,13 +47,23 @@ export class PendingQueue {
   async drainForSession(sessionId: string): Promise<PendingItem[]> {
     const items = await this.list();
     const mine = items.filter((i) => i.sessionId === sessionId);
-    const rest = items.filter((i) => i.sessionId !== sessionId);
-    await this.rewriteJsonl(rest);
+    for (const i of mine) {
+      await this.storage.appendJsonl(PENDING_PATH, this.tombstoneFor(i.id));
+    }
     return mine;
   }
 
   async list(): Promise<PendingItem[]> {
-    return this.storage.readJsonl<PendingItem>(PENDING_PATH);
+    const records = await this.storage.readJsonl<PendingRecord>(PENDING_PATH);
+    const tombstoned = new Set<string>();
+    for (const r of records) {
+      if (isTombstone(r)) tombstoned.add(r.id);
+    }
+    const items: PendingItem[] = [];
+    for (const r of records) {
+      if (!isTombstone(r) && !tombstoned.has(r.id)) items.push(r);
+    }
+    return items;
   }
 
   async count(): Promise<number> {
@@ -53,20 +76,31 @@ export class PendingQueue {
   }
 
   async dequeue(id: string): Promise<void> {
-    const items = await this.list();
-    const filtered = items.filter((i) => i.id !== id);
-    await this.rewriteJsonl(filtered);
+    await this.storage.appendJsonl(PENDING_PATH, this.tombstoneFor(id));
   }
 
   async removeExpired(ids: string[]): Promise<void> {
-    const items = await this.list();
-    const idSet = new Set(ids);
-    const filtered = items.filter((i) => !idSet.has(i.id));
-    await this.rewriteJsonl(filtered);
+    for (const id of ids) {
+      await this.storage.appendJsonl(PENDING_PATH, this.tombstoneFor(id));
+    }
   }
 
-  private async rewriteJsonl(items: PendingItem[]): Promise<void> {
-    const content = items.map((i) => JSON.stringify(i)).join("\n") + (items.length ? "\n" : "");
+  /**
+   * Rewrites the append log down to just the live items, dropping consumed
+   * items and their tombstones. Not called from any hook — callers must
+   * guarantee no concurrent writer is active (e.g. a single offline maintenance
+   * command), since this is the one operation that still does read-then-rewrite.
+   */
+  async compact(): Promise<{ before: number; after: number }> {
+    const records = await this.storage.readJsonl<PendingRecord>(PENDING_PATH);
+    const before = records.length;
+    const live = await this.list();
+    const content = live.map((i) => JSON.stringify(i)).join("\n") + (live.length ? "\n" : "");
     await this.storage.writeRaw(PENDING_PATH, content);
+    return { before, after: live.length };
+  }
+
+  private tombstoneFor(id: string): { tombstone: true; id: string; at: string } {
+    return { tombstone: true, id, at: this.clock.isoNow() };
   }
 }

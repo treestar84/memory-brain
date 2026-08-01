@@ -140,6 +140,7 @@ export class SearchIndex {
   constructor(dbPath: string = ":memory:") {
     this.db = new Database(dbPath, { create: true });
     this.db.run("PRAGMA journal_mode = WAL");
+    this.db.run("PRAGMA busy_timeout = 5000");
     // 마이그레이션 가드 (V3.30) — FTS5 는 ALTER 불가. 구버전 파일 DB 는
     // derived 테이블 전부 drop 후 재생성 (source-of-truth 는 markdown —
     // rebuild 로 무손실 복원). 가드 없이는 구버전 DB 에 신규 컬럼 INSERT 가
