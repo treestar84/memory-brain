@@ -90,6 +90,32 @@ describe("cfgm-process CLI", () => {
     expect(stderr).toContain("No open asked record");
   });
 
+  test("compact 서브커맨드: 소비된 item+tombstone 을 정리하고 counts 를 보고한다", async () => {
+    const enqueue = run("list"); // no-op, just to ensure ledger dir exists via list first
+    expect(enqueue.exitCode).toBe(0);
+
+    const pendingPath = join(home, "ledger/pending-analysis.jsonl");
+    await mkdir(join(home, "ledger"), { recursive: true });
+    await writeFile(
+      pendingPath,
+      [
+        JSON.stringify({ id: "pend-a", enqueuedAt: "2026-04-20T09:00:00Z", payload: { type: "t", data: {} } }),
+        JSON.stringify({ id: "pend-b", enqueuedAt: "2026-04-20T09:00:00Z", payload: { type: "t", data: {} } }),
+        JSON.stringify({ tombstone: true, id: "pend-a", at: "2026-04-20T09:01:00Z" }),
+      ].join("\n") + "\n",
+    );
+
+    const res = run("compact");
+    expect(res.exitCode).toBe(0);
+    const stdout = new TextDecoder().decode(res.stdout);
+    expect(stdout).toContain("3 record(s) -> 1 live item(s)");
+
+    const raw = await readFile(pendingPath, "utf8");
+    const lines = raw.trim().split("\n").map((l) => JSON.parse(l));
+    expect(lines).toHaveLength(1);
+    expect(lines[0].id).toBe("pend-b");
+  });
+
   test("questions 서브커맨드: 빈 pending 출력", () => {
     const res = run("questions");
     expect(res.exitCode).toBe(0);

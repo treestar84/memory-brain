@@ -30,6 +30,14 @@ if (action === "list") {
 } else if (action === "done" && arg1) {
   await queue.dequeue(arg1);
   console.log(`Removed: ${arg1}`);
+} else if (action === "compact") {
+  // PendingQueue is append-only (item + tombstone records) to avoid the
+  // read-modify-rewrite race between concurrent hook processes — so the
+  // log only ever grows until something explicitly compacts it. This is
+  // that single, explicitly-invoked maintenance path; it must not run
+  // concurrently with any hook (drainForSession/dequeue/removeExpired).
+  const { before, after } = await queue.compact();
+  console.log(`Compacted pending-analysis.jsonl: ${before} record(s) -> ${after} live item(s)`);
 } else if (action === "questions") {
   const pending = await questionQueue.listPending();
   console.log(`Pending questions: ${pending.length}`);
@@ -55,6 +63,7 @@ if (action === "list") {
       "  cfgm-process list",
       "  cfgm-process next",
       "  cfgm-process done <item-id>",
+      "  cfgm-process compact  # trims consumed items+tombstones; don't run alongside active hooks",
       "  cfgm-process questions",
       "  cfgm-process answer <question-id> <answered|unknown|deferred>",
     ].join("\n"),
