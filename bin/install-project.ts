@@ -221,9 +221,13 @@ async function ensureGitAttributes(targetProject: string, dryRun: boolean): Prom
   const existing = existsSync(path) ? await readFile(path, "utf-8") : "";
   if (existing.includes(GITATTRIBUTES_MARKER)) return null; // already there, idempotent no-op
   if (dryRun) return `would ${existing ? "append to" : "write"} ${path} (merge=union for memory/**/*.jsonl)`;
-  const next = existing.length > 0 && !existing.endsWith("\n")
-    ? `${existing}\n\n${GITATTRIBUTES_BLOCK}`
-    : `${existing}${existing ? "\n" : ""}${GITATTRIBUTES_BLOCK}`;
+  // 기존 내용의 trailing newline 은 정규화해서 딱 하나만 남기고, 그 뒤에 항상
+  // "\n" + BLOCK 하나만 붙인다(빈 줄 하나로 구분) — uninstall 이 정확히 그 "\n"+BLOCK
+  // 만 제거하면 기존 내용의 원래 trailing newline 이 그대로 보존된다. 예전엔
+  // 분기별로 구분자 개수가 달라서 uninstall 시 사용자의 원래 trailing newline 까지
+  // 같이 지워지는 버그가 있었다.
+  const base = existing.length > 0 && !existing.endsWith("\n") ? `${existing}\n` : existing;
+  const next = base.length > 0 ? `${base}\n${GITATTRIBUTES_BLOCK}` : GITATTRIBUTES_BLOCK;
   await writeFile(path, next);
   return `${existing ? "updated" : "wrote"} ${path} (merge=union for memory/**/*.jsonl)`;
 }

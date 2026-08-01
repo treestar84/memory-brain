@@ -92,8 +92,9 @@ describe("uninstall-project.ts", () => {
     expect(existsSync(join(projectDir, ".memory-brain"))).toBe(true);
   });
 
-  test(".gitattributes — soft uninstall removes only our marker block, keeps user's own lines", async () => {
-    await writeFile(join(projectDir, ".gitattributes"), "*.png binary\n");
+  test(".gitattributes — soft uninstall removes only our marker block, keeps user's own lines byte-for-byte", async () => {
+    const original = "*.png binary\n";
+    await writeFile(join(projectDir, ".gitattributes"), original);
     runScript(INSTALL, ["--project", projectDir]);
     const afterInstall = await readFile(join(projectDir, ".gitattributes"), "utf-8");
     expect(afterInstall).toContain("memory/**/*.jsonl merge=union");
@@ -102,6 +103,9 @@ describe("uninstall-project.ts", () => {
     const afterUninstall = await readFile(join(projectDir, ".gitattributes"), "utf-8");
     expect(afterUninstall).toContain("*.png binary");
     expect(afterUninstall).not.toContain("merge=union");
+    // exact round-trip — regression: an earlier version of this logic consumed the
+    // user's own trailing newline along with the marker block on removal.
+    expect(afterUninstall).toBe(original);
   });
 
   test(".gitattributes — soft uninstall deletes the file entirely when it held only our block", async () => {

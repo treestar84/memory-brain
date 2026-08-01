@@ -46,6 +46,22 @@ describe("ClaimStore", () => {
     expect(list[0]!.status).toBe("accepted"); // 파일 순서(older 가 마지막 줄)가 아니라 recordedAt 이 이김
   });
 
+  test("list — 한쪽만 recordedAt 있으면(마이그레이션 경계) 파일 순서와 무관하게 recordedAt 있는 쪽이 항상 승자", async () => {
+    // 실사용 시나리오: claim 이 이 기능 배포 전에 생성(recordedAt 없음)됐다가,
+    // 배포 후 처음 supersede/decide 되면 그 새 레코드만 recordedAt 을 갖는다.
+    // union merge 로 줄 순서가 뒤집혀도(레코드 없는 쪽이 파일상 뒤에 옴) 최신
+    // (recordedAt 있는) 레코드가 이겨야 한다 — 검증에서 실제로 잡힌 회귀.
+    const legacy: ClaimCandidate = makeCandidate({ status: "pending" }); // recordedAt 없음
+    const migrated: ClaimCandidate = makeCandidate({ status: "accepted", recordedAt: "2026-04-26T00:05:00Z" });
+
+    await storage.appendJsonl("memory/claims/ledger.jsonl", migrated); // 실제로 나중에 append
+    await storage.appendJsonl("memory/claims/ledger.jsonl", legacy); // merge 로 파일상 legacy 가 뒤에 옴
+
+    const list = await store.list();
+    expect(list).toHaveLength(1);
+    expect(list[0]!.status).toBe("accepted"); // recordedAt 있는 쪽이 이김, 파일 순서 무관
+  });
+
   test("list — recordedAt 없는 레코드(마이그레이션 이전)는 기존처럼 파일 순서 last-wins", async () => {
     await storage.appendJsonl("memory/claims/ledger.jsonl", makeCandidate({ status: "pending" }));
     await storage.appendJsonl("memory/claims/ledger.jsonl", makeCandidate({ status: "accepted" }));

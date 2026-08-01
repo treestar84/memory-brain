@@ -92,8 +92,13 @@ interface ManifestEntry {
 }
 
 /**
- * append-only manifest 를 sha256 기준 last-wins 로 reduce (ClaimStore.list() 와 동일
- * 원칙). enqueued 상태만 갱신할 때도 새 레코드를 append 만 하고, 여기서 최신값을 계산한다.
+ * append-only manifest 를 sha256 기준 last-wins 로 reduce — `importedAt` 기준
+ * (ClaimStore.list() 의 recordedAt 과 동일 원칙, 파일 등장 순서가 아님).
+ * `memory/**\/*.jsonl merge=union` 대상이라(docs/SYNC.md) git 동기화 후 줄 순서가
+ * 뒤섞일 수 있는데, 파일 순서로 reduce 하면 오래된 엔트리가 방금 enqueue 된
+ * 최신 엔트리를 덮어써 `enqueued` 상태가 잘못 되돌아갈 수 있다 — 모든
+ * ManifestEntry 는 `importedAt` 이 항상 있으므로(ClaimStore.recordedAt 과 달리
+ * optional 이 아님) 폴백 분기 없이 바로 비교 가능하다.
  */
 async function readManifestReduced(manifestPath: string): Promise<Map<string, ManifestEntry>> {
   const bySha = new Map<string, ManifestEntry>();
@@ -103,7 +108,8 @@ async function readManifestReduced(manifestPath: string): Promise<Map<string, Ma
     if (!line.trim()) continue;
     try {
       const entry: ManifestEntry = JSON.parse(line);
-      bySha.set(entry.sha256, entry);
+      const existing = bySha.get(entry.sha256);
+      if (!existing || entry.importedAt >= existing.importedAt) bySha.set(entry.sha256, entry);
     } catch {
       // 손상된 줄 — jsonl.ts 의 lenient 파싱과 동일 원칙, 건너뛴다
     }

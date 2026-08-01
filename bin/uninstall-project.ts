@@ -128,11 +128,18 @@ async function cleanSettings(settingsPath: string, dryRun: boolean): Promise<str
 }
 
 /** install-project.ts 가 appendJsonl 대신 두 가지 형태로 붙였을 수 있는 구분자 변형까지 제거 */
+/**
+ * install-project.ts 는 항상 정확히 `<기존 내용(trailing \n 정규화)>\n<BLOCK>` 형태로
+ * 쓰거나(기존 내용 있음), 내용이 비어 있으면 `<BLOCK>` 그대로 쓴다(install-project.ts:224-227).
+ * 그래서 여기서도 그 두 형태만 그대로 되돌리면 기존 내용의 원래 trailing newline 이
+ * 그대로 보존된다 — 예전엔 구분자 개수가 install/uninstall 사이에 어긋나서 uninstall
+ * 이 사용자의 원래 trailing newline 까지 같이 지워버리는 버그가 있었다.
+ */
 function stripGitAttributesBlock(content: string): string {
-  return content
-    .replace(`\n\n${GITATTRIBUTES_BLOCK}`, "")
-    .replace(`\n${GITATTRIBUTES_BLOCK}`, "")
-    .replace(GITATTRIBUTES_BLOCK, "");
+  if (content.includes(`\n${GITATTRIBUTES_BLOCK}`)) {
+    return content.replace(`\n${GITATTRIBUTES_BLOCK}`, "");
+  }
+  return content.replace(GITATTRIBUTES_BLOCK, "");
 }
 
 async function cleanGitAttributes(targetProject: string, dryRun: boolean): Promise<string[]> {

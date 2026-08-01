@@ -17,6 +17,14 @@ const LEDGER_PATH = "memory/claims/ledger.jsonl";
  * recordSeq 는 여기서 tie-break 에 쓰지 않는다 — 무작위 값으로 tie 를
  * 깨면(FakeClock 처럼 시간이 안 흐르는 상황에서) 더 오래된 레코드가
  * 이길 확률이 생겨 last-wins 불변식이 깨진다. index 폴백이 정확하다.
+ *
+ * 한쪽만 recordedAt 이 있는 경우(레코드 하나는 마이그레이션 이전, 하나는
+ * 이후 — 실사용에서 흔함: 기존 claim 을 이 버전 배포 후 처음 supersede/decide
+ * 하면 새 레코드만 recordedAt 을 갖는다) index 폴백으로 가면 안 된다. union
+ * merge 가 줄 순서를 뒤섞으면 recordedAt 없는(항상 더 오래된) 레코드가 뒤쪽에
+ * 와서 이겨버릴 수 있다 — 정확히 이 기능이 막으려는 그 버그. recordedAt 이
+ * 있는 쪽이 없는 쪽보다 항상 최신이라고 본다(있는 쪽은 이 로직 도입 이후
+ * append, 즉 없는 쪽보다 나중일 수밖에 없다).
  */
 function isNewer(
   a: ClaimCandidate,
@@ -24,9 +32,12 @@ function isNewer(
   b: ClaimCandidate,
   bIndex: number,
 ): boolean {
-  if (a.recordedAt && b.recordedAt && a.recordedAt !== b.recordedAt) {
-    return a.recordedAt > b.recordedAt;
+  if (a.recordedAt && b.recordedAt) {
+    if (a.recordedAt !== b.recordedAt) return a.recordedAt > b.recordedAt;
+    return aIndex > bIndex;
   }
+  if (a.recordedAt && !b.recordedAt) return true;
+  if (!a.recordedAt && b.recordedAt) return false;
   return aIndex > bIndex;
 }
 

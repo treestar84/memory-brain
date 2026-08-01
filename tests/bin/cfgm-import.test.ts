@@ -117,6 +117,27 @@ describe("cfgm-import CLI", () => {
     expect(files).toHaveLength(2); // 처음 한 번씩만 기록됨
   });
 
+  test("manifest reduce — importedAt 기준(파일 순서 아님), git union merge로 줄 순서 뒤섞여도 최신 enqueued 상태 유지", async () => {
+    // 임포트를 먼저 정상 실행해 실제 sources/*.md + sha256 을 얻은 뒤, 매니페스트를
+    // git merge=union 이 만들 법한 "뒤섞인 순서"로 직접 재작성한다: enqueued=false
+    // (오래된 importedAt) 레코드가 enqueued=true(최신 importedAt) 레코드보다
+    // 파일상 뒤에 오도록 — 파일 순서로 reduce 하면 여기서 틀린 답이 나온다.
+    importCmd(projectDir, ["--input", transcriptPath]);
+    const manifestPath = join(projectDir, "memory", "sources", "_manifest.jsonl");
+    const original = JSON.parse((await readFile(manifestPath, "utf-8")).trim());
+
+    const older = { ...original, enqueued: false, importedAt: "2026-04-26T00:00:00.000Z" };
+    const newer = { ...original, enqueued: true, importedAt: "2026-04-26T00:05:00.000Z" };
+    // 파일상으로는 "older(enqueued:false)"가 마지막 줄 — 순수 파일 순서 reduce라면 틀리게 이김
+    await writeFile(manifestPath, [JSON.stringify(newer), JSON.stringify(older)].join("\n") + "\n");
+
+    const res = importCmd(projectDir, ["--input", transcriptPath, "--enqueue", "--json"]);
+    const out = JSON.parse(res.stdout);
+    // 이미 enqueued:true 로 봐야 하므로, 다시 enqueue 시도조차 하지 않아야 한다
+    expect(out.enqueuedCount).toBe(0);
+    expect(out.actions.some((a: string) => a.includes("already imported"))).toBe(true);
+  });
+
   test("turn 없는(빈) transcript 는 skip 하고 아무것도 안 씀", async () => {
     const emptyPath = join(projectDir, "empty.jsonl");
     await writeFile(emptyPath, line({ type: "queue-operation", operation: "enqueue" }) + "\n");
