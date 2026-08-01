@@ -105,6 +105,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
       { name: "capture", script: "cfgm-capture", desc: "세션 기록 → wiki draft 추출 큐 생성" },
       { name: "capture-status", script: "cfgm-capture-status", desc: "capture 큐 + drafts 상태" },
       { name: "capture-accept", script: "cfgm-capture-accept", desc: "draft → concept/decision/project 승격" },
+      { name: "import", script: "cfgm-import", desc: "Claude Code 세션 transcript → memory/sources/ 적재 (--enqueue 로 capture 큐 연결)" },
     ],
   },
 ];

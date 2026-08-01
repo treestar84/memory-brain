@@ -17,7 +17,11 @@ const WIKI_SUBDIR_EXCLUDE_PREFIX = "_";
 // 파이프라인이 이 파일들을 절대 건드리지 않게 하기 위함 — WikiReader 가
 // type: "note" 로 합성하므로 governance 로직 쪽에서 자연히 걸러진다.
 const NOTE_ROOT_FILES = ["current.md"];
-const NOTE_DIRS = ["journal", "reports"];
+// "sources" (V3.44) — 멀티소스 임포트가 memory/sources/ 에 적재한 원본 세션
+// 노트. 원문 evidence 이지 canonical claim 이 아니므로 WIKI_SUBDIRS 가 아니라
+// 여기 있다 — canonical wiki 전용 파이프라인(decay/OKF export/governance)이
+// 절대 이 파일들을 canonical 취급하지 않게 하려는 것과 같은 이유(위 주석 참고).
+const NOTE_DIRS = ["journal", "reports", "sources"];
 
 /**
  * Search index rebuild orchestrator (PR-V3.6, extended PR-V3.14).

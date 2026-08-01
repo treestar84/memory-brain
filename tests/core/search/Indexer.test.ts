@@ -105,15 +105,22 @@ describe("Indexer", () => {
     expect(r.wikiCount).toBe(3);
   });
 
-  test("rebuild — current.md + journal/ + reports/ 도 note 로 스캔되어 검색된다 (V3.41)", async () => {
+  test("rebuild — current.md + journal/ + reports/ + sources/ 도 note 로 스캔되어 검색된다 (V3.41, sources V3.44)", async () => {
     await writeFile(join(memoryDir, "current.md"), "# 현재 작업\n\nRotAdapter clearTimeout 누수 수정.\n");
     await mkdir(join(memoryDir, "journal"), { recursive: true });
     await writeFile(join(memoryDir, "journal", "2026-07-26.md"), "# Journal\n\nSessionConsolidator 폐기 — recall 파괴.\n");
     await mkdir(join(memoryDir, "reports"), { recursive: true });
     await writeFile(join(memoryDir, "reports", "rot-latest.md"), "# Rot Report\n\nR@5 93.2%.\n");
+    // 멀티소스 임포트(cfgm-import.ts)가 여기에 세션 노트를 적재한다 — 인덱서가
+    // 안 읽으면 임포트한 내용이 영원히 검색에 안 잡히는 회귀(V3.44 설계 시 발견).
+    await mkdir(join(memoryDir, "sources", "sessions", "claude-code", "2026-07"), { recursive: true });
+    await writeFile(
+      join(memoryDir, "sources", "sessions", "claude-code", "2026-07", "imported-session.md"),
+      "# Claude Code session\n\nTalked about ZigZagWidget refactor plan.\n",
+    );
 
     const r = await indexer.rebuild();
-    expect(r.wikiCount).toBe(3);
+    expect(r.wikiCount).toBe(4);
 
     const rotHits = searchIndex.searchWiki("clearTimeout");
     expect(rotHits).toHaveLength(1);
@@ -122,6 +129,7 @@ describe("Indexer", () => {
 
     expect(searchIndex.searchWiki("SessionConsolidator")).toHaveLength(1);
     expect(searchIndex.searchWiki("93.2")).toHaveLength(1);
+    expect(searchIndex.searchWiki("ZigZagWidget")).toHaveLength(1);
   });
 
   test("rebuild — 여러 주제가 섞인 current.md 는 ## 헤딩 단위 chunk 로 쪼개져 랭킹이 정확해진다", async () => {
