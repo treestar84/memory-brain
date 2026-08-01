@@ -288,7 +288,7 @@ sequenceDiagram
 /memory-brain:setup
 ```
 
-`/memory-brain:setup` is a one-time step that runs `bun install && bun link` inside the plugin's own directory — Claude shows you the actual output and asks before running it, nothing happens silently in the background. After that, use the slash commands:
+`/memory-brain:setup` is a one-time step that runs `bun install` inside the plugin's own directory (no global `cfgm` command needed — the slash commands call the plugin's own path directly) — Claude shows you the actual output and asks before running it, nothing happens silently in the background. After that, use the slash commands:
 
 ```
 /memory-brain:search <query>     # natural-language wiki search

@@ -2,6 +2,6 @@
 description: Run memory-brain's install/environment self-check
 ---
 
-Run `cfgm doctor` in the shell and show the results to the user, including any suggested fix commands it reports.
+Run `bun run "$CLAUDE_PLUGIN_ROOT/bin/cfgm.ts" doctor` in the shell and show the results to the user, including any suggested fix commands it reports.
 
-If the command fails with `cfgm: command not found`, tell the user to run `/memory-brain:setup` once to provision it.
+If it fails because `node_modules` is missing, tell the user to run `/memory-brain:setup` once to install dependencies.

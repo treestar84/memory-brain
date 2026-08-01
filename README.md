@@ -61,7 +61,7 @@ pointer 를 인용하라. 위 근거로 답할 수 없으면 추측하지 말고
 /memory-brain:setup
 ```
 
-`/memory-brain:setup` 은 `bun install && bun link` 를 실행하는 1회성 단계입니다. Claude가 실제로 무엇을 실행하는지 보여주고 실행 전에 동의를 구합니다 — 조용히 뒤에서 실행되는 건 없습니다. 이후 슬래시 커맨드로 씁니다:
+`/memory-brain:setup` 은 `bun install` 을 실행하는 1회성 단계입니다(전역 `cfgm` 명령 등록은 필요 없음 — 슬래시 커맨드가 플러그인 경로를 직접 호출합니다). Claude가 실제로 무엇을 실행하는지 보여주고 실행 전에 동의를 구합니다 — 조용히 뒤에서 실행되는 건 없습니다. 이후 슬래시 커맨드로 씁니다:
 
 ```
 /memory-brain:search <질의>          # 자연어 검색

@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "command -v cfgm >/dev/null 2>&1 && exit 0; echo '[memory-brain] cfgm is not on PATH yet. Run /memory-brain:setup once to provision it (bun install + bun link, with your confirmation).'"
+            "command": "test -d \"$CLAUDE_PLUGIN_ROOT/node_modules/yaml\" && exit 0; echo '[memory-brain] Dependencies not installed yet. Run /memory-brain:setup once (bun install, with your confirmation).'"
           }
         ]
       }
