@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    # Windows is informational only for now — bootstrap.ts and the install
+    # scripts still assume POSIX paths/env in a few spots (tracked separately).
+    # It stays in the matrix (not skipped) so we see the failure trend, but a
+    # red Windows job must never block a merge until that work lands.
+    continue-on-error: ${{ matrix.os == 'windows-latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Typecheck
+        run: bun x tsc --noEmit
+      - name: Test
+        run: bun test
+
+  shell-lint:
+    name: shell-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: bash -n syntax check
+        run: |
+          set -e
+          for f in install.sh install-project.sh uninstall.sh uninstall-project.sh; do
+            echo "checking $f"
+            bash -n "$f"
+          done
+      - name: shellcheck
+        run: |
+          sudo apt-get update -y && sudo apt-get install -y shellcheck
+          shellcheck install.sh install-project.sh uninstall.sh uninstall-project.sh
+
+  install-smoke:
+    name: install-smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: install-project --dry-run against a throwaway directory
+        run: |
+          set -e
+          tmp="$(mktemp -d)"
+          bun run bin/install-project.ts --project "$tmp" --dry-run --json
+      - name: install-project (real) against a throwaway directory
+        run: |
+          set -e
+          tmp="$(mktemp -d)"
+          bun run bin/install-project.ts --project "$tmp" --json | tee /tmp/install-result.json
+          test -f "$tmp/.claude/settings.json"
+          test -d "$tmp/.memory-brain/ledger/raw"
+          TMP_PROJECT="$tmp" bun -e "
+            const r = require('/tmp/install-result.json');
+            if (r.targetProject !== process.env.TMP_PROJECT) throw new Error('targetProject mismatch: ' + r.targetProject);
+            const manifest = require(process.env.TMP_PROJECT + '/.claude/cfgm-project-manifest.json');
+            if (!manifest.hooksRegistered?.includes('SessionStart')) throw new Error('SessionStart hook missing from manifest');
+          "
