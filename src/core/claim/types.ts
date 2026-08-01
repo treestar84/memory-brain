@@ -49,4 +49,13 @@ export interface ClaimCandidate {
   invalidAt?: string | null;
   /** supersede 시 새 claim 의 후보 ID. 이전 claim 에 기록 (역방향 참조) */
   supersededBy?: string;
+  /**
+   * append 시점 타임스탬프 (createdAt 과 다름 — createdAt 은 후보 최초 생성
+   * 시점으로 같은 candidateId 의 모든 리비전에서 불변, recordedAt 은 이
+   * 특정 레코드가 원장에 append 된 시점). git `merge=union` 으로 두 머신의
+   * ledger.jsonl 을 합칠 때 줄 순서가 보존되지 않으므로, `ClaimStore.list()`
+   * 의 last-wins reduce 가 파일 순서 대신 이 필드로 승자를 가려 순서 독립성을
+   * 확보한다. 이 필드가 없는(마이그레이션 이전) 레코드는 파일 순서로 폴백.
+   */
+  recordedAt?: string;
 }

@@ -245,6 +245,35 @@ describe("install-project.ts", () => {
     expect(existsSync(join(projectDir, ".claude", "settings.json"))).toBe(false);
   });
 
+  test("writes .gitattributes with merge=union for memory jsonl ledgers", async () => {
+    const proc = runScript(["--project", projectDir]);
+    expect(proc.exitCode).toBe(0);
+    const content = await readFile(join(projectDir, ".gitattributes"), "utf-8");
+    expect(content).toContain("memory/**/*.jsonl merge=union");
+    expect(content).toContain("cfgm-os:merge=union for jsonl ledgers");
+  });
+
+  test(".gitattributes — preserves unrelated existing content, appends marker block once", async () => {
+    await writeFile(join(projectDir, ".gitattributes"), "*.png binary\n");
+    runScript(["--project", projectDir]);
+    const content = await readFile(join(projectDir, ".gitattributes"), "utf-8");
+    expect(content).toContain("*.png binary");
+    expect(content).toContain("memory/**/*.jsonl merge=union");
+
+    // idempotent re-run — no duplicate block
+    runScript(["--project", projectDir]);
+    const again = await readFile(join(projectDir, ".gitattributes"), "utf-8");
+    const occurrences = again.split("memory/**/*.jsonl merge=union").length - 1;
+    expect(occurrences).toBe(1);
+  });
+
+  test(".gitattributes — --dry-run makes zero writes", async () => {
+    const proc = runScript(["--project", projectDir, "--dry-run"]);
+    expect(proc.exitCode).toBe(0);
+    expect(existsSync(join(projectDir, ".gitattributes"))).toBe(false);
+    expect(proc.stdout.toString()).toContain(".gitattributes");
+  });
+
   test("via the cfgm dispatcher (bin/cfgm.ts), no --project targets the invoking cwd, not the tool repo", async () => {
     const cfgm = join(import.meta.dir, "../../bin/cfgm.ts");
     const realProjectDir = await realpath(projectDir);

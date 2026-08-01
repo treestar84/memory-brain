@@ -8,7 +8,7 @@
 [L1 Bootloader]   CLAUDE.md / MEMORY.md (repo 루트)
 [L2 Router]       memory/ROUTER.md
 [L3 Wiki Layer]   memory/{sources, projects, concepts, decisions}/
-[L4 Claim Layer]  memory/claims/  (현재는 .memory-brain/claims/ledger.jsonl, PR-V3.5에서 통합)
+[L4 Claim Layer]  memory/claims/ledger.jsonl  (git 트래킹 — ClaimStore.ts, PR-V3.5)
 [L5 Graph/Search] memory/{index.sqlite, vector.index, graph.json}  (PR-V3.6)
 [L6 Persona]      memory/profile/{peers,sessions,messages,representations}.jsonl  (PR-V3.1, PersonaStore)
 [L7 Governance]   memory/reports/  (PR-V3.7)
@@ -24,9 +24,9 @@
 | `memory/{sources,projects,concepts,decisions}/*.md` | ✅ 트래킹 (canonical knowledge) | 후속 PR-V3.4에서 채움 |
 | `memory/reports/*.md` | ✅ 트래킹 (governance 메타 + sample) | 후속 PR-V3.7 |
 | `.memory-brain/memory/profile/*.jsonl` | ❌ gitignore (사용자 개인 데이터) | PersonaStore 출력 (PR-V3.1) |
-| `.memory-brain/claims/ledger.jsonl` | ❌ gitignore | ClaimStore 출력 (PR-A1.0) |
+| `memory/claims/ledger.jsonl` | ✅ 트래킹 (append-only, `merge=union`) | ClaimStore 출력 (PR-A1.0) — `.memory-brain/` 아래가 아니라 `memory/` 아래에 있다: claim은 wiki와 함께 팀이 리뷰·공유하는 원장이라 개인 프로필과 달리 의도적으로 git 대상. `docs/SYNC.md` 참고. |
 
-`.gitignore` 의 `.memory-brain/` 정책으로 분리. **본체 git은 OSS template / policy 만, 사용자 개인 데이터는 절대 트래킹 안 함**.
+`.gitignore` 의 `.memory-brain/` 정책으로 분리. **본체 git은 OSS template / policy + claim 원장, `.memory-brain/` 아래(검색 인덱스 같은 파생물 + persona 개인 데이터)는 절대 트래킹 안 함**.
 
 ## 디렉토리 트리 (현재 + 미래)
 

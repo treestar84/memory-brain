@@ -198,6 +198,32 @@ async function scaffoldCommands(
   return { written, skipped };
 }
 
+export const GITATTRIBUTES_MARKER = "cfgm-os:merge=union for jsonl ledgers";
+export const GITATTRIBUTES_BLOCK = `# ${GITATTRIBUTES_MARKER} — do not edit this block by hand, cfgm manages it.
+# Append-only jsonl ledgers (memory/claims/ledger.jsonl etc.) merge as unions
+# instead of producing conflict markers, which parseJsonlLenient() would
+# otherwise silently drop as corrupt lines (a claim vanishing with no error).
+memory/**/*.jsonl merge=union
+`;
+
+/**
+ * `.gitattributes` 는 사용자가 이미 다른 내용을 갖고 있을 수 있는 저장소 루트
+ * 파일이라, settings.json 과 같은 원칙을 따른다: 마커 블록만 upsert, 나머지는
+ * 절대 건드리지 않음. 대상이 git 저장소가 아니어도(파일만 있어도) 무해하므로
+ * git 여부는 검사하지 않는다 — 나중에 git init 해도 그대로 적용된다.
+ */
+async function ensureGitAttributes(targetProject: string, dryRun: boolean): Promise<string | null> {
+  const path = join(targetProject, ".gitattributes");
+  const existing = existsSync(path) ? await readFile(path, "utf-8") : "";
+  if (existing.includes(GITATTRIBUTES_MARKER)) return null; // already there, idempotent no-op
+  if (dryRun) return `would ${existing ? "append to" : "write"} ${path} (merge=union for memory/**/*.jsonl)`;
+  const next = existing.length > 0 && !existing.endsWith("\n")
+    ? `${existing}\n\n${GITATTRIBUTES_BLOCK}`
+    : `${existing}${existing ? "\n" : ""}${GITATTRIBUTES_BLOCK}`;
+  await writeFile(path, next);
+  return `${existing ? "updated" : "wrote"} ${path} (merge=union for memory/**/*.jsonl)`;
+}
+
 function parseArgs(argv: string[]): { project: string | null; dryRun: boolean; json: boolean } {
   let project: string | null = null;
   let dryRun = false;
@@ -304,6 +330,9 @@ async function main(): Promise<void> {
   const { written: commandsWritten, skipped: commandsSkipped } = await scaffoldCommands(paths, version, dryRun);
   actions.push(...commandsWritten.map((f) => `${dryRun ? "would write" : "wrote"} command ${f}`));
   actions.push(...commandsSkipped.map((f) => `skip (user file exists): ${f}`));
+
+  const gitAttrsAction = await ensureGitAttributes(targetProject, dryRun);
+  if (gitAttrsAction) actions.push(gitAttrsAction);
 
   if (!dryRun) {
     await mkdir(join(paths.memoryDir, "state"), { recursive: true });

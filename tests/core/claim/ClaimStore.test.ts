@@ -32,6 +32,34 @@ describe("ClaimStore", () => {
     store = new ClaimStore(storage, new FakeClock(new Date("2026-04-26T00:00:00Z")));
   });
 
+  test("list — recordedAt 이 파일 순서와 어긋나도(git union merge 시뮬레이션) 최신 recordedAt 이 승자", async () => {
+    // 두 '머신'이 각각 다른 시점에 같은 candidateId 를 append 하고, git 이
+    // union merge 로 줄을 합칠 때 실제 시간순과 다르게 배치된 상황을 재현 —
+    // 파일상으로는 오래된 레코드가 나중 줄에 온다.
+    const older: ClaimCandidate = makeCandidate({ status: "pending", recordedAt: "2026-04-26T00:00:00Z" });
+    const newer: ClaimCandidate = makeCandidate({ status: "accepted", recordedAt: "2026-04-26T00:05:00Z" });
+    await storage.appendJsonl("memory/claims/ledger.jsonl", newer); // 실제로 더 나중에 기록된 것
+    await storage.appendJsonl("memory/claims/ledger.jsonl", older); // merge 로 인해 파일상 뒤에 옴
+
+    const list = await store.list();
+    expect(list).toHaveLength(1);
+    expect(list[0]!.status).toBe("accepted"); // 파일 순서(older 가 마지막 줄)가 아니라 recordedAt 이 이김
+  });
+
+  test("list — recordedAt 없는 레코드(마이그레이션 이전)는 기존처럼 파일 순서 last-wins", async () => {
+    await storage.appendJsonl("memory/claims/ledger.jsonl", makeCandidate({ status: "pending" }));
+    await storage.appendJsonl("memory/claims/ledger.jsonl", makeCandidate({ status: "accepted" }));
+    const list = await store.list();
+    expect(list).toHaveLength(1);
+    expect(list[0]!.status).toBe("accepted"); // recordedAt 둘 다 없음 → 파일상 마지막 줄이 이김 (기존 동작)
+  });
+
+  test("append — recordedAt 을 자동으로 찍는다 (동일 clock 이라도 append 마다 채움)", async () => {
+    await store.append(makeCandidate());
+    const [stored] = await storage.readJsonl<ClaimCandidate>("memory/claims/ledger.jsonl");
+    expect(stored!.recordedAt).toBe("2026-04-26T00:00:00.000Z");
+  });
+
   test("append + list({status:pending}) → 1건", async () => {
     await store.append(makeCandidate());
     const list = await store.list({ status: "pending" });

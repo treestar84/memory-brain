@@ -6,6 +6,31 @@ import type { ClaimCandidate, ClaimStatus } from "./types";
 const LEDGER_PATH = "memory/claims/ledger.jsonl";
 
 /**
+ * `a` 레코드가 `b` 레코드보다 최신(승자)인지. 둘 다 recordedAt 이 있고
+ * 서로 다르면 그 값으로 순서 독립 비교 — git union merge로 줄 순서가
+ * 뒤섞여도 정확하다. recordedAt 이 없거나(마이그레이션 이전 레코드)
+ * 같은 값이면(동일 프로세스 내 연속 append — 초당 다건, 또는 밀리초
+ * 정밀도 clock 충돌) 파일 등장 순서(index)로 폴백 — 기존 동작 그대로
+ * 보존하며, 실제로 대부분의 append 는 이 경로를 탄다(단일 프로세스 내
+ * 여러 클레임을 즉시 연속 처리하는 게 일반적).
+ *
+ * recordSeq 는 여기서 tie-break 에 쓰지 않는다 — 무작위 값으로 tie 를
+ * 깨면(FakeClock 처럼 시간이 안 흐르는 상황에서) 더 오래된 레코드가
+ * 이길 확률이 생겨 last-wins 불변식이 깨진다. index 폴백이 정확하다.
+ */
+function isNewer(
+  a: ClaimCandidate,
+  aIndex: number,
+  b: ClaimCandidate,
+  bIndex: number,
+): boolean {
+  if (a.recordedAt && b.recordedAt && a.recordedAt !== b.recordedAt) {
+    return a.recordedAt > b.recordedAt;
+  }
+  return aIndex > bIndex;
+}
+
+/**
  * Claim sidecar (ADR-012) + Graphiti supersede 모델 답습 (PR-V3.5, ADR-019 §3).
  *
  * append-only ledger + last-wins reduce. supersede / invalidate 는 명시
@@ -21,14 +46,23 @@ export class ClaimStore {
   ) {}
 
   async append(candidate: ClaimCandidate): Promise<void> {
-    await this.storage.appendJsonl(LEDGER_PATH, candidate);
+    const stamped: ClaimCandidate = {
+      ...candidate,
+      recordedAt: candidate.recordedAt ?? this.clock.isoNow(),
+    };
+    await this.storage.appendJsonl(LEDGER_PATH, stamped);
   }
 
   async list(filter: { status?: ClaimStatus } = {}): Promise<ClaimCandidate[]> {
     const all = await this.storage.readJsonl<ClaimCandidate>(LEDGER_PATH);
-    const lastWins = new Map<string, ClaimCandidate>();
-    for (const c of all) lastWins.set(c.candidateId, c);
-    const reduced = Array.from(lastWins.values());
+    const winners = new Map<string, { record: ClaimCandidate; index: number }>();
+    all.forEach((c, index) => {
+      const existing = winners.get(c.candidateId);
+      if (!existing || isNewer(c, index, existing.record, existing.index)) {
+        winners.set(c.candidateId, { record: c, index });
+      }
+    });
+    const reduced = Array.from(winners.values()).map((w) => w.record);
     if (filter.status) return reduced.filter((c) => c.status === filter.status);
     return reduced;
   }

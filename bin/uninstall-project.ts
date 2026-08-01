@@ -23,7 +23,13 @@ import { readFile, writeFile, unlink, rm, rmdir, readdir, copyFile } from "node:
 import { existsSync, statSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { isManagedCommand } from "./install-brain";
-import { MARKER, resolveProjectPaths, resolveToolRoot } from "./install-project";
+import {
+  MARKER,
+  resolveProjectPaths,
+  resolveToolRoot,
+  GITATTRIBUTES_MARKER,
+  GITATTRIBUTES_BLOCK,
+} from "./install-project";
 
 function parseArgs(argv: string[]): { project: string | null; purge: boolean; dryRun: boolean; json: boolean } {
   let project: string | null = null;
@@ -121,6 +127,44 @@ async function cleanSettings(settingsPath: string, dryRun: boolean): Promise<str
   return actions;
 }
 
+/** install-project.ts 가 appendJsonl 대신 두 가지 형태로 붙였을 수 있는 구분자 변형까지 제거 */
+function stripGitAttributesBlock(content: string): string {
+  return content
+    .replace(`\n\n${GITATTRIBUTES_BLOCK}`, "")
+    .replace(`\n${GITATTRIBUTES_BLOCK}`, "")
+    .replace(GITATTRIBUTES_BLOCK, "");
+}
+
+async function cleanGitAttributes(targetProject: string, dryRun: boolean): Promise<string[]> {
+  const actions: string[] = [];
+  const path = join(targetProject, ".gitattributes");
+  if (!existsSync(path)) return actions;
+
+  const content = await readFile(path, "utf-8");
+  if (!content.includes(GITATTRIBUTES_MARKER)) return actions; // 우리가 관리하는 게 아님 — 손대지 않음
+
+  const stripped = stripGitAttributesBlock(content);
+  const willBeEmpty = stripped.trim().length === 0;
+
+  if (dryRun) {
+    actions.push(`would ${willBeEmpty ? "delete (becomes empty)" : "update"} ${path} (remove ${GITATTRIBUTES_MARKER} block)`);
+    return actions;
+  }
+
+  if (willBeEmpty) {
+    // settings.json 과 동일 원칙: 이 파일 전체가 우리가 install 때 만든 것이면
+    // 백업 없이 지운다 — 아니면 .gitattributes 가 영구히 잔존한다.
+    await unlink(path);
+    actions.push(`deleted ${path} (no content left after removing ${GITATTRIBUTES_MARKER} block)`);
+  } else {
+    const backupPath = await backupIfNeeded(path);
+    if (backupPath) actions.push(`backup created: ${backupPath}`);
+    await writeFile(path, stripped);
+    actions.push(`updated ${path} (removed ${GITATTRIBUTES_MARKER} block, other content preserved)`);
+  }
+  return actions;
+}
+
 async function cleanCommands(commandsDir: string, dryRun: boolean): Promise<string[]> {
   const actions: string[] = [];
   if (!existsSync(commandsDir)) return actions;
@@ -170,6 +214,7 @@ async function main(): Promise<void> {
 
   actions.push(...(await cleanSettings(paths.settingsPath, dryRun)));
   actions.push(...(await cleanCommands(paths.commandsDir, dryRun)));
+  actions.push(...(await cleanGitAttributes(targetProject, dryRun)));
 
   if (existsSync(paths.manifestPath)) {
     if (!dryRun) await unlink(paths.manifestPath);

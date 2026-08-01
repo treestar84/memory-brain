@@ -148,6 +148,7 @@ cfgm dashboard            # 위키/검색/capture 큐 실시간 대시보드 (lo
 | [`docs/BENCHMARK.md`](./docs/BENCHMARK.md) | 벤치마크 측정 규약 — 재현 가능하게 |
 | [`docs/ROT-BENCH.md`](./docs/ROT-BENCH.md) | 메모리 부패 실측 + 나만의 메모리 도구 측정하기 |
 | [`docs/RULES.md`](./docs/RULES.md) | 5대 설계 원칙 (서버 없음, API 키 불요 등) |
+| [`docs/SYNC.md`](./docs/SYNC.md) | 여러 머신 간 동기화 — 서버·별도 CLI 없이 git 으로 |
 | [`AGENTS.md`](./AGENTS.md) | Codex 등 non-Claude host 용 안내 |
 | [`CHANGELOG.md`](./CHANGELOG.md) | 버전별 변경 이력 (실패한 시도 포함, 정직하게) |
 

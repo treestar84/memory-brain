@@ -215,6 +215,22 @@ const MESSAGES: Record<string, MessageEntry> = {
     ko: "벡터 미포함 인덱스 (lexical-only) — 정합성 검사 대상 아님",
     en: "index has no vectors (lexical-only) — nothing to check",
   },
+  "doctor.check.mergeConflicts.name": {
+    ko: "git 충돌 마커",
+    en: "git conflict markers",
+  },
+  "doctor.check.mergeConflicts.detail.clean": {
+    ko: "memory/**/*.jsonl 에 충돌 마커 없음",
+    en: "no conflict markers in memory/**/*.jsonl",
+  },
+  "doctor.check.mergeConflicts.detail.found": {
+    ko: (files: string) => `충돌 마커 발견: ${files} — 해당 줄이 claim 원장에서 조용히 스킵되고 있을 수 있음`,
+    en: (files: string) => `conflict markers found: ${files} — those lines may be silently skipped from the claim ledger`,
+  },
+  "doctor.check.mergeConflicts.fix": {
+    ko: "충돌 마커가 있는 파일을 직접 열어 <<<<<<< / ======= / >>>>>>> 를 정리하세요 (git merge=union 을 쓰면 이후엔 마커 자체가 안 생김 — .gitattributes 확인)",
+    en: "manually resolve the <<<<<<< / ======= / >>>>>>> markers in the listed files (git merge=union prevents markers going forward — check .gitattributes)",
+  },
   "doctor.check.sslQueue.name": {
     ko: "SSL 큐",
     en: "SSL queue",

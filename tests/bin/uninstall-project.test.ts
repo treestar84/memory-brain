@@ -92,6 +92,25 @@ describe("uninstall-project.ts", () => {
     expect(existsSync(join(projectDir, ".memory-brain"))).toBe(true);
   });
 
+  test(".gitattributes — soft uninstall removes only our marker block, keeps user's own lines", async () => {
+    await writeFile(join(projectDir, ".gitattributes"), "*.png binary\n");
+    runScript(INSTALL, ["--project", projectDir]);
+    const afterInstall = await readFile(join(projectDir, ".gitattributes"), "utf-8");
+    expect(afterInstall).toContain("memory/**/*.jsonl merge=union");
+
+    runScript(UNINSTALL, ["--project", projectDir]);
+    const afterUninstall = await readFile(join(projectDir, ".gitattributes"), "utf-8");
+    expect(afterUninstall).toContain("*.png binary");
+    expect(afterUninstall).not.toContain("merge=union");
+  });
+
+  test(".gitattributes — soft uninstall deletes the file entirely when it held only our block", async () => {
+    runScript(INSTALL, ["--project", projectDir]);
+    expect(existsSync(join(projectDir, ".gitattributes"))).toBe(true);
+    runScript(UNINSTALL, ["--project", projectDir]);
+    expect(existsSync(join(projectDir, ".gitattributes"))).toBe(false);
+  });
+
   test("--purge on a clean round trip leaves the project directory completely empty", async () => {
     runScript(INSTALL, ["--project", projectDir]);
     const proc = runScript(UNINSTALL, ["--project", projectDir, "--purge"]);

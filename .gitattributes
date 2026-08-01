@@ -1,0 +1,9 @@
+# memory-brain — append-only ledgers merge as unions, not conflicts.
+#
+# claims/ledger.jsonl (and any other jsonl ledger under memory/) is designed
+# to be append-only + last-wins reduce (see ClaimStore.list()'s recordedAt-based
+# order-independent reduce). Without this, a normal 3-way git merge inserts
+# `<<<<<<<` conflict markers into the file; parseJsonlLenient() then silently
+# treats every marker line as a corrupt line and drops it — a claim can vanish
+# with no error. `merge=union` keeps both sides' lines instead of conflicting.
+memory/**/*.jsonl merge=union

@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SearchIndex } from "../../src/core/search/SearchIndex";
@@ -86,5 +86,39 @@ describe("cfgm 통합 CLI (V3.31)", () => {
     const res2 = cfgm(["doctor"], { CFGM_PROJECT_ROOT: project });
     expect(res2.stdout).toContain("dims=256 일치");
     expect(res2.stdout).not.toContain("불일치");
+  });
+
+  test("doctor — git 충돌 마커가 남은 jsonl 원장을 감지하고 안내한다", () => {
+    const project = mkdtempSync(join(tmpdir(), "cfgm-conflict-"));
+    mkdirSync(join(project, "memory", "claims"), { recursive: true });
+    writeFileSync(
+      join(project, "memory", "claims", "ledger.jsonl"),
+      [
+        '{"candidateId":"cc-1","status":"pending"}',
+        "<<<<<<< HEAD",
+        '{"candidateId":"cc-2","status":"accepted"}',
+        "=======",
+        '{"candidateId":"cc-2","status":"rejected"}',
+        ">>>>>>> branch-b",
+      ].join("\n") + "\n",
+    );
+
+    const res = cfgm(["doctor"], { CFGM_PROJECT_ROOT: project });
+    expect(res.stdout).toContain("git 충돌 마커");
+    expect(res.stdout).toContain("ledger.jsonl");
+    expect(res.stdout).toContain("정리하세요");
+  });
+
+  test("doctor — 충돌 마커 없는 정상 jsonl 원장은 통과로 보고", () => {
+    const project = mkdtempSync(join(tmpdir(), "cfgm-noconflict-"));
+    mkdirSync(join(project, "memory", "claims"), { recursive: true });
+    writeFileSync(
+      join(project, "memory", "claims", "ledger.jsonl"),
+      '{"candidateId":"cc-1","status":"pending"}\n',
+    );
+
+    const res = cfgm(["doctor"], { CFGM_PROJECT_ROOT: project });
+    expect(res.stdout).toContain("git 충돌 마커");
+    expect(res.stdout).toContain("충돌 마커 없음");
   });
 });

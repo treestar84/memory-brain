@@ -250,6 +250,34 @@ async function runDoctor(): Promise<number> {
     // 프로젝트 memory/ 가 아직 없는 등 — governance 체크는 선택 사항이라 건너뛴다
   }
 
+  // 6.5. git merge 충돌 마커 잔존 — 크로스머신 동기화(.gitattributes merge=union) 를
+  // 쓰더라도, union 을 아직 안 켠 상태에서 과거에 merge 한 적이 있거나 수동 편집
+  // 실수로 마커가 남아있으면 parseJsonlLenient 가 그 줄을 조용히 "손상"으로 건너뛴다
+  // (claim 이 무경고로 사라짐). 여기서 명시적으로 스캔해 사용자에게 드러낸다.
+  try {
+    const conflictProjectRoot = resolveRepoRoot();
+    const conflictMemoryDir = join(conflictProjectRoot, "memory");
+    let conflictFiles: string[] = [];
+    if (existsSync(conflictMemoryDir)) {
+      const glob = new Bun.Glob("**/*.jsonl");
+      for await (const rel of glob.scan({ cwd: conflictMemoryDir })) {
+        const text = await Bun.file(join(conflictMemoryDir, rel)).text();
+        if (text.includes("<<<<<<<") || text.includes(">>>>>>>")) conflictFiles.push(rel);
+      }
+    }
+    checks.push({
+      name: t("doctor.check.mergeConflicts.name"),
+      ok: conflictFiles.length === 0,
+      detail:
+        conflictFiles.length === 0
+          ? t("doctor.check.mergeConflicts.detail.clean")
+          : t("doctor.check.mergeConflicts.detail.found", conflictFiles.join(", ")),
+      fix: conflictFiles.length > 0 ? t("doctor.check.mergeConflicts.fix") : undefined,
+    });
+  } catch {
+    // memory/ 아직 없음 등 — 위 governance 체크와 동일하게 선택 사항
+  }
+
   // 7. Brain 프로파일 (선택)
   const brainHome = process.env.CFGM_BRAIN_HOME ?? join(process.env.HOME ?? "", ".claude-brain");
   const brainInstalled = existsSync(brainHome);
