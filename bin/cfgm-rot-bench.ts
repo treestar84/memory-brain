@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { resolve, dirname } from "node:path";
 import { mkdir } from "node:fs/promises";
-import { HashedNgramEmbedder } from "../src/core/search/Embedder";
+import { createDefaultEmbedder } from "../src/core/search/Embedder";
 import { parseLmeQuestions } from "../src/core/bench/LongMemEval";
 import { createRotBenchAccumulator, addQuestionToRotBench, finalizeRotBenchAsync, renderRotBenchReport } from "../src/core/bench/RotBench";
 import { streamTopLevelJsonArray } from "../src/core/bench/StreamingJson";
@@ -85,7 +85,7 @@ if (!(await dataFile.exists())) {
 // exit 133, 무출력). streamTopLevelJsonArray 로 원소 1건씩 읽어 즉시
 // 정규화·평가하고, 질문 객체는 평가 직후 버린다 — 전체 파일을 누적하는
 // 코드 경로가 없다. S 데이터셋(265MB)도 경로 이원화 없이 동일하게 처리한다.
-const embedder = new HashedNgramEmbedder();
+const embedder = createDefaultEmbedder();
 const acc = createRotBenchAccumulator({ embedder, order: seedOrder ? "seed" : "date", cohort, consolidated, externalAdapter });
 const started = performance.now();
 let seen = 0;

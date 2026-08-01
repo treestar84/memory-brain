@@ -8,6 +8,8 @@ import { ClaimStore } from "../src/core/claim/ClaimStore";
 import { RealClock } from "../src/core/clock/Clock";
 import { WikiReader } from "../src/core/wiki/WikiReader";
 import { runGovernanceDetectors } from "../src/core/governance/reports/runDetectors";
+import { SearchIndex } from "../src/core/search/SearchIndex";
+import { createDefaultEmbedder } from "../src/core/search/Embedder";
 
 /**
  * cfgm — CFGM-OS 통합 CLI (V3.31).
@@ -175,6 +177,28 @@ async function runDoctor(): Promise<number> {
       ok: false,
       detail: t("doctor.check.index.detail.missing"),
       fix: t("doctor.check.index.fix.missing"),
+    });
+  }
+
+  // 4.5. 벡터 차원 정합성 — dims 를 바꾼 뒤 재구축을 안 하면 rankByVector 가
+  // 모든 행을 조용히 스킵해 hybrid 검색이 FTS-only 로 무경고 저하된다.
+  // 인덱스는 파생물(재구축 가능)이므로 여기선 감지·안내만 한다.
+  if (existsSync(indexPath)) {
+    const idx = new SearchIndex(indexPath);
+    const storedDims = idx.getMeta("vector_dims");
+    idx.close();
+    const currentDims = createDefaultEmbedder().dims;
+    const hasVectors = storedDims !== null && storedDims !== "0";
+    const dimsMatch = !hasVectors || storedDims === String(currentDims);
+    checks.push({
+      name: t("doctor.check.vectorDims.name"),
+      ok: dimsMatch,
+      detail: !hasVectors
+        ? t("doctor.check.vectorDims.detail.none")
+        : dimsMatch
+          ? t("doctor.check.vectorDims.detail.match", String(currentDims))
+          : t("doctor.check.vectorDims.detail.mismatch", storedDims!, String(currentDims)),
+      fix: dimsMatch ? undefined : "cfgm rebuild-index --embeddings",
     });
   }
 

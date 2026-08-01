@@ -2,7 +2,7 @@
 import { resolve } from "node:path";
 import { existsSync } from "node:fs";
 import { SearchIndex } from "../src/core/search/SearchIndex";
-import { HashedNgramEmbedder } from "../src/core/search/Embedder";
+import { createDefaultEmbedder } from "../src/core/search/Embedder";
 import { resolveStorageRoot, resolveRepoRoot } from "../src/hooks/bootstrap";
 import { UsageLog } from "../src/core/stats/UsageLog";
 import { FsStorage } from "../src/core/storage/FsStorage";
@@ -59,7 +59,7 @@ const repoRoot =
 const memoryDir = resolve(repoRoot, "memory");
 
 const index = new SearchIndex(indexPath);
-const embedder = new HashedNgramEmbedder();
+const embedder = createDefaultEmbedder();
 const hits = index.searchWikiHybrid(query, embedder, { limit });
 const suggestions = hits.length === 0 ? index.listWikiPages(20) : [];
 index.close();

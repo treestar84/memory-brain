@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
-import { HashedNgramEmbedder } from "../src/core/search/Embedder";
+import { createDefaultEmbedder } from "../src/core/search/Embedder";
 import { parseLmeQuestions, retrieveTopSessions, splitOf } from "../src/core/bench/LongMemEval";
 import { buildAnswerJob } from "../src/core/bench/LmeQa";
 import { resolveRepoRoot } from "../src/hooks/bootstrap";
@@ -63,7 +63,7 @@ if (!(await dataFile.exists())) {
 const questions = parseLmeQuestions(await dataFile.json());
 let pool = limit ? questions.slice(0, limit) : questions;
 if (split) pool = pool.filter((q) => splitOf(q.question_id) === split);
-const embedder = new HashedNgramEmbedder();
+const embedder = createDefaultEmbedder();
 
 await mkdir(jobsDir, { recursive: true });
 await mkdir(resolve(repoRoot, answersDirRel), { recursive: true });

@@ -371,7 +371,12 @@ export class SearchIndex {
     return row.c;
   }
 
-  private rankByVector(
+  /**
+   * public (was private): also used by the retrieval-ceiling diagnostic
+   * (`evalLmeRetrieval`'s `--diagnose` mode) to check whether an answer
+   * document is reachable by the vector arm at all, independent of fusion.
+   */
+  rankByVector(
     kind: "wiki" | "skill",
     query: string,
     embedder: Embedder,

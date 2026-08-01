@@ -87,6 +87,17 @@ export function cosineSimilarity(a: Float32Array, b: Float32Array): number {
   return dot / (Math.sqrt(na) * Math.sqrt(nb));
 }
 
+/**
+ * 기본 embedder 인스턴스 생성 지점. 9개 bin 스크립트가 각자
+ * `new HashedNgramEmbedder()` 를 하드코딩하던 것을 여기 하나로 모았다 —
+ * dims 기본값을 바꿀 때 산발 수정 대신 이 파일 하나만 고치면 된다.
+ * dims 를 바꿔 인덱스를 재구축하면 `SearchIndex` 의 `vector_dims` 메타
+ * 가드(`cfgm doctor`)가 불일치를 감지해 재구축을 안내한다.
+ */
+export function createDefaultEmbedder(): Embedder {
+  return new HashedNgramEmbedder();
+}
+
 /** Float32Array ↔ SQLite BLOB 변환 (little-endian 그대로 재해석). */
 export function vectorToBlob(vec: Float32Array): Uint8Array {
   return new Uint8Array(vec.buffer.slice(vec.byteOffset, vec.byteOffset + vec.byteLength));

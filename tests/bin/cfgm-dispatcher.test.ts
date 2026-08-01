@@ -1,8 +1,10 @@
 import { describe, test, expect } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { SearchIndex } from "../../src/core/search/SearchIndex";
+import { HashedNgramEmbedder } from "../../src/core/search/Embedder";
 
 function cfgm(args: string[], env: Record<string, string> = {}) {
   return spawnSync("bun", ["run", "bin/cfgm.ts", ...args], {
@@ -57,5 +59,32 @@ describe("cfgm 통합 CLI (V3.31)", () => {
     expect(res.stdout).toContain("자가진단");
     expect(res.stdout).toContain("Bun ≥ 1.1");
     expect(res.stdout).toContain("SSL 큐");
+  });
+
+  test("doctor — vector dims mismatch 는 감지·안내하고, 일치 시엔 통과로 보고", () => {
+    const project = mkdtempSync(join(tmpdir(), "cfgm-dims-"));
+    mkdirSync(join(project, "memory"), { recursive: true });
+    mkdirSync(join(project, ".memory-brain", "indexes"), { recursive: true });
+    const indexPath = join(project, ".memory-brain", "indexes", "search.sqlite");
+
+    // 현재 기본 dims(256)와 다른 512 로 인덱스를 만들어 불일치를 재현
+    const idx = new SearchIndex(indexPath);
+    idx.rebuild({ wikiPages: [], claims: [], embedder: new HashedNgramEmbedder({ dims: 512 }) });
+    idx.close();
+
+    const res = cfgm(["doctor"], { CFGM_PROJECT_ROOT: project });
+    expect(res.stdout).toContain("벡터 차원 정합성");
+    expect(res.stdout).toContain("dims=512");
+    expect(res.stdout).toContain("dims=256");
+    expect(res.stdout).toContain("불일치");
+    expect(res.stdout).toContain("cfgm rebuild-index --embeddings");
+
+    // 같은 dims 로 재구축하면 일치로 보고
+    const idx2 = new SearchIndex(indexPath);
+    idx2.rebuild({ wikiPages: [], claims: [], embedder: new HashedNgramEmbedder({ dims: 256 }) });
+    idx2.close();
+    const res2 = cfgm(["doctor"], { CFGM_PROJECT_ROOT: project });
+    expect(res2.stdout).toContain("dims=256 일치");
+    expect(res2.stdout).not.toContain("불일치");
   });
 });

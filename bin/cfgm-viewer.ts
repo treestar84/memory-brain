@@ -12,7 +12,7 @@ import { UsageLog } from "../src/core/stats/UsageLog";
 import { estimateMemoryCorpusTokens } from "../src/core/stats/TokenEstimate";
 import { WikiReader } from "../src/core/wiki/WikiReader";
 import { SearchIndex } from "../src/core/search/SearchIndex";
-import { HashedNgramEmbedder } from "../src/core/search/Embedder";
+import { createDefaultEmbedder } from "../src/core/search/Embedder";
 import { summarizeCaptureQueue } from "../src/core/capture/CaptureStatus";
 
 const STORAGE_ROOT = resolveStorageRoot();
@@ -103,7 +103,7 @@ const server = Bun.serve({
       if (!existsSync(indexPath)) return json({ query, hits: [], indexMissing: true });
 
       const index = new SearchIndex(indexPath);
-      const embedder = new HashedNgramEmbedder();
+      const embedder = createDefaultEmbedder();
       const hits = index.searchWikiHybrid(query, embedder, { limit: 10 });
       index.close();
       return json({

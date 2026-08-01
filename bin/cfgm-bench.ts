@@ -4,7 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { WikiReader } from "../src/core/wiki/WikiReader";
 import { SSLReader } from "../src/core/search/SSLReader";
 import { SearchIndex } from "../src/core/search/SearchIndex";
-import { HashedNgramEmbedder } from "../src/core/search/Embedder";
+import { createDefaultEmbedder } from "../src/core/search/Embedder";
 import { BenchRunner, parseBenchCases } from "../src/core/bench/BenchRunner";
 import { renderBenchReport } from "../src/core/bench/report";
 import type { BenchReport } from "../src/core/bench/types";
@@ -59,7 +59,7 @@ for (const dir of ["projects", "concepts", "decisions"]) {
 }
 const sslResult = await new SSLReader(memoryDir).readAll();
 
-const embedder = new HashedNgramEmbedder();
+const embedder = createDefaultEmbedder();
 const index = new SearchIndex(":memory:");
 index.rebuild({ wikiPages, claims: [], skills: sslResult.docs, embedder });
 

@@ -2,7 +2,7 @@
 import { resolveRepoRoot } from "../src/hooks/bootstrap";
 import { resolve, dirname } from "node:path";
 import { mkdir } from "node:fs/promises";
-import { HashedNgramEmbedder } from "../src/core/search/Embedder";
+import { createDefaultEmbedder } from "../src/core/search/Embedder";
 import {
   parseLmeQuestions,
   evalLmeRetrieval,
@@ -66,7 +66,7 @@ if (!(await dataFile.exists())) {
 }
 
 const questions = parseLmeQuestions(await dataFile.json());
-const embedder = new HashedNgramEmbedder();
+const embedder = createDefaultEmbedder();
 const started = performance.now();
 const result = evalLmeRetrieval(questions, { embedder, limit, split, granularity, prf });
 const durationMs = Math.round(performance.now() - started);

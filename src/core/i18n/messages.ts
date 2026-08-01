@@ -197,6 +197,24 @@ const MESSAGES: Record<string, MessageEntry> = {
     ko: "cfgm rebuild-index",
     en: "cfgm rebuild-index",
   },
+  "doctor.check.vectorDims.name": {
+    ko: "벡터 차원 정합성",
+    en: "Vector dims match",
+  },
+  "doctor.check.vectorDims.detail.match": {
+    ko: (dims: string) => `dims=${dims} 일치`,
+    en: (dims: string) => `dims=${dims} match`,
+  },
+  "doctor.check.vectorDims.detail.mismatch": {
+    ko: (stored: string, current: string) =>
+      `인덱스는 dims=${stored}, 현재 embedder는 dims=${current} — 불일치 (hybrid 검색이 조용히 FTS-only 로 저하됨)`,
+    en: (stored: string, current: string) =>
+      `index has dims=${stored}, current embedder has dims=${current} — mismatch (hybrid search silently degrades to FTS-only)`,
+  },
+  "doctor.check.vectorDims.detail.none": {
+    ko: "벡터 미포함 인덱스 (lexical-only) — 정합성 검사 대상 아님",
+    en: "index has no vectors (lexical-only) — nothing to check",
+  },
   "doctor.check.sslQueue.name": {
     ko: "SSL 큐",
     en: "SSL queue",

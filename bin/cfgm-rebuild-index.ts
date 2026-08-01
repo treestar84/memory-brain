@@ -4,7 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { WikiReader } from "../src/core/wiki/WikiReader";
 import { ClaimStore } from "../src/core/claim/ClaimStore";
 import { SearchIndex } from "../src/core/search/SearchIndex";
-import { HashedNgramEmbedder } from "../src/core/search/Embedder";
+import { createDefaultEmbedder } from "../src/core/search/Embedder";
 import { Indexer } from "../src/core/search/Indexer";
 import { SSLReader } from "../src/core/search/SSLReader";
 import { FsStorage } from "../src/core/storage/FsStorage";
@@ -50,7 +50,7 @@ const storage = new FsStorage(storageRoot);
 const clock = new RealClock();
 const claimStore = new ClaimStore(buildClaimStorage(), clock);
 const searchIndex = new SearchIndex(indexPath);
-const embedder = withEmbeddings ? new HashedNgramEmbedder() : undefined;
+const embedder = withEmbeddings ? createDefaultEmbedder() : undefined;
 const indexer = new Indexer(wikiReader, claimStore, searchIndex, sslReader, embedder);
 
 const result = await indexer.rebuild();
