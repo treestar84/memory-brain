@@ -182,7 +182,7 @@ async function runDoctor(): Promise<number> {
     });
   }
 
-  // 4.5. 벡터 차원 정합성 — dims 를 바꾼 뒤 재구축을 안 하면 rankByVector 가
+  // 5. 벡터 차원 정합성 — dims 를 바꾼 뒤 재구축을 안 하면 rankByVector 가
   // 모든 행을 조용히 스킵해 hybrid 검색이 FTS-only 로 무경고 저하된다.
   // 인덱스는 파생물(재구축 가능)이므로 여기선 감지·안내만 한다.
   //
@@ -214,7 +214,7 @@ async function runDoctor(): Promise<number> {
     }
   }
 
-  // 5. SSL normalize 큐
+  // 6. SSL normalize 큐
   const jobsDir = join(REPO_ROOT, "memory", "_pending", "normalize", "jobs");
   let pending = 0;
   let stale = 0;
@@ -241,7 +241,7 @@ async function runDoctor(): Promise<number> {
           : undefined,
   });
 
-  // 6. Governance — 중복/stale/모순 감지 (읽기 전용, 파일 안 씀. cfgm governance-report 가 실제 기록)
+  // 7. Governance — 중복/stale/모순 감지 (읽기 전용, 파일 안 씀. cfgm governance-report 가 실제 기록)
   try {
     const projectRoot = resolveRepoRoot();
     const memoryDir = join(projectRoot, "memory");
@@ -262,7 +262,7 @@ async function runDoctor(): Promise<number> {
     // 프로젝트 memory/ 가 아직 없는 등 — governance 체크는 선택 사항이라 건너뛴다
   }
 
-  // 6.5. git merge 충돌 마커 잔존 — 크로스머신 동기화(.gitattributes merge=union) 를
+  // 8. git merge 충돌 마커 잔존 — 크로스머신 동기화(.gitattributes merge=union) 를
   // 쓰더라도, union 을 아직 안 켠 상태에서 과거에 merge 한 적이 있거나 수동 편집
   // 실수로 마커가 남아있으면 parseJsonlLenient 가 그 줄을 조용히 "손상"으로 건너뛴다
   // (claim 이 무경고로 사라짐). 여기서 명시적으로 스캔해 사용자에게 드러낸다.
@@ -290,7 +290,7 @@ async function runDoctor(): Promise<number> {
     // memory/ 아직 없음 등 — 위 governance 체크와 동일하게 선택 사항
   }
 
-  // 7. Brain 프로파일 (선택)
+  // 9. Brain 프로파일 (선택)
   const brainHome = process.env.CFGM_BRAIN_HOME ?? join(process.env.HOME || homedir(), ".claude-brain");
   const brainInstalled = existsSync(brainHome);
   checks.push({
@@ -300,7 +300,7 @@ async function runDoctor(): Promise<number> {
     fix: brainInstalled ? undefined : t("doctor.check.brain.fix"),
   });
 
-  // 8. LongMemEval 데이터셋 (선택)
+  // 10. LongMemEval 데이터셋 (선택)
   const lmeData = join(REPO_ROOT, "data", "longmemeval", "longmemeval_s_cleaned.json");
   checks.push({
     name: t("doctor.check.lme.name"),

@@ -116,19 +116,26 @@ describe("cfgm-import CLI", () => {
     const files = await readdir(join(sourcesRoot, months[0]!));
     expect(files).toHaveLength(2); // 처음 한 번씩만 기록됨
 
-    // 회귀 재현: enqueue(resumed) 로 갱신된 레코드가 원래(enqueued:false) 레코드와
-    // importedAt 이 같아지면, git union merge 가 줄 순서를 뒤집었을 때 파일 순서
-    // 폴백으로 enqueued 상태가 false 로 되돌아갈 수 있었다. 이제 resume 시
-    // importedAt 도 갱신하므로 순서를 강제로 뒤집어도 true 가 이겨야 한다.
+    // 회귀 재현 (직접 검증): resume 경로가 importedAt 을 새로 안 찍으면, 최초
+    // (enqueued:false) 레코드와 재개(enqueued:true) 레코드의 importedAt 이
+    // 똑같아진다 — 그러면 readManifestReduced 의 `>=` 비교가 동률이 되어 파일
+    // 순서로 떨어지고, git union merge 로 순서가 뒤집히면 enqueued 가 false 로
+    // 되돌아갈 수 있다. 수정이 맞다면 두 레코드의 importedAt 이 달라야 한다
+    // (이전엔 하드코딩된 "2000-01-01" 로 동률 자체를 회피해버려 이 수정을
+    // 실제로 검증하지 못하는 가짜 테스트였다 — importedAt 이 같은지를 직접 본다).
     const manifestPath = join(projectDir, "memory", "sources", "_manifest.jsonl");
     const manifestLines = (await readFile(manifestPath, "utf-8")).trim().split("\n").map((l) => JSON.parse(l));
-    // manifest 는 append-only 라 b.jsonl 항목이 2줄(최초 enqueued:false + 재개 enqueued:true)
-    // 있을 수 있다 — reduce 없이 그냥 마지막 걸 집는다(파일이 아직 안 섞인 상태이므로 안전).
-    const bEntry = [...manifestLines].reverse().find((e) => e.sourceFile.endsWith("b.jsonl"));
-    expect(bEntry.enqueued).toBe(true);
-    const bEntryOldFalse = { ...bEntry, enqueued: false, importedAt: "2000-01-01T00:00:00.000Z" };
-    // "resumed:true" 항목을 파일 맨 앞에, "오래된 false" 항목을 맨 뒤에 둬서 순서를 강제로 뒤집는다
-    await writeFile(manifestPath, [JSON.stringify(bEntry), JSON.stringify(bEntryOldFalse)].map((l) => l).join("\n") + "\n");
+    const bEntries = manifestLines.filter((e) => e.sourceFile.endsWith("b.jsonl"));
+    expect(bEntries.length).toBe(2); // 최초(run1, enqueued:false) + 재개(run2, enqueued:true)
+    const [originalEntry, resumedEntry] = bEntries;
+    expect(originalEntry.enqueued).toBe(false);
+    expect(resumedEntry.enqueued).toBe(true);
+    expect(resumedEntry.importedAt).not.toBe(originalEntry.importedAt); // 핵심 검증 지점
+    expect(resumedEntry.importedAt >= originalEntry.importedAt).toBe(true);
+
+    // 그 위에서, 서로 다른 importedAt 덕에 파일 순서를 강제로 뒤집어도(union merge
+    // 시뮬레이션) enqueued:true 쪽이 이겨야 한다는 것도 실제 CLI 실행으로 확인.
+    await writeFile(manifestPath, [JSON.stringify(resumedEntry), JSON.stringify(originalEntry)].join("\n") + "\n");
     const third = importCmd(projectDir, ["--input", dir, "--enqueue", "--json"]);
     const thirdOut = JSON.parse(third.stdout);
     expect(thirdOut.enqueuedCount).toBe(0); // 이미 enqueued:true 로 봐야 하므로 재시도 없음
