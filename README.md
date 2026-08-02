@@ -80,7 +80,7 @@ git clone https://github.com/treestar84/memory-brain.git && cd memory-brain
 bun install
 bun link
 cfgm doctor                       # 설치 상태 자가진단
-cfgm rebuild-index --embeddings   # 검색 인덱스 생성
+cfgm rebuild-index   # 검색 인덱스 생성
 cfgm search "메모리 라우팅"        # ← 여기까지 60초. 결과가 나오면 정상 동작
 ```
 
@@ -102,6 +102,9 @@ cfgm doctor               # 설치·환경 자가진단
 cfgm search "<질의>"      # 자연어 검색
 cfgm ask "<질의>"         # 검색 + 근거 인용 답변
 cfgm capture --input <파일>   # 세션 노트 → 기억 후보 큐
+cfgm import --input <transcript.jsonl|디렉토리> [--enqueue --limit N]
+                          # 과거 Claude Code 세션(~/.claude/projects/.../*.jsonl) 가져오기 →
+                          # memory/sources/ 에 원문 적재, --enqueue 시 기억 후보 큐에도 등록
 cfgm decay                # 오래되고 안 쓰는 기억 찾기 (삭제 없음, 보관만)
 cfgm governance-report    # 중복·stale·모순 감지 → memory/reports/ (cfgm doctor 에도 요약 표시됨)
 cfgm stats                # 내 사용 통계

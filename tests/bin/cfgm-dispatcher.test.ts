@@ -78,7 +78,7 @@ describe("cfgm 통합 CLI (V3.31)", () => {
     expect(res.stdout).toContain("dims=512");
     expect(res.stdout).toContain("dims=256");
     expect(res.stdout).toContain("불일치");
-    expect(res.stdout).toContain("cfgm rebuild-index --embeddings");
+    expect(res.stdout).toContain("cfgm rebuild-index"); // --embeddings 는 이제 기본값이라 플래그 불필요(V3.43)
 
     // 같은 dims 로 재구축하면 일치로 보고
     const idx2 = new SearchIndex(indexPath);

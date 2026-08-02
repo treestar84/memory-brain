@@ -39,7 +39,7 @@ git add memory/ && git commit -m "session notes" && git push
 
 # 머신 B
 git pull
-cfgm rebuild-index --embeddings   # 인덱스는 파생물이라 동기화 안 됨 — pull 후 재생성 필수
+cfgm rebuild-index   # 인덱스는 파생물이라 동기화 안 됨 — pull 후 재생성 필수
 ```
 
 **`cfgm sync` 같은 별도 명령을 의도적으로 만들지 않았다.** git 자체를 감싸는 래퍼는

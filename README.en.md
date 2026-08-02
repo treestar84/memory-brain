@@ -307,7 +307,7 @@ git clone https://github.com/treestar84/memory-brain.git && cd memory-brain
 bun install
 bun link                          # register the global `cfgm` command (optional)
 cfgm doctor                       # self-check — reports what's missing and how to fix it
-cfgm rebuild-index --embeddings   # build the search index (including hybrid)
+cfgm rebuild-index   # build the search index (including hybrid)
 cfgm search "memory routing"      # ← 60 seconds in. If you get results, it's working
 ```
 
@@ -331,6 +331,9 @@ cfgm doctor              # install/environment self-check (8 checks + fix comman
 cfgm search "<query>"    # natural-language wiki search — feel the value right after install
 cfgm ask "<query>"       # search + evidence pointer bundle — host LLM produces a cited answer
 cfgm capture --input <file>  # session notes → wiki draft intake queue (host-delegated, reviewed before merge)
+cfgm import --input <transcript.jsonl|dir> [--enqueue --limit N]
+                          # bring in past Claude Code sessions (~/.claude/projects/.../*.jsonl):
+                          # lands raw text under memory/sources/, --enqueue also queues them for capture
 cfgm stats               # local usage stats (0 sent externally) — weekly search/ask + context token savings
 cfgm decay               # wiki forgetting judgment (age × recall frequency) — never deletes, archiving needs explicit approval
 cfgm governance-report   # duplicate/stale/contradiction/low-confidence/review-queue detectors → memory/reports/

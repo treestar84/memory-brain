@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { resolve, join } from "node:path";
+import { resolve, join, relative } from "node:path";
 import { mkdir, readFile, writeFile, stat } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { Glob } from "bun";
@@ -165,6 +165,9 @@ async function main(): Promise<void> {
       // (sha256 은 안 바뀌었으니 다시 임포트할 필요는 없음).
       if (args.enqueue && !existing.enqueued && enqueuedCount < args.limit && !args.dryRun) {
         const result = await enqueueSource({
+          // existing.path 는 repoRoot 기준 상대경로로 저장돼 있다(cfgm-capture.ts 의
+          // 기존 관례와 동일 — job.md 의 source_path/markdown 링크에 그대로 박히므로,
+          // 절대경로면 다른 머신에 git sync 된 뒤 안 맞는 경로를 가리키게 된다).
           sourcePath: existing.path,
           sourceText: redactedText,
           jobsDir,
@@ -205,10 +208,16 @@ async function main(): Promise<void> {
     await writeFile(targetPath, redactedText);
     actions.push(`wrote ${targetPath}${redacted ? " (redacted)" : ""}`);
 
+    // repoRoot 기준 상대경로로 저장 — cfgm-capture.ts 와 동일 관례(REPO_ROOT 기준
+    // relative()). 절대경로를 쓰면 job.md 의 source_path/markdown 링크와 manifest
+    // 가 이 머신 고유 경로를 그대로 담아, git sync(.gitattributes merge=union 대상인
+    // _manifest.jsonl 포함) 이후 다른 머신에서 깨진 경로를 가리킨다.
+    const relativeTargetPath = relative(repoRoot, targetPath);
+
     let didEnqueue = false;
     if (args.enqueue && enqueuedCount < args.limit) {
       const result = await enqueueSource({
-        sourcePath: targetPath,
+        sourcePath: relativeTargetPath,
         sourceText: redactedText,
         jobsDir,
         draftsDir,
@@ -230,7 +239,7 @@ async function main(): Promise<void> {
       sourceFile: file,
       sessionId: session.sessionId,
       sha256: sha,
-      path: targetPath,
+      path: relativeTargetPath,
       importedAt: new Date().toISOString(),
       turnCount: session.turns.length,
       redacted,

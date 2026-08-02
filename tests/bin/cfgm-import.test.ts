@@ -61,6 +61,24 @@ describe("cfgm-import CLI", () => {
     expect(entry.enqueued).toBe(false);
   });
 
+  test("manifest.path 와 job.md 의 source_path 는 repoRoot 기준 상대경로여야 한다 (회귀: 항목7 크로스머신 동기화 대상 파일에 이 머신 고유 절대경로가 박히면 다른 머신에서 깨진 경로를 가리킴)", async () => {
+    const res = importCmd(projectDir, ["--input", transcriptPath, "--enqueue", "--json"]);
+    expect(res.status).toBe(0);
+
+    const manifest = await readFile(join(projectDir, "memory", "sources", "_manifest.jsonl"), "utf-8");
+    const entry = JSON.parse(manifest.trim());
+    expect(entry.path.startsWith("/")).toBe(false); // 절대경로면 프로젝트 디렉토리(/tmp/...)로 시작
+    expect(entry.path).toBe("memory/sources/sessions/claude-code/2026-04/transcript--" + entry.path.split("--")[1]);
+
+    const jobsDir = join(projectDir, "memory", "_pending", "capture", "jobs");
+    const jobFiles = await readdir(jobsDir);
+    expect(jobFiles.length).toBe(1);
+    const jobContent = await readFile(join(jobsDir, jobFiles[0]!), "utf-8");
+    const sourcePathLine = jobContent.split("\n").find((l) => l.startsWith("source_path:"));
+    expect(sourcePathLine).toContain("memory/sources/sessions/claude-code/");
+    expect(sourcePathLine).not.toContain(projectDir); // 이 머신의 절대경로가 섞여 들어가면 안 됨
+  });
+
   test("재실행 시 sha256 불변이면 skip — 중복 파일 생성 안 함", async () => {
     importCmd(projectDir, ["--input", transcriptPath]);
     const res = importCmd(projectDir, ["--input", transcriptPath, "--json"]);

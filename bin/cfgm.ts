@@ -205,7 +205,7 @@ async function runDoctor(): Promise<number> {
           : dimsMatch
             ? t("doctor.check.vectorDims.detail.match", String(currentDims))
             : t("doctor.check.vectorDims.detail.mismatch", storedDims!, String(currentDims)),
-        fix: dimsMatch ? undefined : "cfgm rebuild-index --embeddings",
+        fix: dimsMatch ? undefined : "cfgm rebuild-index",
       });
     } catch {
       // 손상/잠금 등으로 인덱스를 못 읽으면 이 체크는 건너뛴다 — 아래

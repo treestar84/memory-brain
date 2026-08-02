@@ -14,7 +14,7 @@ memory-brain 은 host 에 종속되지 않는 순수 CLI + 파일 기반 메모�
 
 ```bash
 cfgm doctor                       # 설치 상태 자가진단
-cfgm rebuild-index --embeddings   # 검색 인덱스 생성 (최초 1회 / memory/ 변경 시)
+cfgm rebuild-index   # 검색 인덱스 생성 (최초 1회 / memory/ 변경 시)
 cfgm search "메모리 라우팅"        # 자연어로 즉시 검색 — 결과가 나오면 정상 동작
 ```
 
