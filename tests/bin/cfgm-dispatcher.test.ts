@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { Database } from "bun:sqlite";
 import { SearchIndex } from "../../src/core/search/SearchIndex";
 import { HashedNgramEmbedder } from "../../src/core/search/Embedder";
 
@@ -86,6 +87,42 @@ describe("cfgm 통합 CLI (V3.31)", () => {
     const res2 = cfgm(["doctor"], { CFGM_PROJECT_ROOT: project });
     expect(res2.stdout).toContain("dims=256 일치");
     expect(res2.stdout).not.toContain("불일치");
+  });
+
+  test("doctor — vector dims 체크가 인덱스를 read-only 로 열어야 한다 (회귀: doctor 실행만으로 stale schema_version 인덱스가 파괴됨)", () => {
+    const project = mkdtempSync(join(tmpdir(), "cfgm-doctor-readonly-"));
+    mkdirSync(join(project, "memory", "concepts"), { recursive: true });
+    mkdirSync(join(project, ".memory-brain", "indexes"), { recursive: true });
+    const indexPath = join(project, ".memory-brain", "indexes", "search.sqlite");
+
+    const idx = new SearchIndex(indexPath);
+    idx.rebuild({
+      wikiPages: [
+        {
+          path: "concepts/test.md",
+          frontmatter: { id: "concept.test", type: "concept", status: "active", updated_at: "2026-01-01" },
+          body: "test body",
+          claimIds: [],
+          evidence: [],
+        },
+      ],
+      claims: [],
+    });
+    idx.close();
+
+    // 구버전 schema_version 을 흉내내 마이그레이션 가드를 트리거할 조건을 만든다.
+    // SearchIndex 생성자(마이그레이션 경로)를 다시 타면 DERIVED_TABLES 가 DROP 된다 —
+    // doctor 는 이 경로를 절대 타면 안 된다(read-only 정적 헬퍼만 써야 함).
+    const raw = new Database(indexPath);
+    raw.run("UPDATE meta SET value = '999' WHERE key = 'schema_version'");
+    raw.close();
+
+    cfgm(["doctor"], { CFGM_PROJECT_ROOT: project });
+
+    const after = new Database(indexPath, { readonly: true });
+    const count = (after.query("SELECT COUNT(*) AS c FROM wiki_pages").get() as { c: number }).c;
+    after.close();
+    expect(count).toBe(1); // doctor 실행 후에도 인덱스 데이터가 그대로 있어야 한다
   });
 
   test("doctor — git 충돌 마커가 남은 jsonl 원장을 감지하고 안내한다", () => {

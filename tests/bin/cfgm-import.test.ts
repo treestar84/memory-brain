@@ -115,6 +115,23 @@ describe("cfgm-import CLI", () => {
     const months = await readdir(sourcesRoot);
     const files = await readdir(join(sourcesRoot, months[0]!));
     expect(files).toHaveLength(2); // 처음 한 번씩만 기록됨
+
+    // 회귀 재현: enqueue(resumed) 로 갱신된 레코드가 원래(enqueued:false) 레코드와
+    // importedAt 이 같아지면, git union merge 가 줄 순서를 뒤집었을 때 파일 순서
+    // 폴백으로 enqueued 상태가 false 로 되돌아갈 수 있었다. 이제 resume 시
+    // importedAt 도 갱신하므로 순서를 강제로 뒤집어도 true 가 이겨야 한다.
+    const manifestPath = join(projectDir, "memory", "sources", "_manifest.jsonl");
+    const manifestLines = (await readFile(manifestPath, "utf-8")).trim().split("\n").map((l) => JSON.parse(l));
+    // manifest 는 append-only 라 b.jsonl 항목이 2줄(최초 enqueued:false + 재개 enqueued:true)
+    // 있을 수 있다 — reduce 없이 그냥 마지막 걸 집는다(파일이 아직 안 섞인 상태이므로 안전).
+    const bEntry = [...manifestLines].reverse().find((e) => e.sourceFile.endsWith("b.jsonl"));
+    expect(bEntry.enqueued).toBe(true);
+    const bEntryOldFalse = { ...bEntry, enqueued: false, importedAt: "2000-01-01T00:00:00.000Z" };
+    // "resumed:true" 항목을 파일 맨 앞에, "오래된 false" 항목을 맨 뒤에 둬서 순서를 강제로 뒤집는다
+    await writeFile(manifestPath, [JSON.stringify(bEntry), JSON.stringify(bEntryOldFalse)].map((l) => l).join("\n") + "\n");
+    const third = importCmd(projectDir, ["--input", dir, "--enqueue", "--json"]);
+    const thirdOut = JSON.parse(third.stdout);
+    expect(thirdOut.enqueuedCount).toBe(0); // 이미 enqueued:true 로 봐야 하므로 재시도 없음
   });
 
   test("manifest reduce — importedAt 기준(파일 순서 아님), git union merge로 줄 순서 뒤섞여도 최신 enqueued 상태 유지", async () => {

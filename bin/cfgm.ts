@@ -185,23 +185,33 @@ async function runDoctor(): Promise<number> {
   // 4.5. 벡터 차원 정합성 — dims 를 바꾼 뒤 재구축을 안 하면 rankByVector 가
   // 모든 행을 조용히 스킵해 hybrid 검색이 FTS-only 로 무경고 저하된다.
   // 인덱스는 파생물(재구축 가능)이므로 여기선 감지·안내만 한다.
+  //
+  // 반드시 read-only 로만 열 것 — `new SearchIndex(indexPath)` 는 생성자가
+  // schema_version 불일치 시 마이그레이션 가드를 태워 DERIVED_TABLES 를
+  // DROP 한다. 진단만 해야 할 doctor 가 실제로 이 경로로 검색 인덱스를
+  // 조용히 비워버리는 회귀가 있었다(실사용 재현 확인) — readMetaReadonly
+  // 는 그 마이그레이션 로직을 절대 타지 않는다.
   if (existsSync(indexPath)) {
-    const idx = new SearchIndex(indexPath);
-    const storedDims = idx.getMeta("vector_dims");
-    idx.close();
-    const currentDims = createDefaultEmbedder().dims;
-    const hasVectors = storedDims !== null && storedDims !== "0";
-    const dimsMatch = !hasVectors || storedDims === String(currentDims);
-    checks.push({
-      name: t("doctor.check.vectorDims.name"),
-      ok: dimsMatch,
-      detail: !hasVectors
-        ? t("doctor.check.vectorDims.detail.none")
-        : dimsMatch
-          ? t("doctor.check.vectorDims.detail.match", String(currentDims))
-          : t("doctor.check.vectorDims.detail.mismatch", storedDims!, String(currentDims)),
-      fix: dimsMatch ? undefined : "cfgm rebuild-index --embeddings",
-    });
+    try {
+      const storedDims = SearchIndex.readMetaReadonly(indexPath, "vector_dims");
+      const currentDims = createDefaultEmbedder().dims;
+      const hasVectors = storedDims !== null && storedDims !== "0";
+      const dimsMatch = !hasVectors || storedDims === String(currentDims);
+      checks.push({
+        name: t("doctor.check.vectorDims.name"),
+        ok: dimsMatch,
+        detail: !hasVectors
+          ? t("doctor.check.vectorDims.detail.none")
+          : dimsMatch
+            ? t("doctor.check.vectorDims.detail.match", String(currentDims))
+            : t("doctor.check.vectorDims.detail.mismatch", storedDims!, String(currentDims)),
+        fix: dimsMatch ? undefined : "cfgm rebuild-index --embeddings",
+      });
+    } catch {
+      // 손상/잠금 등으로 인덱스를 못 읽으면 이 체크는 건너뛴다 — 아래
+      // governance/충돌마커 체크와 동일하게, 진단 실패가 doctor 전체를
+      // 죽이면 안 된다(환경이 깨졌을 때 쓰라고 만든 명령이라 특히 그렇다).
+    }
   }
 
   // 5. SSL normalize 큐

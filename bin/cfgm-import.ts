@@ -175,7 +175,12 @@ async function main(): Promise<void> {
         if (result.enqueued) {
           enqueuedCount++;
           actions.push(`enqueued (resumed) ${result.jobPath}`);
-          newManifestEntries.push({ ...existing, enqueued: true });
+          // importedAt 도 갱신해야 한다 — 안 그러면 이 레코드와 기존(enqueued:false)
+          // 레코드의 importedAt 이 똑같아져 readManifestReduced 의 동률 처리가
+          // 파일 순서로 떨어진다. git merge=union 이 줄 순서를 바꾸면 enqueued 상태가
+          // false 로 되돌아갈 수 있었다(실제 재현된 회귀 — 이 파일 자체가
+          // memory/**/*.jsonl merge=union 대상이라 이론적 시나리오가 아니다).
+          newManifestEntries.push({ ...existing, enqueued: true, importedAt: new Date().toISOString() });
         } else if (result.skipped) {
           actions.push(`skip enqueue (job already exists, unchanged): ${existing.path}`);
         }

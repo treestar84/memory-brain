@@ -611,6 +611,25 @@ export class SearchIndex {
     return row?.value ?? null;
   }
 
+  /**
+   * 진단 전용 — 인스턴스 생성자(마이그레이션 가드가 schema_version 불일치 시
+   * DERIVED_TABLES 를 DROP)를 절대 타지 않고 meta 값만 읽는다. `cfgm doctor`
+   * 처럼 "읽기만" 해야 하는 호출부가 실수로 `new SearchIndex(path)` 를 쓰면
+   * 진단 명령이 구버전 인덱스를 조용히 비워버리는 사고가 난다(실제 발견된
+   * 회귀) — 그 사고를 구조적으로 막기 위한 별도 read-only 경로.
+   */
+  static readMetaReadonly(dbPath: string, key: string): string | null {
+    const db = new Database(dbPath, { readonly: true });
+    try {
+      const row = db.query("SELECT value FROM meta WHERE key = ?").get(key) as { value: string } | null;
+      return row?.value ?? null;
+    } catch {
+      return null; // meta 테이블 자체가 없는 등 — 값 없음과 동일하게 취급
+    } finally {
+      db.close();
+    }
+  }
+
   private setMeta(key: string, value: string): void {
     this.db
       .prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)")

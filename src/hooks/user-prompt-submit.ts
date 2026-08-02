@@ -64,13 +64,13 @@ export async function handleUserPromptSubmit(
     }
   }
 
-  const pendingCount = await deps.queue.count();
-  if (pendingCount > 0) {
-    const peek = await deps.queue.peek();
-    lines.push(`**대기 분석:** ${pendingCount}건 → "처리해줘"라고 말하면 됩니다.`);
-    if (peek) {
-      lines.push(`최우선: \`${peek.payload.type}\``);
-    }
+  // count()+peek() 는 둘 다 내부적으로 list() 를 다시 부른다 — PendingQueue 가
+  // append-only(item+tombstone) 로 바뀌면서 list() 는 매번 로그 전체를 파싱하는
+  // O(n) 작업이 됐다. 매 프롬프트마다 그걸 두 번 반복할 이유가 없어 한 번만 부른다.
+  const pending = await deps.queue.list();
+  if (pending.length > 0) {
+    lines.push(`**대기 분석:** ${pending.length}건 → "처리해줘"라고 말하면 됩니다.`);
+    lines.push(`최우선: \`${pending[0]!.payload.type}\``);
   }
 
   const question = await injectQuestion(event, deps, active.id, nextOrdinal);
