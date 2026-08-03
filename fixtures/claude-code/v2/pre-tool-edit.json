@@ -1,0 +1,1 @@
+{ "hook_event_name": "PreToolUse", "session_id": "sess-real-456", "cwd": "/Users/treestar/dev/my-project", "tool_name": "Edit", "tool_input": { "file_path": "/project/src/api/user.ts" }, "tool_use_id": "toolu_01abc" }
