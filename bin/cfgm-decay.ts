@@ -10,6 +10,7 @@ import { RealClock } from "../src/core/clock/Clock";
 import { resolveStorageRoot, resolveRepoRoot } from "../src/hooks/bootstrap";
 import { evaluateWikiDecay, type WikiDecayFinding, type WikiDecayPageInput } from "../src/core/governance/WikiDecayEngine";
 import { writeFileAtomic } from "../src/core/util/atomicWrite";
+import { FRONTMATTER_RE, stripBom, normalizeYamlBlock } from "../src/core/util/frontmatter";
 import type { WikiType } from "../src/core/wiki/types";
 
 /**
@@ -23,7 +24,6 @@ import type { WikiType } from "../src/core/wiki/types";
  * 삭제는 절대 하지 않는다 — supersede/archive 만 제안·수행한다.
  */
 
-const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
 const WIKI_DIRS: Array<{ dir: string; type: WikiType }> = [
   { dir: "projects", type: "project" },
   { dir: "concepts", type: "concept" },
@@ -172,14 +172,14 @@ async function runArchive(pageId: string): Promise<number> {
   const destDir = join(memoryDir, typeDir, "_archive");
   const destPath = join(destDir, basename(srcPath));
 
-  const raw = await Bun.file(srcPath).text();
+  const raw = stripBom(await Bun.file(srcPath).text());
   const match = FRONTMATTER_RE.exec(raw);
   if (!match) {
     console.error(`frontmatter 파싱 실패 — 이동 취소: ${srcPath}`);
     return 1;
   }
 
-  const frontmatter = parse(match[1]!) as Record<string, unknown>;
+  const frontmatter = parse(normalizeYamlBlock(match[1]!)) as Record<string, unknown>;
   const body = match[2]!;
   const nowIso = new RealClock().isoNow();
   const updated = { ...frontmatter, status: "archived", archived_at: nowIso };

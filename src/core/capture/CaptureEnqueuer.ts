@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { resolve, extname, basename } from "node:path";
+import { slugify } from "../util/slug";
 
 /**
  * CaptureEnqueuer — capture 큐 job.md 를 SHA-256 stale 체크 후 렌더/기록하는 공용 로직.
@@ -39,13 +40,7 @@ export async function sha256(text: string): Promise<string> {
 
 export function slugFromPath(p: string): string {
   const base = basename(p, extname(p));
-  return (
-    base
-      .replace(/[^a-zA-Z0-9_-]+/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "")
-      .toLowerCase() || "capture"
-  );
+  return slugify(base, "capture");
 }
 
 export async function enqueueSource(opts: EnqueueSourceOptions): Promise<EnqueueResult> {

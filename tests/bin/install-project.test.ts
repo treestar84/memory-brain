@@ -1,16 +1,16 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { mkdtemp, rm, readFile, writeFile, mkdir, realpath } from "node:fs/promises";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { existsSync } from "node:fs";
 import { MARKER } from "../../bin/install-project";
 
 const INSTALL = join(import.meta.dir, "../../bin/install-project.ts");
 
-function runScript(args: string[] = []) {
+function runScript(args: string[] = [], env: Record<string, string> = process.env as Record<string, string>) {
   return Bun.spawnSync({
     cmd: ["bun", "run", INSTALL, ...args],
-    env: process.env as Record<string, string>,
+    env,
     stdout: "pipe",
     stderr: "pipe",
   });
@@ -52,6 +52,15 @@ describe("install-project.ts", () => {
       expect(entry.hooks[0].command).toContain(`--project-root '${projectDir}'`);
       expect(entry.hooks[0].command).not.toContain("/usr/bin/env"); // Windows 지원 — env 접두사 제거
     }
+  });
+
+  test("warns (non-blocking) when claude CLI is not found on PATH", async () => {
+    // PATH 에서 claude 를 못 찾는 상황을 재현하기 위해, bun 실행 파일이 있는
+    // 디렉토리만 남기고 나머지는 제거한 PATH 로 실행한다.
+    const bunDir = dirname(process.execPath);
+    const proc = runScript(["--project", projectDir], { ...process.env, PATH: bunDir } as Record<string, string>);
+    expect(proc.exitCode).toBe(0);
+    expect(proc.stdout.toString()).toContain("claude CLI 를 PATH 에서 찾지 못했습니다");
   });
 
   test("preserves unrelated existing settings and other hook matchers", async () => {

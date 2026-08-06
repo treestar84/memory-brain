@@ -45,13 +45,19 @@ function safeStringify(data: unknown): string {
   }
 }
 
-function truncateToBytes(text: string, maxBytes: number): string {
+export function truncateToBytes(text: string, maxBytes: number): string {
   const bytes = Buffer.byteLength(text, "utf-8");
   if (bytes <= maxBytes) return text;
   const marker = "\n\n(truncated)\n";
   const markerBytes = Buffer.byteLength(marker, "utf-8");
   const budget = Math.max(maxBytes - markerBytes, 0);
-  const truncated = Buffer.from(text, "utf-8").subarray(0, budget).toString("utf-8");
+  // 멀티바이트(한글 등) 문자 경계에서 자르면 Buffer→string 변환이 마지막에
+  // U+FFFD(모지바케)를 남긴다 — 잘린 불완전 시퀀스를 제거해 바이트 예산은
+  // 그대로 지키면서(문자만 줄어듦) 깨진 문자가 노출되지 않게 한다.
+  const truncated = Buffer.from(text, "utf-8")
+    .subarray(0, budget)
+    .toString("utf-8")
+    .replace(/�+$/, "");
   return truncated + marker;
 }
 

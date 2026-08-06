@@ -2,6 +2,7 @@ import { readFile, writeFile, mkdir, symlink } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
+import { shQuote } from "./lib/shell-quote";
 
 const MARKER = "cfgm-os";
 const HOME = process.env.HOME || homedir();
@@ -26,7 +27,7 @@ const HOOK_FILES: Record<HookType, string> = {
 function buildHookEntries(): Record<HookType, HookEntry> {
   const entry = (type: HookType): HookEntry => ({
     matcher: MARKER,
-    hooks: [`bun run ${HOOKS_DIR}/${HOOK_FILES[type]}.ts`],
+    hooks: [`bun run ${shQuote(join(HOOKS_DIR, `${HOOK_FILES[type]}.ts`))}`],
   });
   return {
     SessionStart: entry("SessionStart"),

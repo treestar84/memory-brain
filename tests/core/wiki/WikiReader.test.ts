@@ -127,6 +127,21 @@ updated_at: 2026-04-27
     expect(page.claimIds).toEqual(["cl-x-1"]);
   });
 
+  test("CRLF + BOM frontmatter 도 정상 파싱된다 (호환성 수정 회귀)", () => {
+    const crlfBom =
+      "﻿---\r\nid: decision.crlf-test\r\ntype: decision\r\nstatus: active\r\nupdated_at: 2026-04-27\r\n---\r\n\r\n# CRLF page\r\n";
+    const page = reader.parse("p.md", crlfBom);
+    expect(page).not.toBeNull();
+    expect(page!.frontmatter.id).toBe("decision.crlf-test");
+    expect(page!.frontmatter.type).toBe("decision");
+  });
+
+  test("note id — 역슬래시 구분 relativePath 도 dot 네임스페이스로 정규화 (Bun.Glob Windows 대응)", () => {
+    const page = reader.parse("journal\\2026-07-26.md", "# 일지");
+    expect(page).not.toBeNull();
+    expect(page!.frontmatter.id).toBe("note.journal.2026-07-26");
+  });
+
   test("claim id 형식 — cl- prefix 만 매치", () => {
     const text = `---
 id: t.y

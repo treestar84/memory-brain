@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "test -d \"$CLAUDE_PLUGIN_ROOT/node_modules/yaml\" && exit 0; echo '[memory-brain] Dependencies not installed yet. Run /memory-brain:setup once (bun install, with your confirmation).'"
+            "command": "bun run \"${CLAUDE_PLUGIN_ROOT}/hooks/check-deps.ts\""
           }
         ]
       }

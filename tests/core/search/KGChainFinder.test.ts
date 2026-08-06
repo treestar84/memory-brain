@@ -61,6 +61,25 @@ describe("KGChainFinder — empty", () => {
     const result = new KGChainFinder(db).findChains("xyz banana");
     expect(result).toHaveLength(0);
   });
+
+  test("non-Latin/non-Hangul query (Japanese) does not throw FTS5 syntax error", () => {
+    addSkill(db, "skill-a", "Skill A", "completely unrelated task");
+    expect(() => new KGChainFinder(db).findChains("こんにちは")).not.toThrow();
+    expect(new KGChainFinder(db).findChains("こんにちは")).toHaveLength(0);
+  });
+
+  test("emoji-only query does not throw FTS5 syntax error", () => {
+    addSkill(db, "skill-a", "Skill A", "completely unrelated task");
+    expect(() => new KGChainFinder(db).findChains("🎉🚀")).not.toThrow();
+    expect(new KGChainFinder(db).findChains("🎉🚀")).toHaveLength(0);
+  });
+
+  test("mixed Latin + emoji query still matches on the Latin token", () => {
+    addSkill(db, "normalize", "SSL Normalizer", "ssl normalize workflow knowledge graph");
+    const result = new KGChainFinder(db).findChains("normalize 🎉");
+    expect(result.length).toBeGreaterThan(0);
+    expect(result[0]!.rootSlug).toBe("normalize");
+  });
 });
 
 describe("KGChainFinder — single skill", () => {

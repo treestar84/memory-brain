@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { mkdtemp, rm, readFile, writeFile, mkdir, readlink, lstat, stat } from "node:fs/promises";
+import { mkdtemp, rm, readFile, writeFile, mkdir, readlink, lstat, stat, chmod } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { existsSync } from "node:fs";
@@ -353,5 +353,31 @@ describe("install-brain.ts", () => {
     expect(uninstBrain.exitCode).toBe(0);
     const legacyAfter = await readFile(join(fakeHome, ".claude", "settings.json"), "utf-8");
     expect(legacyAfter).toContain(LEGACY_MARKER);
+  });
+
+  test("launcher script POSIX-quotes CFGM_BRAIN_HOME with spaces (Windows shQuote fix regression guard)", async () => {
+    const spacedHome = await mkdtemp(join(tmpdir(), "cfgm-brain with space-"));
+    const spacedEnv = { ...env, CFGM_BRAIN_HOME: spacedHome };
+    const proc = runScript(INSTALL, spacedEnv);
+    expect(proc.exitCode).toBe(0);
+    const content = await readFile(join(spacedHome, "bin", "claude-pai"), "utf-8");
+    expect(content).toContain(`export CLAUDE_CONFIG_DIR='${spacedHome}'`);
+    await rm(spacedHome, { recursive: true, force: true });
+  });
+
+  test("symlink permission failure on ~/.local/bin does not crash install (Windows EPERM simulation)", async () => {
+    // ~/.local/bin 을 읽기전용으로 만들어 symlink() 생성이 EACCES/EPERM 으로 실패하게
+    // 만든다 — install-brain.ts 는 이를 잡아 경고만 내고 계속 진행해야 한다.
+    const localBin = join(fakeHome, ".local", "bin");
+    await chmod(localBin, 0o555);
+    try {
+      const proc = runScript(INSTALL, env);
+      expect(proc.exitCode).toBe(0);
+      const out = proc.stdout.toString();
+      expect(out).toContain("심링크 생성 실패");
+      expect(existsSync(join(brainHome, "bin", "claude-pai"))).toBe(true);
+    } finally {
+      await chmod(localBin, 0o755);
+    }
   });
 });

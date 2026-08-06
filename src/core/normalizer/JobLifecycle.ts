@@ -1,4 +1,5 @@
 import yaml from "yaml";
+import { FRONTMATTER_RE, stripBom, normalizeYamlBlock } from "../util/frontmatter";
 
 /**
  * Pending normalize queue 의 실패 시맨틱 (V3.28).
@@ -36,15 +37,14 @@ export interface ParsedJob {
   body: string;
 }
 
-const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/;
 const VALID_STATUSES: ReadonlySet<string> = new Set(["pending", "in_progress", "done", "failed"]);
 
 export function parseJob(text: string): ParsedJob | null {
-  const m = FRONTMATTER_RE.exec(text);
+  const m = FRONTMATTER_RE.exec(stripBom(text));
   if (!m) return null;
   let fm: unknown;
   try {
-    fm = yaml.parse(m[1]!);
+    fm = yaml.parse(normalizeYamlBlock(m[1]!));
   } catch {
     return null;
   }

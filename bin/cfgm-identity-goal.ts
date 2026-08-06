@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { existsSync } from "node:fs";
 import { parse, stringify } from "yaml";
 import { homedir } from "node:os";
+import { FRONTMATTER_RE, stripBom, normalizeYamlBlock } from "../src/core/util/frontmatter";
 
 const HOME = process.env.HOME || homedir();
 const BRAIN_HOME = process.env.CFGM_BRAIN_HOME || join(HOME, ".claude-brain");
@@ -45,10 +46,10 @@ export function serializeGoal(fm: GoalFrontmatter, body: string): string {
 }
 
 export function parseGoal(content: string): { fm: GoalFrontmatter; body: string } | null {
-  const match = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+  const match = FRONTMATTER_RE.exec(stripBom(content));
   if (!match) return null;
   const [, yamlText, body] = match;
-  const parsed = parse(yamlText);
+  const parsed = parse(normalizeYamlBlock(yamlText!));
   if (!parsed || typeof parsed !== "object") return null;
   const fm = parsed as Partial<GoalFrontmatter>;
   if (typeof fm.id !== "string" || typeof fm.title !== "string") return null;

@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { createHash } from "node:crypto";
+import { shQuote } from "./lib/shell-quote";
 
 const MARKER = "cfgm-os-brain";
 const HOME = process.env.HOME || homedir();
@@ -65,11 +66,6 @@ const HOOK_FILES: Record<HookType, string> = {
   PreCompact: "pre-compact",
 };
 
-/** install-project.ts 의 shQuote 와 동일 (순환 의존 방지를 위해 로컬 사본 유지). */
-function shQuote(s: string): string {
-  return `'${s.replace(/'/g, `'\\''`)}'`;
-}
-
 function buildHookEntries(): Record<HookType, HookEntry> {
   // V3.44 (Windows 지원): `/usr/bin/env VAR=val cmd` 는 POSIX 셸 전용이라 Windows
   // 에서 전부 실패했다. `--home` 을 argv 로 넘기면 셸 종류를 덜 탄다 —
@@ -99,10 +95,15 @@ async function loadSettings(): Promise<Record<string, any>> {
   }
 }
 
+/**
+ * bash 전용 런처(`claude-pai`). BRAIN_HOME/MEM_HOME 경로에 `$`, 백틱, `"`, `\` 가 있으면
+ * 인용 없이 삽입 시 깨지므로 POSIX 셸 인용(shQuote, platform="linux" 로 고정)을 적용한다
+ * — 이 런처 스크립트 자체는 항상 bash 로 실행되므로 설치 스크립트를 돌리는 OS 와 무관하다.
+ */
 function launcherScript(): string {
   return `#!/usr/bin/env bash
-export CLAUDE_CONFIG_DIR="${BRAIN_HOME}"
-export CFGM_HOME="${MEM_HOME}"
+export CLAUDE_CONFIG_DIR=${shQuote(BRAIN_HOME, "linux")}
+export CFGM_HOME=${shQuote(MEM_HOME, "linux")}
 exec claude "$@"
 `;
 }
@@ -124,7 +125,13 @@ async function ensureLocalBinSymlink(): Promise<void> {
       return;
     }
   }
-  await symlink(LAUNCHER, LOCAL_BIN_LINK);
+  try {
+    await symlink(LAUNCHER, LOCAL_BIN_LINK);
+  } catch (e: any) {
+    // Windows 는 개발자 모드 없이 symlink 생성 시 EPERM 으로 실패한다 — 설치를
+    // 중단시키지 않고 경고만 남긴 뒤 계속 진행한다.
+    console.log(`[cfgm-brain] ${LOCAL_BIN_LINK} 심링크 생성 실패 (${e?.code ?? e?.message ?? e}) — 건너뜁니다.`);
+  }
 }
 
 export const VERSION_MARKER_PREFIX = "<!-- CFGM:VERSION ";
@@ -551,6 +558,12 @@ async function main() {
       try { await symlink(skillSrc, SKILL_LINK); } catch {}
     }
 
+    if (process.platform === "win32") {
+      console.log(
+        `[cfgm-brain] 경고: '${LAUNCHER}' 런처는 bash 전용 스크립트입니다 — Windows(cmd.exe/PowerShell) 에서는 직접 실행할 수 없습니다. `
+          + `WSL 또는 Git Bash 에서 실행하세요.`,
+      );
+    }
     await writeFile(LAUNCHER, launcherScript());
     await chmod(LAUNCHER, 0o755);
     await ensureLocalBinSymlink();

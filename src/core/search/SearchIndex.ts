@@ -14,6 +14,17 @@ import type {
   SkillSearchOpts,
 } from "./types";
 
+/**
+ * 순수 코드포인트(ordinal) 비교 — 정렬 tie-break 결정론 보장용.
+ * `localeCompare()`(인자 없음)는 ICU 로케일 collation 을 써서 환경마다 결과가
+ * 달라질 수 있다 (예: 대소문자/발음 구별 기호 처리 차이). tie-break 은 "표시
+ * 목적 정렬"이 아니라 "동점 시 결과 순서 재현성" 목적이므로 로케일 무관 비교가
+ * 맞다.
+ */
+function codePointCompare(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 const SCHEMA_VERSION = 5;
 
 // v5 마이그레이션 가드가 drop 하는 derived 테이블 (전부 rebuild 로 재생성 가능)
@@ -393,7 +404,7 @@ export class SearchIndex {
       const sim = cosineSimilarity(q, blobToVector(r.vec));
       if (sim > 0) scored.push({ docId: r.doc_id, sim });
     }
-    scored.sort((a, b) => b.sim - a.sim || a.docId.localeCompare(b.docId));
+    scored.sort((a, b) => b.sim - a.sim || codePointCompare(a.docId, b.docId));
     return scored.slice(0, limit);
   }
 
@@ -692,7 +703,7 @@ function fuseRescueRerank(
     const vecTerm = vr === undefined ? 0 : 1 / (RRF_K + vr);
     return { docId: id, rrf: ftsTerm + vecTerm };
   });
-  tail.sort((a, b) => b.rrf - a.rrf || a.docId.localeCompare(b.docId));
+  tail.sort((a, b) => b.rrf - a.rrf || codePointCompare(a.docId, b.docId));
 
   const vectorOnly = vecRanking.filter(({ docId }) => !seen.has(docId));
 
@@ -744,7 +755,7 @@ function fuseRrf(
   });
   return Array.from(scores.entries())
     .map(([docId, score]) => ({ docId, score }))
-    .sort((a, b) => b.score - a.score || a.docId.localeCompare(b.docId));
+    .sort((a, b) => b.score - a.score || codePointCompare(a.docId, b.docId));
 }
 
 // 영어 기능어 + 대명사 + 조동사 (V3.30 content 쿼리용). 도메인 특화 상수 금지

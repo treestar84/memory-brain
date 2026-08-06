@@ -1,5 +1,6 @@
 import yaml from "yaml";
 import type { WikiPage, WikiType } from "../wiki/types";
+import { capSlugLength, guardReservedName } from "../util/slug";
 
 /**
  * OKF (Open Knowledge Format) 번들 exporter (V3.28).
@@ -114,8 +115,9 @@ export function buildOkfBundle(pages: WikiPage[], opts: OkfExportOptions = {}): 
 function slugOf(id: string): string {
   const dot = id.indexOf(".");
   const raw = dot >= 0 ? id.slice(dot + 1) : id;
-  const safe = raw.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/\.\.+/g, ".").replace(/^\.+/, "");
-  return safe.length > 0 ? safe : "unnamed";
+  const safe = raw.replace(/[^A-Za-z0-9가-힣._-]+/g, "-").replace(/\.\.+/g, ".").replace(/^\.+/, "");
+  const withFallback = safe.length > 0 ? safe : "unnamed";
+  return guardReservedName(capSlugLength(withFallback));
 }
 
 /**

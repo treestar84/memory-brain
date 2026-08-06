@@ -4,6 +4,8 @@ import { resolve, relative } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { SkillNormalizer } from "../src/core/normalizer/SkillNormalizer";
 import { resolveRepoRoot } from "../src/hooks/bootstrap";
+import { slugify } from "../src/core/util/slug";
+import { toPosixPath } from "../src/core/util/path";
 
 /**
  * cfgm-ssl-normalize — SKILL.md → SSL JSON 변환기 (PR-V3.12 CLI, V3.14 우호).
@@ -48,7 +50,7 @@ function parseArgs(argv: string[]): ParsedArgs {
 function slugFromSkillPath(p: string): string {
   // .claude/skills/<slug>/SKILL.md  →  <slug>
   // .claude/skills/<slug>.md        →  <slug>
-  const segs = p.split("/").filter(Boolean);
+  const segs = toPosixPath(p).split("/").filter(Boolean);
   const last = segs[segs.length - 1] ?? "skill";
   if (last.toUpperCase() === "SKILL.MD" && segs.length >= 2) {
     return segs[segs.length - 2]!;
@@ -70,7 +72,8 @@ const glob = new Glob("**/*.md");
 const stats = { scanned: 0, generated: 0, skipped: 0, warnings: 0 };
 const generatedAt = new Date().toISOString();
 
-for await (const rel of glob.scan({ cwd: args.input })) {
+for await (const rawRel of glob.scan({ cwd: args.input })) {
+  const rel = toPosixPath(rawRel);
   // Skip non-skill artefacts (workflow.md, README.md, etc.)
   const lower = rel.toLowerCase();
   if (!lower.endsWith("skill.md") && !lower.match(/^[^/]+\.md$/)) continue;
@@ -79,7 +82,7 @@ for await (const rel of glob.scan({ cwd: args.input })) {
   const fullPath = resolve(args.input, rel);
   const source = await Bun.file(fullPath).text();
   const sha = await sha256(source);
-  const slug = slugFromSkillPath(rel).replace(/[^a-zA-Z0-9_-]+/g, "-").toLowerCase();
+  const slug = slugify(slugFromSkillPath(rel), "skill");
   const outPath = resolve(args.output, `${slug}.json`);
 
   if (!args.force && (await Bun.file(outPath).exists())) {

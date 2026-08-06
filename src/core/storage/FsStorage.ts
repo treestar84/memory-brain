@@ -6,7 +6,6 @@ import {
   readdir,
   stat,
   mkdir,
-  rename,
   unlink,
   rm,
 } from "node:fs/promises";
@@ -14,6 +13,7 @@ import { join, dirname } from "node:path";
 import { existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { parseJsonlLenient } from "./jsonl";
+import { renameWithRetry } from "../util/atomicWrite";
 
 export class FsStorage implements Storage {
   constructor(private readonly root: string) {}
@@ -34,7 +34,7 @@ export class FsStorage implements Storage {
     const body = records.map((r) => JSON.stringify(r)).join("\n");
     const tmp = full + ".tmp." + randomUUID().slice(0, 8);
     await writeFile(tmp, body.length > 0 ? body + "\n" : "");
-    await rename(tmp, full);
+    await renameWithRetry(tmp, full);
   }
 
   async readJsonl<T = unknown>(path: string): Promise<T[]> {
@@ -61,7 +61,7 @@ export class FsStorage implements Storage {
     await mkdir(dirname(full), { recursive: true });
     const tmp = full + ".tmp." + randomUUID().slice(0, 8);
     await writeFile(tmp, JSON.stringify(data, null, 2));
-    await rename(tmp, full);
+    await renameWithRetry(tmp, full);
   }
 
   async writeRaw(path: string, content: string): Promise<void> {
@@ -69,7 +69,7 @@ export class FsStorage implements Storage {
     await mkdir(dirname(full), { recursive: true });
     const tmp = full + ".tmp." + randomUUID().slice(0, 8);
     await writeFile(tmp, content);
-    await rename(tmp, full);
+    await renameWithRetry(tmp, full);
   }
 
   async readText(path: string): Promise<string | null> {

@@ -3,6 +3,7 @@ import { mkdtemp, rm, readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { existsSync } from "node:fs";
+import { parseGoal, serializeGoal } from "../../bin/cfgm-identity-goal";
 
 const CLI = join(import.meta.dir, "../../bin/cfgm-identity-goal.ts");
 const INSTALL = join(import.meta.dir, "../../bin/install-brain.ts");
@@ -15,6 +16,29 @@ function run(args: string[], env: Record<string, string>) {
     stderr: "pipe",
   });
 }
+
+describe("parseGoal — CRLF + BOM 입력도 정상 파싱 (호환성 수정 회귀)", () => {
+  test("CRLF + BOM frontmatter", () => {
+    const crlfBom = serializeGoal(
+      {
+        id: "g1",
+        title: "T",
+        status: "planned",
+        priority: "medium",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        targetDate: null,
+        completedAt: null,
+        relatedProblems: [],
+      },
+      "# T\n",
+    ).replace(/\n/g, "\r\n");
+    const withBom = "﻿" + crlfBom;
+    const parsed = parseGoal(withBom);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.fm.id).toBe("g1");
+    expect(parsed!.fm.title).toBe("T");
+  });
+});
 
 describe("cfgm-identity-goal", () => {
   let fakeHome: string;

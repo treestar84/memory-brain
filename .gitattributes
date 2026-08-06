@@ -3,3 +3,8 @@
 # instead of producing conflict markers, which parseJsonlLenient() would
 # otherwise silently drop as corrupt lines (a claim vanishing with no error).
 memory/**/*.jsonl merge=union
+
+# Shell scripts must always check out with LF line endings — on
+# core.autocrlf=true environments (Windows), CRLF checkout breaks scripts
+# like install.sh at the shebang / inside heredocs.
+*.sh text eol=lf

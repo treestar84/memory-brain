@@ -5,6 +5,42 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed — V3.46 크로스환경 호환성 스윕 + README 온보딩 단순화 (2026-08-06)
+`docs/handoff.md` 에 미해결로 남아있던 "Windows 지원의 마지막 조각"을 포함해, Windows·비-Claude host(Codex 등)·비영어 로케일 3방향으로 전수 조사를 돌려 발견한 결함을 수정. 조사는 3개 독립 에이전트 병렬 스윕, 수정은 파일 스코프를 분리한 3개 병렬 executor 로 진행.
+
+- **치명 — 한글 slug 붕괴로 인한 조용한 기억 소실**: `capture`/`learn`/`ssl-enqueue`/`ssl-normalize`/`okf-export`/`bench-lme` 6곳에 복제된 slug 생성 로직이 `[^a-zA-Z0-9_-]+` 를 전부 `-` 로 치환해, 한글 파일명(`설계결정.md`, `아키텍처.md` 등)이 전부 같은 slug(`capture`/`-`)로 붕괴 — 서로 다른 기억이 같은 파일을 무경고로 덮어쓰고 있었다. `src/core/util/slug.ts` 신설(한글 보존 + 80자 상한 + Windows 예약어 가드)로 6곳 통합, `CaptureAccepter.isSafeSlug` 도 한글 slug 를 받아들이도록 동기화(enqueue→accept 왕복 테스트로 확인).
+- **치명(Windows) — 훅 command 인용**: `shQuote()` 가 POSIX 작은따옴표 규칙만 지원해 cmd.exe 에서 훅이 전면 무동작(핸드오프에 미해결로 기록된 항목). `bin/lib/shell-quote.ts` 로 통합하며 설치 시점 플랫폼을 인식하는 인용으로 교체(win32=큰따옴표, POSIX=작은따옴표 유지). `install.ts` 의 무인용 레거시 경로, `install-brain.ts` symlink 설치의 EPERM 크래시, `hooks/hooks.json` 의 POSIX 전용 `test`/`&&` 셸 문법(→ `hooks/check-deps.ts` Bun 스크립트로 전환)도 함께 수정.
+- **중간 — CRLF/BOM frontmatter 무시**: `WikiReader` 등 5곳의 `/^---\n/` 하드코딩이 CRLF 파일에서 매치 실패해 canonical wiki page 가 조용히 `note`로 강등되던 문제. `src/core/util/frontmatter.ts` 로 통합해 `\r?\n` + BOM 허용.
+- **중간 — 기타**: `Bun.Glob.scan()` 의 Windows `\` 구분자가 `_` 프리픽스 제외 필터를 무력화하던 문제(`toPosixPath()` 신설), UTF-8 바이트 절단이 한글 경계에서 U+FFFD 를 남기던 문제, rename-over-existing 4곳의 Windows EPERM/EBUSY(win32 한정 재시도), 결정론적 정렬에 쓰인 인자 없는 `localeCompare`(ISO 타임스탬프 비교 포함, 코드포인트 비교로 교체), 비라틴 문자 쿼리의 FTS5 구문 오류, `LANG`/`LC_ALL` 무시하던 UI 언어 감지, `--adapter` 인자의 공백 경로 파손.
+- **문서**: README 의 근거 없는 "Gemini CLI 지원" 주장 제거(자동 훅 캡처는 Claude Code 전용이라고 정정), `AGENTS.md` 에 비-Claude host 를 위한 선행 요건(bun install/link) 절 추가, `.gitattributes` 에 `*.sh eol=lf` 추가.
+- 1337 pass(신규 회귀 테스트 58개 포함) · typecheck OK. 남은 항목(어댑터 확장 seam 부재, doctor 의 REPO_ROOT/resolveRepoRoot 혼용, symlink 프로젝트의 realpath 미해석 등)은 설계 판단이 더 필요해 이번 스윕 범위 밖으로 남겨둠 — 숨기지 않고 기록.
+
+### Docs — README 온보딩 단순화 (2026-08-06)
+- 사용자 피드백: "시작하는 부분이 여전히 어렵게 느껴진다."
+- "설치" 섹션을 Claude Code 여부를 묻는 하나의 질문으로 재구성 — 플러그인 3줄 / 수동 4줄 두 갈래만 먼저 보여주고, 바로 시도해볼 명령(`ask "..."`) 을 결과 옆에 붙였다.
+- 기존에 설치 직후 바로 노출되던 "훅 범위 선택"(사용자 레벨 vs 프로젝트 레벨) 문단은 `<details>` 로 접어 선택 사항으로 뒤로 미뤘다 — 처음 60초 안에는 필수 정보만 보이게.
+- README.md/README.en.md 양쪽 동일 구조로 반영.
+
+### Fixed — V3.45 훅이 몇 달째 전혀 동작하지 않던 근본 원인 (2026-08-03, 정직 보고)
+- **발견 경위**: 경쟁사 8개 약점 보완 작업(V3.41~44, 아래)을 머지하기 전 39세션짜리 장기 "바이브 코딩" 시뮬레이션을 실제 Claude Code 훅 페이로드 형태로 돌렸다. 그 전제조건으로 실제 훅 스키마를 공식 문서로 재확인하는 과정에서, `src/adapters/claude-code/mapper.ts` 가 이벤트 타입을 `type` 필드로 읽고 있는데 **실제 Claude Code 는 `hook_event_name` 을 보낸다**는 것을 확인(`prompt_text` vs 자체 가정한 `message`, `tool_result` vs 자체 가정한 `tool_output` 도 동일 문제). 이 프로젝트의 fixture(`fixtures/claude-code/v1/*.json`)가 애초에 이 잘못된 스키마로 작성되어 있어서 1270개 넘는 테스트가 전부 통과하는 동안에도 실제 훅은 매번 `Unknown hook type: ` 로 실패했고, `hook-runner.ts` 의 catch-all 이 이를 조용히 삼켜(에러 파일에만 기록) 세션은 멀쩡히 돌아가되 **기억 캡처는 한 번도 실행된 적이 없었다**.
+- **실사용 증거로 확증**: `~/.memory-brain/security/hook-errors.jsonl` 에 당일까지 34건의 `Unknown hook type:` 누적, 이 저장소 자신의 `.memory-brain/ledger/raw/` 는 4월(V3.42 도입 시점)부터 완전히 비어 있었음 — 수개월간 아무도 못 알아챈 상태였다.
+- **수정**: `mapClaudeCodeEvent` 가 `hook_event_name`/`prompt_text`/`tool_result` 를 우선 읽고, 기존(틀린) `type`/`message`/`tool_output` 은 하위호환 폴백으로만 유지. `fixtures/claude-code/v2/`(공식 문서 기준 실제 스키마) 를 신설해 회귀 고정 — 이후 리팩터로 다시 틀린 스키마만 받게 회귀하는 걸 테스트가 잡는다.
+- **검증**: 실제 SessionStart/PostToolUse 페이로드를 훅 스크립트에 직접 파이프해 재현 — 수정 전 아무 출력·기록 없음 → 수정 후 `ledger/raw/` 기록 + `pending-analysis.jsonl` enqueue 정상 확인. 이어서 진행한 39세션 시뮬레이션(설치→기능개발→버그수정→압축유발→30세션 누적사용→과거대화 임포트→크로스머신 양방향 동기화→동시성 스트레스→uninstall)에서 이 수정 없이는 아무것도 캡처되지 않았을 것을 재확인. 시뮬레이션 자체에서 발견된 memory-brain 결함은 0건(설치 직후 "인덱스 미생성" 은 문서화된 정상 동작).
+- 1279 pass · typecheck OK.
+
+### Added — V3.41~44 경쟁 도구 대비 8개 약점 보완 (2026-08-01~02, 4단계 독립 검토 거침)
+사용자가 5개 유사 도구(claude-mem-lite, claude-brain, agentmemory, PROJECTMEM 논문, Cline Memory Bank)와 직접 비교해 짚어낸 8개 열위 항목을 순서대로 보완. **architect 설계 → critic 비평(오버엔지니어링 다수 지적, REVISE) → verifier 검증 2회 → 서로 다른 성향의 2-에이전트 병렬 검토 → 5차 재검토**를 거쳐 실제 결함을 여러 건 찾아 그때그때 수정한 뒤 머지했다 — 원래 설계된 8개 항목 중 "870줄짜리 `cfgm sync` CLI", "4개 소스 동시 임포터" 등은 검토 과정에서 오버엔지니어링으로 판정해 축소했다.
+
+- **검색 recall 진단** (`src/core/bench/LongMemEval.ts` `diagnoseLmeRetrieval`) — dims 증설이 recall 을 개선한다는 가설을 dev-split 실측으로 직접 검증해 **기각**(dims 256→1024, R@5 -0.5pp). 후보 생성 상한(candidateLimit)이 병목인지 먼저 진단하는 절차를 추가 — `cfgm bench-lme -- --diagnose`.
+- **Embedder 통합 + dims 정합성 가드** — 9개 bin 스크립트에 흩어져 있던 `new HashedNgramEmbedder()` 를 `createDefaultEmbedder()` 하나로 통합. `cfgm doctor` 에 벡터 dims 불일치 감지 체크 추가(dims 를 바꾸고 재구축을 안 하면 hybrid 검색이 무경고로 FTS-only 로 저하되는 걸 잡음) — **단, 이 체크가 `new SearchIndex(path)` 로 인덱스를 열면서 스키마 마이그레이션(구버전 DROP TABLE)을 유발해 doctor 실행만으로 인덱스가 파괴되는 회귀를 검토 과정에서 직접 재현·발견해 `SearchIndex.readMetaReadonly()` (read-only 정적 헬퍼)로 즉시 수정.**
+- **설치 편의성** — 플러그인 슬래시 커맨드가 `bun link` 로 등록해야 하는 전역 `cfgm` 에 의존해, 실제 사용자가 `bun link` 성공 후에도 `cfgm: command not found` 를 겪은 지점을 제거 — 커맨드가 `$CLAUDE_PLUGIN_ROOT/bin/cfgm.ts` 를 직접 호출하도록 전환.
+- **CI 신설** (`.github/workflows/ci.yml`) — macOS/Ubuntu/Windows 3-OS 매트릭스 + shell-lint + install-smoke. Windows 는 아래 이유로 `continue-on-error`.
+- **Windows 지원 (실험적)** — `HOME` 하드코딩 5곳을 `homedir()` 폴백으로 수정. 훅 커맨드를 `/usr/bin/env VAR=val`(POSIX 셸 전용, Windows 에서 전부 실패) 방식에서 `bun run <script> --project-root/--home <path>` argv 방식으로 전환(`src/hooks/bootstrap.ts` 에 argv 최우선 순위 추가, 기존 env-접두사 설치는 하위호환 유지). `shQuote()` 의 POSIX 따옴표 규칙은 아직 미해결로 명시 — cmd.exe 검증 안 됨.
+- **멀티소스 임포트** — Claude Code 자체 세션 transcript 임포터(`cfgm import`, `src/core/import/ClaudeCodeImporter.ts`) 1개만 우선 구현(4개 동시 설계는 검토에서 기각). 대화를 직접 claim 으로 만들지 않고 `memory/sources/` 원문 적재 후 기존 capture 파이프라인에 위임(추론=사실 저장 금지 원칙 준수). `Indexer.ts` 가 `sources/` 를 검색 대상에서 빠뜨린 버그, `--enqueue --limit` 재개 시 절대경로가 기록돼 크로스머신 동기화 후 깨지는 버그(항목 간 상호작용 검토에서 발견) 를 함께 수정.
+- **크로스머신 동기화** — `.gitattributes`(`memory/**/*.jsonl merge=union`) + `ClaimStore` 순서독립 reduce(`recordedAt` 기반, 한쪽만 recordedAt 있는 마이그레이션 경계 케이스를 처음엔 놓쳤다가 재검토에서 발견해 수정) + `cfgm doctor` git 충돌마커 스캔. `docs/SYNC.md` 신설.
+- **신뢰도 인프라** — `PendingQueue` 를 read-modify-rewrite(동시 프로세스 간 lost-update 경쟁 상태 존재, 실제 워커 프로세스로 재현 확인)에서 append-only tombstone 모델로 전환. `cfgm process compact` 로 수동 정리(자동 compact 는 새 경쟁 상태를 만들어 채택 안 함). `SearchIndex` 에 `busy_timeout` 추가.
+- 12개 커밋에 걸쳐 진행, 매 커밋 `bun test`/`tsc --noEmit` 통과 확인. `git bisect` 안전성도 별도 확인(각 커밋 개별 체크아웃 시 전부 green).
+
 ### Docs — README 데모 예시를 "일상적인 개발 상황"으로 교체 (2026-07-26)
 - 사용자 피드백: "Honcho self-host" 예시가 이 프로젝트 내부 용어라 일반 개발자가 공감하기 어렵고 설치 동기를 못 준다.
 - **후보 3종 중 사용자가 "버그 수정 이유" 선택** — 실제 이 프로젝트에서 있었던 진짜 사실(V3.28, 하이픈 포함 검색어 FTS5 크래시 → 3단 fallback 수정)만 사용, 지어내지 않음.

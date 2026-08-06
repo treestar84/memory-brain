@@ -22,6 +22,7 @@ import { Redactor } from "../src/core/security/Redactor";
 import { FsStorage } from "../src/core/storage/FsStorage";
 import { writeFileAtomic } from "../src/core/util/atomicWrite";
 import { RealClock } from "../src/core/clock/Clock";
+import { slugify } from "../src/core/util/slug";
 
 interface ParsedArgs {
   name: string | null;
@@ -63,7 +64,7 @@ function parseArgs(argv: string[]): ParsedArgs {
 }
 
 function normalizeSlug(name: string): string {
-  return name.replace(/[^a-zA-Z0-9_-]+/g, "-").toLowerCase();
+  return slugify(name, "workflow");
 }
 
 async function readStdin(): Promise<string | null> {

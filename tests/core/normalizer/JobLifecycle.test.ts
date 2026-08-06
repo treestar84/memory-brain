@@ -25,6 +25,15 @@ const PENDING = jobText({
 });
 
 describe("JobLifecycle (V3.28 실패 시맨틱)", () => {
+  test("parseJob — CRLF + BOM 입력도 정상 파싱된다 (호환성 수정 회귀)", () => {
+    const crlfBom =
+      "﻿---\r\njob_id: norm-crlf\r\nstatus: pending\r\nattempts: 0\r\n---\r\n\r\nbody\r\n";
+    const job = parseJob(crlfBom);
+    expect(job).not.toBeNull();
+    expect(job!.frontmatter.status).toBe("pending");
+    expect(job!.frontmatter.job_id).toBe("norm-crlf");
+  });
+
   test("parseJob — frontmatter + body 분리, 잘못된 status/yaml 은 null", () => {
     const job = parseJob(PENDING)!;
     expect(job.frontmatter.status).toBe("pending");

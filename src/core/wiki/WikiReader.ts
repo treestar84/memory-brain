@@ -2,8 +2,9 @@ import { Glob } from "bun";
 import { resolve } from "node:path";
 import yaml from "yaml";
 import type { WikiPage, WikiPageFrontmatter } from "./types";
+import { FRONTMATTER_RE, stripBom, normalizeYamlBlock } from "../util/frontmatter";
+import { toPosixPath } from "../util/path";
 
-const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
 const CLAIM_ID_RE = /<!--\s*claim:(cl-[\w-]+)\s*-->/g;
 
 /** Indexer.rebuild() 가 wiki_pages 인덱스에 넣는 canonical 서브디렉토리 집합. */
@@ -41,9 +42,10 @@ export class WikiReader {
    * — 없으면(직접 parse 호출) "unknown".
    */
   parse(relativePath: string, text: string, fallbackUpdatedAt?: string): WikiPage | null {
-    const match = FRONTMATTER_RE.exec(text);
-    if (!match) return this.parseNote(relativePath, text, fallbackUpdatedAt);
-    const fmYaml = match[1]!;
+    const normalizedText = stripBom(text);
+    const match = FRONTMATTER_RE.exec(normalizedText);
+    if (!match) return this.parseNote(relativePath, normalizedText, fallbackUpdatedAt);
+    const fmYaml = normalizeYamlBlock(match[1]!);
     const body = match[2]!;
 
     let frontmatter: WikiPageFrontmatter;
@@ -68,7 +70,7 @@ export class WikiReader {
 
   private parseNote(relativePath: string, text: string, fallbackUpdatedAt?: string): WikiPage | null {
     if (text.trim().length === 0) return null;
-    const id = `note.${relativePath.replace(/\.md$/, "").replace(/\//g, ".")}`;
+    const id = `note.${toPosixPath(relativePath).replace(/\.md$/, "").replace(/\//g, ".")}`;
     const frontmatter: WikiPageFrontmatter = {
       id,
       type: "note",
@@ -90,7 +92,8 @@ export class WikiReader {
     try {
       // `memoryDir` 자체가 아직 없으면(신규 프로젝트, 아직 캡처 0건) Glob.scan 의 cwd
       // open 이 ENOENT 를 던진다 — 정상적인 "아직 아무것도 없음" 상태이니 빈 배열로 처리한다.
-      for await (const file of glob.scan({ cwd: this.memoryDir })) {
+      for await (const rawFile of glob.scan({ cwd: this.memoryDir })) {
+        const file = toPosixPath(rawFile);
         if (file.endsWith("README.md")) continue;
         const p = await this.read(file);
         if (p) pages.push(p);
@@ -136,7 +139,7 @@ export class WikiReader {
     const fullPath = resolve(this.memoryDir, relativePath);
     const file = Bun.file(fullPath);
     if (!(await file.exists())) return [];
-    const text = await file.text();
+    const text = stripBom(await file.text());
     const stat = await file.stat();
     const updatedAt = stat.mtime.toISOString();
 
@@ -151,7 +154,7 @@ export class WikiReader {
       return page ? [page] : [];
     }
 
-    const baseId = `note.${relativePath.replace(/\.md$/, "").replace(/\//g, ".")}`;
+    const baseId = `note.${toPosixPath(relativePath).replace(/\.md$/, "").replace(/\//g, ".")}`;
     const pages: WikiPage[] = [];
     sections.forEach((section, i) => {
       if (section.trim().length === 0) return;
@@ -174,7 +177,8 @@ export class WikiReader {
   async readAllInDirAsNoteChunks(subdir: string): Promise<WikiPage[]> {
     const glob = new Glob(`${subdir}/**/*.md`);
     const pages: WikiPage[] = [];
-    for await (const file of glob.scan({ cwd: this.memoryDir })) {
+    for await (const rawFile of glob.scan({ cwd: this.memoryDir })) {
+      const file = toPosixPath(rawFile);
       if (file.endsWith("README.md")) continue;
       pages.push(...(await this.readNoteChunks(file)));
     }

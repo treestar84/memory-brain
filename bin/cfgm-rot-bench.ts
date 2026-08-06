@@ -35,8 +35,11 @@ import { resolveRepoRoot } from "../src/hooks/bootstrap";
  *                                     # 외부 subprocess JSONL 어댑터를 조건으로 추가
  *                                       평가 (docs/ROT-BENCH.md §Adapter protocol).
  *                                       예: --adapter "python3 my_adapter.py"
- *                                       (command 는 공백 분리). --cohort/--consolidated
- *                                       와 조합 가능.
+ *                                       (command 는 최소 quote-aware 토크나이저로
+ *                                       분리 — 작은/큰따옴표로 감싼 구간은 공백을
+ *                                       포함해도 한 인자가 된다. 예:
+ *                                       --adapter "python '/path/with space/a.py'").
+ *                                       --cohort/--consolidated 와 조합 가능.
  *
  * LLM 호출 0 — docs/RULES.md 원칙 2 준수.
  */
@@ -53,6 +56,46 @@ function strFlag(name: string): string | undefined {
   return i >= 0 && args[i + 1] ? args[i + 1] : undefined;
 }
 
+/**
+ * 최소 quote-aware 토크나이저 — `--adapter` 값(command 문자열)을 argv 로 분리한다.
+ * 작은/큰따옴표로 감싼 구간은 공백을 포함해도 하나의 토큰이 되고, 따옴표 문자
+ * 자체는 결과에서 제거된다. 셸의 이스케이프(`\`)나 중첩 인용은 지원하지 않는다
+ * — "경로에 공백이 섞인 커맨드"를 다루기 위한 최소 구현.
+ */
+function tokenizeCommand(input: string): string[] {
+  const tokens: string[] = [];
+  let current = "";
+  let inToken = false;
+  let quote: '"' | "'" | null = null;
+  for (const ch of input) {
+    if (quote) {
+      if (ch === quote) {
+        quote = null;
+      } else {
+        current += ch;
+      }
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      inToken = true;
+      continue;
+    }
+    if (/\s/.test(ch)) {
+      if (inToken) {
+        tokens.push(current);
+        current = "";
+        inToken = false;
+      }
+      continue;
+    }
+    current += ch;
+    inToken = true;
+  }
+  if (inToken) tokens.push(current);
+  return tokens;
+}
+
 const dataPath = resolve(repoRoot, strFlag("--data") ?? "data/longmemeval/longmemeval_s_cleaned.json");
 const defaultOut = cohort ? "memory/reports/rot-bench-cohort-latest.md" : "memory/reports/rot-bench-latest.md";
 const reportPath = resolve(repoRoot, strFlag("--out") ?? defaultOut);
@@ -65,7 +108,7 @@ if (sampleRaw && (!Number.isFinite(sample) || sample! <= 0)) {
 }
 
 const adapterRaw = strFlag("--adapter");
-const adapterCommand = adapterRaw ? adapterRaw.trim().split(/\s+/).filter(Boolean) : undefined;
+const adapterCommand = adapterRaw ? tokenizeCommand(adapterRaw) : undefined;
 if (adapterRaw && (!adapterCommand || adapterCommand.length === 0)) {
   console.error(`invalid --adapter: ${adapterRaw}`);
   process.exit(1);

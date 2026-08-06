@@ -4,6 +4,8 @@ import { resolve, relative } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { SkillNormalizer } from "../src/core/normalizer/SkillNormalizer";
 import { resolveRepoRoot } from "../src/hooks/bootstrap";
+import { slugify } from "../src/core/util/slug";
+import { toPosixPath } from "../src/core/util/path";
 
 /**
  * cfgm-ssl-enqueue — heuristic 1차 + warnings 있는 skill 을 host LLM 작업 큐로 enqueue
@@ -58,7 +60,7 @@ function parseArgs(argv: string[]): ParsedArgs {
 }
 
 function slugFromSkillPath(p: string): string {
-  const segs = p.split("/").filter(Boolean);
+  const segs = toPosixPath(p).split("/").filter(Boolean);
   const last = segs[segs.length - 1] ?? "skill";
   if (last.toUpperCase() === "SKILL.MD" && segs.length >= 2) return segs[segs.length - 2]!;
   return last.replace(/\.md$/i, "");
@@ -83,7 +85,8 @@ if (args.skill) {
   filesToProcess.push(args.skill);
 } else {
   const glob = new Glob("**/*.md");
-  for await (const rel of glob.scan({ cwd: args.inputDir })) {
+  for await (const rawRel of glob.scan({ cwd: args.inputDir })) {
+    const rel = toPosixPath(rawRel);
     const lower = rel.toLowerCase();
     if (!lower.endsWith("skill.md") && !lower.match(/^[^/]+\.md$/)) continue;
     filesToProcess.push(resolve(args.inputDir, rel));
@@ -94,7 +97,7 @@ for (const fullPath of filesToProcess) {
   stats.scanned++;
   const source = await Bun.file(fullPath).text();
   const sha = await sha256(source);
-  const slug = slugFromSkillPath(fullPath).replace(/[^a-zA-Z0-9_-]+/g, "-").toLowerCase();
+  const slug = slugify(slugFromSkillPath(fullPath), "skill");
   const outPath = resolve(args.outDir, `${slug}.json`);
   const jobPath = resolve(args.jobsDir, `${slug}.job.md`);
   const heuristicPath = resolve(args.jobsDir, `${slug}.heuristic.json`);

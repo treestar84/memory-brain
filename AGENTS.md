@@ -10,6 +10,19 @@ memory-brain 은 host 에 종속되지 않는 순수 CLI + 파일 기반 메모�
 (MCP 없음, host 구독 인증만 사용, 특정 오케스트레이션 레이어에 의존하지 않음).
 어떤 host 에서 실행되든 `cfgm` 명령과 `memory/` 디렉토리만으로 동일하게 동작합니다.
 
+## 시작 전 선행 요건
+
+`cfgm` 이 PATH 에 이미 있다고 가정하지 마세요 — 이 저장소를 처음 clone 했다면
+먼저 다음을 확인합니다.
+
+1. **Bun ≥ 1.1** 설치 확인: `bun --version`.
+2. 저장소 루트에서 `bun install` (의존성 설치, 최초 1회).
+3. `cfgm` 커맨드를 쓰려면 둘 중 하나:
+   - `bun link` 로 전역에 `cfgm` 을 연결한다 (이후 `cfgm ...` 그대로 사용 가능), 또는
+   - 링크 없이 `bun run bin/cfgm.ts <subcommand>` 형태로 각 bin 스크립트를 직접
+     호출한다 (예: `bun run bin/cfgm.ts doctor`). 이 문서의 모든 `cfgm ...`
+     예시는 `bun run bin/cfgm.ts ...` 로 그대로 치환해 쓸 수 있습니다.
+
 ## 30초 안에 확인하기 (효능 체감)
 
 ```bash
@@ -56,6 +69,9 @@ cfgm decay                         # wiki 망각 판정 (나이×회상 빈도) 
 cfgm stats                         # 로컬 사용 통계 (외부 전송 0)
 cfgm rot-bench -- --cohort         # 메모리 부패 벤치마크 (docs/ROT-BENCH.md)
 cfgm ssl-enqueue                   # .claude/skills/**(SKILL.md) → SSL 지식그래프 변환
+                                    #   기본 스캔 경로는 repo 의 `.claude/skills` 뿐 —
+                                    #   다른 경로를 쓰려면 --input <dir> 로 오버라이드:
+                                    #   cfgm ssl-enqueue --input path/to/skills
 cfgm viewer                        # 대시보드 (localhost:4041)
 cfgm graph-query neighbors <id>    # KG 그래프 탐색
 ```

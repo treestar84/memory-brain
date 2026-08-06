@@ -28,6 +28,7 @@ import { existsSync, statSync } from "node:fs";
 import { resolve, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isManagedCommand, skillToCommand } from "./install-brain";
+import { shQuote } from "./lib/shell-quote";
 
 export const MARKER = "cfgm-os-project";
 
@@ -74,15 +75,6 @@ export function resolveProjectPaths(toolRoot: string, targetProject: string): Pr
     hooksDir: resolve(toolRoot, "src/hooks"),
     skillsSrc: resolve(toolRoot, "skills"),
   };
-}
-
-/**
- * hook 의 `command` 는 셸이 그대로 실행하므로, 경로에 공백이 있으면(프로젝트 디렉토리
- * 이름은 사용자가 자유롭게 정하므로 흔함) 인용 없이 삽입 시 단어 분리로 조용히 깨진다.
- * POSIX 셸 single-quote 규칙(내부 `'` 은 `'\''` 로 이스케이프)으로 안전하게 감싼다.
- */
-function shQuote(s: string): string {
-  return `'${s.replace(/'/g, `'\\''`)}'`;
 }
 
 export function buildHookEntries(paths: ProjectPaths): Record<HookType, HookEntry> {
@@ -357,6 +349,14 @@ async function main(): Promise<void> {
     };
     await writeFile(paths.manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
     actions.push(`wrote ${paths.manifestPath}`);
+
+    // 설치 스크립트는 Claude Code 없이도 조용히 성공해 .claude/ 잔재만 남길 수 있다 —
+    // 비차단 경고로 설치 시점에 알려준다.
+    if (!Bun.which("claude")) {
+      actions.push(
+        `경고: claude CLI 를 PATH 에서 찾지 못했습니다 — 훅은 Claude Code 세션에서만 실행됩니다.`,
+      );
+    }
   }
 
   if (json) {

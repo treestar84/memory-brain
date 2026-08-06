@@ -14,6 +14,15 @@ const PENDING_PATH = "ledger/questions/pending.jsonl";
 const ASKED_PATH = "ledger/questions/asked.jsonl";
 const CURRENT_GAPS_PATH = "state/current-gaps.json";
 
+/**
+ * 순수 코드포인트(ordinal) 비교 — pending 큐 정렬의 tie-break 결정론 보장용.
+ * `localeCompare()`(인자 없음)는 ICU 로케일 collation 을 써서 환경마다 결과가
+ * 달라질 수 있다.
+ */
+function codePointCompare(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 export class QuestionQueue {
   constructor(
     private readonly storage: Storage,
@@ -56,8 +65,8 @@ export class QuestionQueue {
       }))
       .sort((a, b) => {
         if (a.voi !== b.voi) return b.voi - a.voi;
-        if (a.createdAt !== b.createdAt) return a.createdAt.localeCompare(b.createdAt);
-        return a.questionBlockId.localeCompare(b.questionBlockId);
+        if (a.createdAt !== b.createdAt) return codePointCompare(a.createdAt, b.createdAt);
+        return codePointCompare(a.questionBlockId, b.questionBlockId);
       });
 
     await this.storage.rewriteJsonl(PENDING_PATH, pending);

@@ -28,8 +28,9 @@ function buildFtsQuery(raw: string): string {
     .trim()
     .split(/\s+/)
     .filter(Boolean)
-    .map((t) => t.replace(/[^a-zA-Z0-9가-힣_-]/g, "") + "*")
+    .map((t) => t.replace(/[^a-zA-Z0-9가-힣_-]/g, ""))
     .filter(Boolean)
+    .map((t) => `${t}*`)
     .join(" ");
 }
 

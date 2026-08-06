@@ -5,7 +5,7 @@
 > **Claude Code, Codex 같은 AI 코딩 CLI를 위한, 서버 없는 장기기억.**
 > 세션이 끝나면 사라지던 대화·결정·이유를 markdown 파일로 남겨서, 다음 세션에서도 근거와 함께 다시 꺼내 씁니다.
 
-![License: MIT](https://img.shields.io/badge/License-MIT-green.svg) ![Runtime: Bun](https://img.shields.io/badge/Runtime-Bun%20%E2%89%A5%201.1-black) ![LLM API calls: 0](https://img.shields.io/badge/Retrieval%20LLM%20calls-0-blue) ![Benchmark: LongMemEval](https://img.shields.io/badge/Benchmark-LongMemEval-orange)
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg) ![Runtime: Bun](https://img.shields.io/badge/Runtime-Bun%20%E2%89%A5%201.1-black) ![LLM API calls: 0](https://img.shields.io/badge/Retrieval%20LLM%20calls-0-blue) ![Benchmark: LongMemEval](https://img.shields.io/badge/Benchmark-LongMemEval-orange) [![CI](https://github.com/treestar84/memory-brain/actions/workflows/ci.yml/badge.svg)](https://github.com/treestar84/memory-brain/actions/workflows/ci.yml)
 
 ![memory-brain 과 일반적인 클라우드 메모리 도구 비교 — 서버 0, API 비용 0, markdown 소유, 근거 인용, 부패 실측 공개](./docs/assets/why-memory-brain.png)
 
@@ -53,7 +53,11 @@ pointer 를 인용하라. 위 근거로 답할 수 없으면 추측하지 말고
 
 ---
 
-## 설치 — 가장 빠른 방법 (Claude Code 플러그인)
+## 설치 — 60초, 질문 하나로 끝
+
+**Claude Code 를 쓰시나요?**
+
+### 예 → 플러그인 3줄
 
 ```
 /plugin marketplace add treestar84/memory-brain
@@ -61,37 +65,42 @@ pointer 를 인용하라. 위 근거로 답할 수 없으면 추측하지 말고
 /memory-brain:setup
 ```
 
-`/memory-brain:setup` 은 `bun install` 을 실행하는 1회성 단계입니다(전역 `cfgm` 명령 등록은 필요 없음 — 슬래시 커맨드가 플러그인 경로를 직접 호출합니다). Claude가 실제로 무엇을 실행하는지 보여주고 실행 전에 동의를 구합니다 — 조용히 뒤에서 실행되는 건 없습니다. 이후 슬래시 커맨드로 씁니다:
+`/memory-brain:setup` 은 `bun install` 을 실행하는 1회성 단계입니다(전역 `cfgm` 명령 등록은 필요 없음 — 슬래시 커맨드가 플러그인 경로를 직접 호출합니다). Claude가 실제로 무엇을 실행하는지 보여주고 실행 전에 동의를 구합니다 — 조용히 뒤에서 실행되는 건 없습니다. 끝났으면 바로 써보세요:
 
 ```
-/memory-brain:search <질의>          # 자연어 검색
-/memory-brain:ask <질의>             # 검색 + 근거 인용 답변
-/memory-brain:doctor                 # 설치 상태 확인
-/memory-brain:capture <파일>         # 세션 기록 → 기억 후보로 저장
-/memory-brain:stats                  # 내가 얼마나 썼는지 통계
+/memory-brain:ask "이 프로젝트가 뭘 하는 곳이야"
 ```
 
-### 수동 설치 (다른 CLI 를 쓰거나, 저장소를 직접 살펴보고 싶을 때)
+다른 슬래시 커맨드: `/memory-brain:search <질의>` · `/memory-brain:doctor` · `/memory-brain:capture <파일>` · `/memory-brain:stats`
 
-**필요한 것**: [Bun](https://bun.sh) ≥ 1.1
+### 아니오(Codex 등 다른 CLI) 또는 터미널에서 직접 해보고 싶다 → 4줄
+
+**필요한 것**: [Bun](https://bun.sh) ≥ 1.1 만 있으면 됩니다.
 
 ```bash
 git clone https://github.com/treestar84/memory-brain.git && cd memory-brain
-bun install
-bun link
-cfgm doctor                       # 설치 상태 자가진단
-cfgm rebuild-index   # 검색 인덱스 생성
-cfgm search "메모리 라우팅"        # ← 여기까지 60초. 결과가 나오면 정상 동작
+bun install && bun link
+cfgm rebuild-index                 # 검색 인덱스 생성 (최초 1회)
+cfgm ask "메모리 라우팅이 뭐야"     # ← 여기까지 60초. 근거와 함께 답이 나오면 정상 동작
 ```
 
-이 저장소 자체가 실제로 쓰고 있는 기억(`memory/`)을 담고 있어서, 클론 직후에도 바로 검색 결과가 나옵니다. Claude Code 와 Codex 를 동시에 쓸 수도 있습니다 — 자세한 내용은 [`AGENTS.md`](./AGENTS.md) 참고.
+이 저장소 자체가 실제로 쓰고 있는 기억(`memory/`)을 담고 있어서, 클론 직후에도 바로 결과가 나옵니다. 뭔가 안 맞으면 `cfgm doctor` 로 자가진단합니다. Claude Code 와 Codex 를 동시에 쓸 수도 있습니다 — 자세한 내용은 [`AGENTS.md`](./AGENTS.md) 참고.
 
-세션 훅(자동 기억 캡처)까지 쓰려면 설치 범위를 둘 중 하나로 고릅니다:
+**여기까지가 전부입니다.** 검색·질문·답변은 이미 다 됩니다. 아래는 더 원할 때만 펼쳐 보세요.
+
+<details>
+<summary><strong>⚙️ 세션이 끝나도 자동으로 기억을 남기고 싶다면 (선택)</strong></summary>
+
+지금까지는 `cfgm capture`/`ask`를 직접 호출하는 방식이었습니다. Claude Code 세션이 끝날 때마다 자동으로 기억 후보를 쌓아 두려면 훅을 등록해야 하고, 범위를 둘 중 하나로 고릅니다.
 
 - **사용자 레벨** (`./install.sh`) — `~/.claude-brain` 프로필 하나를 모든 프로젝트에서 공유(전용 launcher `claude-pai` 사용). 제거: `cfgm uninstall` (`--purge` 추가 시 identity·기억 데이터까지 삭제).
 - **프로젝트 레벨** (`./install-project.sh [--project <경로>]`) — 훅을 해당 프로젝트의 `<project>/.claude/settings.json` (Claude Code 가 그 디렉토리에서 네이티브로 읽는 설정 파일) 에 직접 등록. 별도 launcher·`CLAUDE_CONFIG_DIR` 불필요 — 그 프로젝트에서 평범한 `claude` 로 바로 동작. 기억 데이터는 `<project>/.memory-brain/` 에 격리. 기존 `.claude/settings.json` 내용(다른 훅·다른 설정)은 그대로 병합·보존되며, 처음 수정 전 `.bak-<timestamp>` 백업을 남깁니다. 제거: `./uninstall-project.sh [--project <경로>]` (`--purge` 추가 시 `<project>/.memory-brain/` 도 삭제). 두 스크립트 모두 `--dry-run` 으로 미리보기 가능(아무것도 쓰지 않음).
 
 **둘 다 설치하지 않아도 모든 CLI 명령은 독립적으로 동작합니다.**
+
+**플랫폼**: macOS·Linux 는 매 push 마다 CI로 검증됩니다. **Windows 는 실험적 지원**입니다 — 홈 디렉토리 해석·훅 설치에 더해, 훅 커맨드에 경로를 끼워 넣을 때 쓰는 인용(`shQuote`)도 이제 플랫폼을 인식해 Windows 에서는 cmd.exe 스타일(큰따옴표) 로 인용하지만, 실제 cmd.exe 에서의 동작은 아직 실기기 검증 전입니다(추적 중, 숨기지 않음).
+
+</details>
 
 ---
 
@@ -125,6 +134,8 @@ cfgm dashboard            # 위키/검색/capture 큐 실시간 대시보드 (lo
 | 질문 답변 정확도 | held-out test 255문항 | **89.0%** |
 
 **기각한 시도도 그대로 기록합니다.** 예를 들어 자체 개발한 "메모리 정리" 기법 하나는 실측에서 효과가 없어 폐기했고, 그 과정을 [`CHANGELOG.md`](./CHANGELOG.md) 에 그대로 남겼습니다 — 좋은 결과만 골라 보여주지 않습니다.
+
+**단위 테스트 1279개 통과만으로는 안심할 수 없어서, 39세션짜리 장기 시뮬레이션도 실제로 돌렸습니다** — 설치 → 기능 개발 → 진짜 버그(라우트 순서, race condition, 메모리 릭) 발생·수정 → 압축(compaction) 유발 → 몇 주치 누적 사용 → 과거 대화 임포트 → 크로스머신 양방향 동기화 → 동시 세션 스트레스 → uninstall 까지, Claude Code 가 실제로 보내는 것과 동일한 훅 페이로드로. 이 과정에서 **훅이 실제로는 몇 달째 전혀 동작하지 않고 있었다는 것**(필드명 불일치, 상세는 `CHANGELOG.md`)을 발견해 고쳤습니다 — 합성 시나리오라 실제 다중 사용자 검증을 대체하진 못하지만, 공개 전 자체 검증으로는 가장 실전에 가까운 방식이었습니다.
 
 자세한 방법론·재현 커맨드·한계는 [`docs/BENCHMARK.md`](./docs/BENCHMARK.md), 메모리 부패 실측은 [`docs/ROT-BENCH.md`](./docs/ROT-BENCH.md) 를 참고하세요.
 

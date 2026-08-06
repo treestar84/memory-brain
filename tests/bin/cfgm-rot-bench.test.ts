@@ -115,8 +115,8 @@ describe("cfgm-rot-bench CLI", () => {
     writeSyntheticDataset(projectRoot);
     const reportPath = join(projectRoot, "memory", "reports", "rot-bench-latest.md");
 
-    // --adapter 는 공백 분리로 command 를 만들기 때문에 (셸 quoting 미지원),
-    // 스텁을 별도 파일로 써서 "bun <path>" 형태로 전달한다.
+    // --adapter 는 quote-aware 토크나이저로 command 를 분리한다 (셸 이스케이프는
+    // 미지원). 스텁을 별도 파일로 써서 "bun <path>" 형태로 전달한다.
     // 항상 s1 을 1순위로 응답하는 고정 스텁 — q_full_cohort 의 정답(s1)은 hit,
     // q_late_answer 의 정답(s4)은 miss 가 되어 external 조건이 실제로 채점되는지 확인한다.
     const adapterPath = join(projectRoot, "fixed-stub-adapter.ts");
@@ -141,6 +141,38 @@ describe("cfgm-rot-bench CLI", () => {
     return report.then((md) => {
       expect(md).toContain("| fixed-stub |");
       expect(md).toContain("fixed-stub");
+    });
+  });
+
+  test("--adapter 값에 공백 포함 경로가 따옴표로 감싸져 있으면 하나의 인자로 파싱된다", () => {
+    const projectRoot = mkdtempSync(join(tmpdir(), "cfgm-rot-bench-adapter-quoted-"));
+    writeSyntheticDataset(projectRoot);
+    const reportPath = join(projectRoot, "memory", "reports", "rot-bench-latest.md");
+
+    // 공백을 포함한 디렉토리에 스텁을 둬서, 따옴표로 감싸지 않으면 argv 가
+    // 깨져(bun 이 존재하지 않는 경로로 실행 시도) 어댑터 프로세스가 죽는지 검증한다.
+    const spacedDir = join(projectRoot, "My Adapters");
+    mkdirSync(spacedDir, { recursive: true });
+    const adapterPath = join(spacedDir, "fixed stub adapter.ts");
+    writeFileSync(
+      adapterPath,
+      `for await (const line of console) {
+  if (!line) continue;
+  let req; try { req = JSON.parse(line); } catch { continue; }
+  console.log(JSON.stringify({ id: req.id, ranked: ["s1"] }));
+}
+`,
+    );
+    const res = cfgmRotBench(["--adapter", `bun '${adapterPath}'`, "--adapter-label", "quoted-stub"], {
+      CFGM_PROJECT_ROOT: projectRoot,
+    });
+    expect(res.status).toBe(0);
+    expect(res.stdout).toContain("adapter[quoted-stub]");
+    expect(existsSync(reportPath)).toBe(true);
+
+    const report = Bun.file(reportPath).text();
+    return report.then((md) => {
+      expect(md).toContain("| quoted-stub |");
     });
   });
 });

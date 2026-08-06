@@ -4,13 +4,13 @@
 
 > **CFGM-OS (memory-brain)** — Claim-grounded, persona-aware memory routing OS for host CLIs (Claude Code, Codex). No server. No API key. No MCP. Your memory is markdown in your repo.
 
-![License: MIT](https://img.shields.io/badge/License-MIT-green.svg) ![Runtime: Bun](https://img.shields.io/badge/Runtime-Bun%20%E2%89%A5%201.1-black) ![LLM API calls: 0](https://img.shields.io/badge/Retrieval%20LLM%20calls-0-blue) ![Benchmark: LongMemEval](https://img.shields.io/badge/Benchmark-LongMemEval-orange)
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg) ![Runtime: Bun](https://img.shields.io/badge/Runtime-Bun%20%E2%89%A5%201.1-black) ![LLM API calls: 0](https://img.shields.io/badge/Retrieval%20LLM%20calls-0-blue) ![Benchmark: LongMemEval](https://img.shields.io/badge/Benchmark-LongMemEval-orange) [![CI](https://github.com/treestar84/memory-brain/actions/workflows/ci.yml/badge.svg)](https://github.com/treestar84/memory-brain/actions/workflows/ci.yml)
 
 ![memory-brain vs. typical cloud memory tools — no server, no API cost, markdown you own, cited answers, published rot measurements](./docs/assets/why-memory-brain.png)
 
 ![30-second demo — search, ask with claim citations, usage stats](./docs/assets/demo.gif)
 
-Runs on top of host CLIs — Claude Code, Codex, Gemini CLI. No MCP server, no API key, no extra subscription — the only interfaces are files and natural-language specs.
+Designed to be host-agnostic: the on-disk memory (`memory/`) and the `cfgm` CLI work alongside any host CLI — e.g. Codex reads `AGENTS.md` at session start and follows the same rules. Automatic hook capture (session-persistent memory without manual `cfgm` calls) is currently Claude Code only. No MCP server, no API key, no extra subscription — the only interfaces are files and natural-language specs.
 
 ---
 
@@ -184,6 +184,12 @@ shasum -a 256 longmemeval_s_cleaned.json   # compare against the SHA-256 in docs
 cd ../.. && bun run bench:lme -- --split test --prf   # reproduces the confirmed retrieval numbers (0 LLM calls)
 ```
 
+### Stability — validated with a long-running simulation, not just unit tests
+
+1279+ unit/integration tests pass, but that alone can't catch what only shows up under sustained, realistic use — so a 39-session "vibe coding" simulation was run end-to-end: install → early feature work → real bugs hit and fixed (a route-ordering 404, a `db.transaction()` race condition, a rate-limiter memory leak) → a long 18-turn session that triggers context compaction → 30 more sessions of accumulated daily use (mixing in the tool types that actually get queued for capture) → importing a real past Claude Code transcript → cross-machine sync in both directions (a second clone pushes, the first pulls, checked for `.gitattributes` conflict markers) → two concurrent sessions ending at once → uninstall with data preserved. It drove the actual hook scripts with the same JSON shape Claude Code sends on the wire (not hand-written fixtures) and confirmed decisions written in early sessions were retrieved by keyword and by claim id dozens of sessions later, with no data loss, no sync conflicts, and no concurrency errors. This is a synthetic scenario, not a substitute for real multi-user usage — but it's the closest thing to real usage this project could self-verify before a public launch, and it directly caught the fix below.
+
+**Found and fixed by that process**: the adapter that turns Claude Code's hook payloads into internal events had been matching the wrong JSON field name since the earliest version — real Claude Code sends `hook_event_name`, not `type` (confirmed against the official hook docs). Every hook invocation was silently failing and swallowed by an error-logging catch-all, so session memory was never actually being captured in practice, even though every test passed (the test fixtures had been authored against the same wrong assumption). Fixed with the real field names as primary and the old ones kept only as a compatibility fallback — see `CHANGELOG.md` for the full account, including the production evidence that surfaced it.
+
 ---
 
 ## 🆚 vs Competitors
@@ -262,7 +268,7 @@ flowchart TB
     L6 -.-> L2
 ```
 
-**5 design principles** ([`docs/RULES.md`](./docs/RULES.md)): ① no MCP ② no direct LLM SDK calls (delegated to the host subscription → **zero extra cost to the user**) ③ no external orchestration dependency ④ production quality (1100+ tests · ≥90% coverage) ⑤ persona/fact separation + mutations happen in a dedicated PAI session.
+**5 design principles** ([`docs/RULES.md`](./docs/RULES.md)): ① no MCP ② no direct LLM SDK calls (delegated to the host subscription → **zero extra cost to the user**) ③ no external orchestration dependency ④ production quality (1279+ tests · ≥90% coverage) ⑤ persona/fact separation + mutations happen in a dedicated PAI session.
 
 ### PAI session — a separate persistent session
 
@@ -278,9 +284,11 @@ sequenceDiagram
     M->>F: cfgm viewer to check the result
 ```
 
-## 🚀 Quick Start
+## 🚀 Quick Start — 60 seconds, one question
 
-### Fastest install — Claude Code plugin
+**Are you using Claude Code?**
+
+### Yes → plugin, 3 lines
 
 ```
 /plugin marketplace add treestar84/memory-brain
@@ -288,46 +296,51 @@ sequenceDiagram
 /memory-brain:setup
 ```
 
-`/memory-brain:setup` is a one-time step that runs `bun install` inside the plugin's own directory (no global `cfgm` command needed — the slash commands call the plugin's own path directly) — Claude shows you the actual output and asks before running it, nothing happens silently in the background. After that, use the slash commands:
+`/memory-brain:setup` is a one-time step that runs `bun install` inside the plugin's own directory (no global `cfgm` command needed — the slash commands call the plugin's own path directly) — Claude shows you the actual output and asks before running it, nothing happens silently in the background. Once it's done, try it right away:
 
 ```
-/memory-brain:search <query>     # natural-language wiki search
-/memory-brain:ask <query>        # search + evidence bundle → cited answer
-/memory-brain:doctor             # install/environment self-check
-/memory-brain:capture <file-or-dir>  # session notes → wiki draft intake queue
-/memory-brain:stats              # local search/ask usage stats
+/memory-brain:ask "what does this project do"
 ```
 
-### Manual install (any host CLI, or to browse the dogfood memory example)
+Other slash commands: `/memory-brain:search <query>` · `/memory-brain:doctor` · `/memory-brain:capture <file-or-dir>` · `/memory-brain:stats`
 
-**Prerequisites**: [Bun](https://bun.sh) ≥ 1.1
+### No (Codex, or any other CLI) / you want to try it straight from a terminal → 4 lines
+
+**Prerequisites**: just [Bun](https://bun.sh) ≥ 1.1.
 
 ```bash
 git clone https://github.com/treestar84/memory-brain.git && cd memory-brain
-bun install
-bun link                          # register the global `cfgm` command (optional)
-cfgm doctor                       # self-check — reports what's missing and how to fix it
-cfgm rebuild-index   # build the search index (including hybrid)
-cfgm search "memory routing"      # ← 60 seconds in. If you get results, it's working
+bun install && bun link          # `bun link` registers the global `cfgm` command (optional)
+cfgm rebuild-index               # build the search index (one-time)
+cfgm ask "what is memory routing"  # ← 60 seconds in. A cited answer means it's working
 ```
 
-`cfgm search` searches `memory/{projects,concepts,decisions}/*.md` directly — this repo itself contains real memory for dogfooding, so you get results right after cloning. No separate data seeding needed.
+This repo itself contains real memory for dogfooding, so you get results right after cloning — no separate data seeding needed. If something looks off, run `cfgm doctor` for a self-check. You can also use Claude Code and Codex side by side — see [`AGENTS.md`](./AGENTS.md).
 
-To also get Claude Code hook integration (session-persistent memory), choose one of two install scopes:
+**That's it — search, ask, and cited answers already work.** Everything below is optional, expand only if you want it.
+
+<details>
+<summary><strong>⚙️ Want memory captured automatically when a session ends? (optional)</strong></summary>
+
+So far you've been calling `cfgm capture`/`ask` yourself. To have Claude Code automatically queue memory candidates every time a session ends, register hooks — pick one of two scopes:
 
 - **User-level** (`./install.sh`) — one shared profile (`~/.claude-brain`) with its own launcher (`claude-pai`), used across all projects. Uninstall with `cfgm uninstall` (add `--purge` to also delete the identity/memory data under `~/.claude-brain`).
 - **Project-level** (`./install-project.sh [--project <path>]`) — registers hooks directly into `<project>/.claude/settings.json`, the config file Claude Code already reads natively for that directory. No launcher, no `CLAUDE_CONFIG_DIR` override — just run plain `claude` from the project. Memory data lives isolated at `<project>/.memory-brain/`. Existing `.claude/settings.json` content (other hooks, other settings keys) is preserved and merged, with a `.bak-<timestamp>` copy made before the first edit. Uninstall with `./uninstall-project.sh [--project <path>]` (add `--purge` to also delete `<project>/.memory-brain/`); add `--dry-run` to either script to preview changes with nothing written.
 
 **Every CLI works standalone without either install.**
 
+**Platform support**: macOS and Linux are fully supported and CI-tested on every push ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml), 3-OS matrix). **Windows is experimental** — `resolveStorageRoot()`/hook install now resolve the correct home directory and pass paths as `argv` instead of POSIX-only `VAR=val` shell syntax, and the shell-quoting helper (`shQuote`) used to embed paths in the generated hook command is now platform-aware — it emits `cmd.exe`-style double-quote escaping on `win32` instead of always assuming POSIX single-quote convention. That said, this hasn't been verified against a real `cmd.exe` yet. The Windows CI job runs non-blocking (`continue-on-error`) until that's confirmed — tracked openly, not silently dropped.
+
 **Both Claude Code and Codex, at once** — Claude Code auto-injects `CLAUDE.md` + hooks; Codex CLI reads [`AGENTS.md`](./AGENTS.md) at the repo root directly on session start and follows the same memory rules. Both hosts share the same `memory/` directory, so data stays consistent even when you mix hosts. With no dependency on MCP or a host-specific SDK, the same approach (bootloader file + direct CLI calls) can be ported to other CLIs too.
+
+</details>
 
 ## ⌨️ Unified CLI — `cfgm`
 
 A single entry point for 55 scripts. Run `cfgm help` for the full list by group:
 
 ```bash
-cfgm doctor              # install/environment self-check (8 checks + fix commands, incl. governance)
+cfgm doctor              # install/environment self-check (10 checks + fix commands, incl. governance, vector-dims integrity, git conflict-marker scan)
 cfgm search "<query>"    # natural-language wiki search — feel the value right after install
 cfgm ask "<query>"       # search + evidence pointer bundle — host LLM produces a cited answer
 cfgm capture --input <file>  # session notes → wiki draft intake queue (host-delegated, reviewed before merge)
@@ -405,6 +418,7 @@ cfgm lme-score --collect            # aggregate official metrics (judge accuracy
 | [`docs/BENCHMARK.md`](./docs/BENCHMARK.md) | **measurement protocol** — SHA-256, split policy, tuning log, reproduction steps, limitations |
 | [`docs/ROT-BENCH.md`](./docs/ROT-BENCH.md) | memory rot benchmark — cohort results, external adapter protocol, submit your own results |
 | [`docs/RULES.md`](./docs/RULES.md) | the 5 architecture principles + how violations are handled (read before adding code) |
+| [`docs/SYNC.md`](./docs/SYNC.md) | cross-machine sync via plain `git` — no server, no separate CLI, `.gitattributes merge=union` on append-only ledgers |
 | [`docs/EXTENDING.md`](./docs/EXTENDING.md) | 8 extension seams — embedder, fusion, router, vocabulary, host-delegated queues |
 | [`memory/SCHEMA.md`](./memory/SCHEMA.md) / [`memory/ROUTER.md`](./memory/ROUTER.md) | directory spec / retrieval policy |
 | [`docs/adr/`](./docs/adr/) | Architecture Decision Records |
@@ -413,7 +427,7 @@ cfgm lme-score --collect            # aggregate official metrics (judge accuracy
 ## 🧪 Test
 
 ```bash
-bun test              # 1100+ tests
+bun test              # 1279+ tests
 bun run typecheck
 ```
 

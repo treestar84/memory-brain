@@ -102,7 +102,16 @@ describe("cfgm-learn CLI", () => {
     const res = cli(projectDir, ["--name", "My Flow! 테스트", "--goal", "slug test", "--json"]);
     expect(res.status).toBe(0);
     const out = JSON.parse(res.stdout);
-    expect(out.name).toMatch(/^[a-z0-9_-]+$/);
+    expect(out.name).toMatch(/^[a-z0-9가-힣_-]+$/);
+  });
+
+  test("한글 name 이 slug 에 보존된다 (한글 slug 붕괴 회귀 테스트)", async () => {
+    const res = cli(projectDir, ["--name", "한글배포워크플로우", "--goal", "한글 slug test", "--json"]);
+    expect(res.status).toBe(0);
+    const out = JSON.parse(res.stdout);
+    expect(out.name).toBe("한글배포워크플로우");
+    const skillFile = Bun.file(join(projectDir, "memory/workflows/한글배포워크플로우.md"));
+    expect(await skillFile.exists()).toBe(true);
   });
 
   test("steps 에 시크릿이 있으면 memory/workflows/*.md 에 저장되기 전에 마스킹된다 (V3.43)", async () => {

@@ -10,6 +10,7 @@ import {
   isSafeSlug,
   CaptureAcceptError,
 } from "../../../src/core/capture/CaptureAccepter";
+import { slugFromPath } from "../../../src/core/capture/CaptureEnqueuer";
 import { Redactor } from "../../../src/core/security/Redactor";
 import { MemoryStorage } from "../../../src/core/storage/MemoryStorage";
 import { RealClock } from "../../../src/core/clock/Clock";
@@ -32,6 +33,21 @@ describe("inferTypeFromDraft / isSafeSlug", () => {
     expect(isSafeSlug("../escape")).toBe(false);
     expect(isSafeSlug("a/b")).toBe(false);
     expect(isSafeSlug("")).toBe(false);
+  });
+
+  test("slug 안전성 — 한글 slug 허용 (한글 slug 붕괴 버그 수정 회귀)", () => {
+    expect(isSafeSlug("한글배포워크플로우")).toBe(true);
+    expect(isSafeSlug("설계결정")).toBe(true);
+  });
+
+  test("slug 안전성 — 80자 초과는 거부 (길이 상한)", () => {
+    expect(isSafeSlug("a".repeat(81))).toBe(false);
+    expect(isSafeSlug("a".repeat(80))).toBe(true);
+  });
+
+  test("frontmatter type 추출 — CRLF + BOM 입력도 정상 (호환성 수정 회귀)", () => {
+    const crlfBom = "﻿---\r\nid: decision.x\r\ntype: decision\r\nstatus: draft\r\n---\r\n\r\nbody\r\n";
+    expect(inferTypeFromDraft(crlfBom)).toBe("decision");
   });
 });
 
@@ -109,6 +125,16 @@ describe("acceptDraft", () => {
 
   test("잘못된 slug → 에러", async () => {
     await expect(acceptDraft({ slug: "../escape", draftsDir, memoryDir })).rejects.toThrow(CaptureAcceptError);
+  });
+
+  test("한글 slug 왕복 — CaptureEnqueuer.slugFromPath 로 생성한 slug 가 accept 를 통과한다 (한글 slug 붕괴 버그 수정 회귀)", async () => {
+    const slug = slugFromPath("설계결정.md");
+    expect(slug).toBe("설계결정");
+    expect(isSafeSlug(slug)).toBe(true);
+    await writeFile(join(draftsDir, `${slug}.md`), draftText({ id: `decision.${slug}`, type: "decision" }));
+    const result = await acceptDraft({ slug, draftsDir, memoryDir });
+    expect(result.targetPath).toBe(resolve(memoryDir, `decisions/${slug}.md`));
+    expect(await Bun.file(result.targetPath).exists()).toBe(true);
   });
 });
 

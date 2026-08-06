@@ -1,5 +1,6 @@
 import type { LmeQuestion } from "./LongMemEval";
 import { sessionToText } from "./LongMemEval";
+import { capSlugLength, guardReservedName } from "../util/slug";
 
 /**
  * LongMemEval 풀 QA 트랙 — host-위임 (V3.29 ②).
@@ -30,8 +31,9 @@ export interface LmeAnswerJobInput {
 // parseLmeQuestions 의 SAFE_ID_RE 로 이미 보장되지만, 다른 호출 경로로
 // 만들어진 객체에도 안전하도록 여기서도 정화한다.
 function fmSafe(v: string): string {
-  const safe = v.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^[-.]+|[-.]+$/g, "");
-  return safe.length > 0 ? safe : "unnamed";
+  const safe = v.replace(/[^A-Za-z0-9가-힣._-]+/g, "-").replace(/^[-.]+|[-.]+$/g, "");
+  const withFallback = safe.length > 0 ? safe : "unnamed";
+  return guardReservedName(capSlugLength(withFallback));
 }
 
 /** answer job 파일 내용 생성. ground truth 미포함. */

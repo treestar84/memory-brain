@@ -1,7 +1,13 @@
 /**
  * i18n/messages — cfgm 데모 경로 CLI(search/ask/stats/doctor) 사용자-facing 메시지 테이블.
  *
- * 기본값은 ko. `CFGM_LANG=en` 환경변수가 설정된 경우에만 en 메시지를 사용한다.
+ * 언어 판정 우선순위:
+ *   1. `CFGM_LANG` 명시값 ("en"/"ko") — 사용자가 명시적으로 지정했으므로 최우선 존중.
+ *   2. `LC_ALL`/`LC_MESSAGES`/`LANG` (POSIX locale 환경변수, 이 순서로 확인) 값이
+ *      "ko" 로 시작하면 ko.
+ *   3. 위 셋 중 하나라도 값이 있으면 (ko 가 아니므로) en — 예: `LANG=en_US.UTF-8`
+ *      사용자가 한국어 출력을 받는 회귀를 막는다.
+ *   4. 아무 신호도 없으면 기존 기본값 ko 유지.
  * ko 경로는 항상 기존 문자열과 완전히 동일해야 한다 — 기존 테스트가 이를 회귀 감시한다.
  *
  * 외부 i18n 라이브러리는 사용하지 않는다 (docs/RULES.md 의존성 최소화 원칙).
@@ -9,8 +15,26 @@
 
 export type Lang = "ko" | "en";
 
+/** locale 값에서 encoding/modifier(`.UTF-8`, `@euro` 등)를 제거해 언어 코드만 남긴다. */
+function localeLanguage(value: string): string {
+  return value.split(/[.@]/)[0]!.toLowerCase();
+}
+
 export function currentLang(): Lang {
-  return process.env.CFGM_LANG === "en" ? "en" : "ko";
+  const explicit = process.env.CFGM_LANG;
+  if (explicit === "en" || explicit === "ko") return explicit;
+
+  for (const key of ["LC_ALL", "LC_MESSAGES", "LANG"] as const) {
+    const raw = process.env[key];
+    if (!raw) continue;
+    const lang = localeLanguage(raw);
+    // "C"/"POSIX" 는 실제 언어 신호가 아니라 "locale 없음"을 뜻하는 POSIX 관례값
+    // — 무신호로 취급하고 다음 변수(또는 기본값)로 넘어간다.
+    if (lang === "" || lang === "c" || lang === "posix") continue;
+    return lang.startsWith("ko") ? "ko" : "en";
+  }
+
+  return "ko";
 }
 
 // biome-ignore lint/suppress-any: 메시지 값은 정적 문자열 또는 포맷 함수 어느 쪽도 가능해야 한다.

@@ -1,9 +1,11 @@
-import { mkdir, rename, readFile, unlink } from "node:fs/promises";
+import { mkdir, readFile, unlink } from "node:fs/promises";
 import { resolve } from "node:path";
 import { Glob } from "bun";
 import yaml from "yaml";
 import type { Redactor } from "../security/Redactor";
-import { writeFileAtomic } from "../util/atomicWrite";
+import { writeFileAtomic, renameWithRetry } from "../util/atomicWrite";
+import { FRONTMATTER_RE, stripBom, normalizeYamlBlock } from "../util/frontmatter";
+import { MAX_SLUG_CHARS } from "../util/slug";
 
 /**
  * CaptureAccepter — capture draft → 정식 wiki page 승격의 공용 로직 (V3.42).
@@ -17,8 +19,6 @@ import { writeFileAtomic } from "../util/atomicWrite";
  * 주면 frontmatter 값과 일치하는지 검증하는 안전장치로만 쓰인다.
  */
 
-const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
-
 const TYPE_TO_DIR: Record<string, string> = {
   concept: "concepts",
   decision: "decisions",
@@ -29,16 +29,17 @@ export class CaptureAcceptError extends Error {}
 
 export function isSafeSlug(slug: string): boolean {
   if (!slug) return false;
+  if (slug.length > MAX_SLUG_CHARS) return false;
   if (slug.includes("/") || slug.includes("\\") || slug.includes("..")) return false;
-  return /^[a-zA-Z0-9_.-]+$/.test(slug);
+  return /^[a-zA-Z0-9가-힣_.-]+$/.test(slug);
 }
 
 /** draft 본문 frontmatter 의 `type` 필드를 읽는다 — 없거나 파싱 실패면 null. */
 export function inferTypeFromDraft(content: string): string | null {
-  const match = FRONTMATTER_RE.exec(content);
+  const match = FRONTMATTER_RE.exec(stripBom(content));
   if (!match) return null;
   try {
-    const fm = yaml.parse(match[1]!);
+    const fm = yaml.parse(normalizeYamlBlock(match[1]!));
     return fm && typeof fm.type === "string" ? fm.type : null;
   } catch {
     return null;
@@ -85,7 +86,7 @@ export async function acceptDraft(opts: AcceptDraftOptions): Promise<AcceptDraft
     throw new CaptureAcceptError(`draft 를 찾을 수 없습니다: ${draftPath}`);
   }
 
-  const draftContent = await readFile(draftPath, "utf-8");
+  const draftContent = stripBom(await readFile(draftPath, "utf-8"));
   const inferredType = inferTypeFromDraft(draftContent);
   if (opts.type && inferredType && opts.type !== inferredType) {
     throw new CaptureAcceptError(
@@ -118,7 +119,7 @@ export async function acceptDraft(opts: AcceptDraftOptions): Promise<AcceptDraft
   if (targetExists && opts.force) {
     await mkdir(archiveDir, { recursive: true });
     archivePath = resolve(archiveDir, `${slug}.md`);
-    await rename(targetPath, archivePath);
+    await renameWithRetry(targetPath, archivePath);
   }
 
   let content = draftContent.replace(/^status:\s*draft\s*$/m, "status: active");
