@@ -5,10 +5,16 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+// currentLang() falls back to the host's LANG/LC_ALL/LC_MESSAGES when
+// CFGM_LANG isn't set — CI runners (macOS/Windows) default those to
+// en_US.UTF-8, so the "no CFGM_LANG → ko default" regression guard below
+// must blank these out rather than inherit whatever locale the host has.
+const NO_LOCALE_ENV = { LANG: "", LC_ALL: "", LC_MESSAGES: "" };
+
 function run(script: string, args: string[], env: Record<string, string>) {
   return spawnSync("bun", ["run", `bin/${script}.ts`, ...args], {
     cwd: process.cwd(),
-    env: { ...process.env, ...env },
+    env: { ...process.env, ...NO_LOCALE_ENV, ...env },
     encoding: "utf-8",
   });
 }

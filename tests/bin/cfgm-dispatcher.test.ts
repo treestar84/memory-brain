@@ -7,10 +7,16 @@ import { Database } from "bun:sqlite";
 import { SearchIndex } from "../../src/core/search/SearchIndex";
 import { HashedNgramEmbedder } from "../../src/core/search/Embedder";
 
+// currentLang() falls back to the host's LANG/LC_ALL/LC_MESSAGES when
+// CFGM_LANG isn't set — CI runners (macOS/Windows) default those to
+// en_US.UTF-8, so tests asserting Korean output must blank them out here
+// rather than inherit whatever locale the host happens to have.
+const NO_LOCALE_ENV = { LANG: "", LC_ALL: "", LC_MESSAGES: "" };
+
 function cfgm(args: string[], env: Record<string, string> = {}) {
   return spawnSync("bun", ["run", "bin/cfgm.ts", ...args], {
     cwd: process.cwd(),
-    env: { ...process.env, ...env },
+    env: { ...process.env, ...NO_LOCALE_ENV, ...env },
     encoding: "utf-8",
   });
 }

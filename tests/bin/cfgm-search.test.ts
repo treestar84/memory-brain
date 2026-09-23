@@ -5,10 +5,16 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+// currentLang() falls back to the host's LANG/LC_ALL/LC_MESSAGES when
+// CFGM_LANG isn't set — CI runners (macOS/Windows) default those to
+// en_US.UTF-8, so tests asserting Korean output must blank them out here
+// rather than inherit whatever locale the host happens to have.
+const NO_LOCALE_ENV = { LANG: "", LC_ALL: "", LC_MESSAGES: "" };
+
 function cfgm(args: string[], env: Record<string, string>) {
   return spawnSync("bun", ["run", "bin/cfgm-search.ts", ...args], {
     cwd: process.cwd(),
-    env: { ...process.env, ...env },
+    env: { ...process.env, ...NO_LOCALE_ENV, ...env },
     encoding: "utf-8",
   });
 }
@@ -16,7 +22,7 @@ function cfgm(args: string[], env: Record<string, string>) {
 function rebuild(env: Record<string, string>) {
   return spawnSync("bun", ["run", "bin/cfgm-rebuild-index.ts", "--embeddings"], {
     cwd: process.cwd(),
-    env: { ...process.env, ...env },
+    env: { ...process.env, ...NO_LOCALE_ENV, ...env },
     encoding: "utf-8",
   });
 }
