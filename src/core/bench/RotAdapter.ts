@@ -167,8 +167,18 @@ export async function runExternalAdapter(
       proc.stdin.write(`${JSON.stringify(req)}\n`);
       await proc.stdin.flush();
     } catch (err) {
+      // 프로세스가 이미 종료돼 stdout 이 EOF 인 경우, stdin 에 쓰는 시점이
+      // OS 가 pipe 를 broken 으로 인식하기 전/후 어느 쪽이냐에 따라 여기서
+      // EPIPE 로 먼저 걸릴 수도, cursor.next() 의 EOF 경로로 걸릴 수도 있다
+      // (레이스, 재현 타이밍이 호스트마다 다름). 둘 다 "프로세스가 stdout 을
+      // 닫았다"는 같은 사실이므로 에러 메시지를 EOF 케이스와 동일하게
+      // 취급해 호출측이 구분 없이 "EOF" 로 매칭할 수 있게 한다.
       eofReached = true;
-      results.push({ id: req.id, ranked: [], error: `stdin write 실패: ${err instanceof Error ? err.message : String(err)}` });
+      results.push({
+        id: req.id,
+        ranked: [],
+        error: `adapter process closed stdout (EOF) — stdin write 실패: ${err instanceof Error ? err.message : String(err)}`,
+      });
       continue;
     }
 
