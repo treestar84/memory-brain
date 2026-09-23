@@ -16,13 +16,23 @@ function cfgm(args: string[], env: Record<string, string> = {}) {
 }
 
 describe("cfgm 통합 CLI (V3.31)", () => {
-  test("help — 그룹별 명령 목록 출력, exit 0", () => {
+  test("help — 기본은 핵심 명령만, 고급 명령은 숨김 + 안내", () => {
     const res = cfgm(["help"]);
     expect(res.status).toBe(0);
     expect(res.stdout).toContain("시작하기");
     expect(res.stdout).toContain("doctor");
+    expect(res.stdout).not.toContain("bench-lme");
+    expect(res.stdout).not.toContain("ssl-status");
+    expect(res.stdout).toContain("cfgm help --all");
+  });
+
+  test("help --all — 전체 명령 목록 출력 (고급 명령 포함)", () => {
+    const res = cfgm(["help", "--all"]);
+    expect(res.status).toBe(0);
+    expect(res.stdout).toContain("doctor");
     expect(res.stdout).toContain("bench-lme");
     expect(res.stdout).toContain("ssl-status");
+    expect(res.stdout).not.toContain("cfgm help --all"); // 이미 전체 보기라 안내 불필요
   });
 
   test("인자 없이 실행 → help 와 동일", () => {

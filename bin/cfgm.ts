@@ -17,7 +17,7 @@ import { createDefaultEmbedder } from "../src/core/search/Embedder";
  *
  * 52개 개별 스크립트 (`bun run bin/cfgm-*.ts`) 의 단일 진입점.
  *
- *   cfgm help              전체 명령 (그룹별)
+ *   cfgm help              핵심 명령 (그룹별). 전체 목록은 'cfgm help --all'
  *   cfgm doctor            설치·환경 자가진단
  *   cfgm <command> [args]  해당 스크립트 실행 (예: cfgm bench, cfgm ssl-status)
  *
@@ -34,6 +34,8 @@ interface CommandDef {
   name: string;
   script: string; // bin/ 내 파일명 (확장자 제외)
   desc: string;
+  /** 기본 `cfgm help` 에 노출할지 여부. false/미지정 명령은 `cfgm help --all` 에서만 보인다. */
+  core?: boolean;
 }
 
 interface CommandGroup {
@@ -45,25 +47,25 @@ export const COMMAND_GROUPS: CommandGroup[] = [
   {
     title: "시작하기",
     commands: [
-      { name: "doctor", script: "(내장)", desc: "설치·환경 자가진단 + 권장 조치" },
-      { name: "install", script: "install-brain", desc: "~/.claude-brain 프로파일 설치" },
+      { name: "doctor", script: "(내장)", desc: "설치·환경 자가진단 + 권장 조치", core: true },
+      { name: "install", script: "install-brain", desc: "~/.claude-brain 프로파일 설치", core: true },
       { name: "uninstall", script: "uninstall-brain", desc: "프로파일 제거" },
-      { name: "install-project", script: "install-project", desc: "프로젝트 단위 설치 (<project>/.claude/settings.json, 전역 프로필 미사용)" },
+      { name: "install-project", script: "install-project", desc: "프로젝트 단위 설치 (<project>/.claude/settings.json, 전역 프로필 미사용)", core: true },
       { name: "uninstall-project", script: "uninstall-project", desc: "프로젝트 단위 설치 제거 (--purge 로 .memory-brain/ 데이터까지 삭제)" },
     ],
   },
   {
     title: "검색·인덱스",
     commands: [
-      { name: "rebuild-index", script: "cfgm-rebuild-index", desc: "wiki+claim+SSL 인덱스 재생성 (기본 하이브리드, --no-embeddings 로 lexical-only)" },
-      { name: "search", script: "cfgm-search", desc: "wiki 자연어 검색 — \"cfgm search \\\"질의\\\"\"" },
-      { name: "ask", script: "cfgm-ask", desc: "질의 → claim id 인용 근거 번들 (host LLM 프롬프트 컴포저)" },
-      { name: "stats", script: "cfgm-stats", desc: "search/ask 사용 통계 요약 (--days N, --json)" },
+      { name: "rebuild-index", script: "cfgm-rebuild-index", desc: "wiki+claim+SSL 인덱스 재생성 (기본 하이브리드, --no-embeddings 로 lexical-only)", core: true },
+      { name: "search", script: "cfgm-search", desc: "wiki 자연어 검색 — \"cfgm search \\\"질의\\\"\"", core: true },
+      { name: "ask", script: "cfgm-ask", desc: "질의 → claim id 인용 근거 번들 (host LLM 프롬프트 컴포저)", core: true },
+      { name: "stats", script: "cfgm-stats", desc: "search/ask 사용 통계 요약 (--days N, --json)", core: true },
       { name: "bench", script: "cfgm-bench", desc: "내부 memory quality benchmark" },
       { name: "bench-lme", script: "cfgm-lme-retrieval", desc: "LongMemEval retrieval 벤치마크 (외부 표준)" },
       { name: "rot-bench", script: "cfgm-rot-bench", desc: "메모리 부패(rot) 벤치마크 — 세션 축적 강건성 (naive vs governed)" },
       { name: "okf-export", script: "cfgm-okf-export", desc: "L3 wiki → Google OKF v0.1 번들" },
-      { name: "dashboard", script: "cfgm-viewer", desc: "위키/검색/capture 큐 실시간 대시보드 (localhost:4040)" },
+      { name: "dashboard", script: "cfgm-viewer", desc: "위키/검색/capture 큐 실시간 대시보드 (localhost:4040)", core: true },
     ],
   },
   {
@@ -88,8 +90,8 @@ export const COMMAND_GROUPS: CommandGroup[] = [
     commands: [
       { name: "claim-list", script: "cfgm-claim-list", desc: "claim 후보 목록" },
       { name: "claim-review", script: "cfgm-claim-review", desc: "claim 후보 검토" },
-      { name: "governance-report", script: "cfgm-governance-report", desc: "중복·stale·모순 보고서" },
-      { name: "decay", script: "cfgm-decay", desc: "wiki page 망각 판정 (--archive <id>: 보관 이동, 삭제 아님)" },
+      { name: "governance-report", script: "cfgm-governance-report", desc: "중복·stale·모순 보고서", core: true },
+      { name: "decay", script: "cfgm-decay", desc: "wiki page 망각 판정 (--archive <id>: 보관 이동, 삭제 아님)", core: true },
       { name: "persona-list", script: "cfgm-persona-list", desc: "persona 프로파일 조회" },
     ],
   },
@@ -103,10 +105,10 @@ export const COMMAND_GROUPS: CommandGroup[] = [
   {
     title: "수집 (Capture, host-위임)",
     commands: [
-      { name: "capture", script: "cfgm-capture", desc: "세션 기록 → wiki draft 추출 큐 생성" },
-      { name: "capture-status", script: "cfgm-capture-status", desc: "capture 큐 + drafts 상태" },
-      { name: "capture-accept", script: "cfgm-capture-accept", desc: "draft → concept/decision/project 승격" },
-      { name: "import", script: "cfgm-import", desc: "Claude Code 세션 transcript → memory/sources/ 적재 (--enqueue 로 capture 큐 연결)" },
+      { name: "capture", script: "cfgm-capture", desc: "세션 기록 → wiki draft 추출 큐 생성", core: true },
+      { name: "capture-status", script: "cfgm-capture-status", desc: "capture 큐 + drafts 상태", core: true },
+      { name: "capture-accept", script: "cfgm-capture-accept", desc: "draft → concept/decision/project 승격", core: true },
+      { name: "import", script: "cfgm-import", desc: "Claude Code 세션 transcript → memory/sources/ 적재 (--enqueue 로 capture 큐 연결)", core: true },
     ],
   },
 ];
@@ -114,16 +116,29 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 const REGISTRY = new Map<string, CommandDef>();
 for (const g of COMMAND_GROUPS) for (const c of g.commands) REGISTRY.set(c.name, c);
 
-function printHelp(): void {
-  console.log(`cfgm — CFGM-OS (Causal Flow Gap Memory OS) 통합 CLI\n`);
-  console.log(`사용법: cfgm <command> [args...]   (전역 설치: repo 루트에서 'bun link')\n`);
+export function buildHelp(showAll: boolean): string {
+  const lines: string[] = [];
+  lines.push(`cfgm — CFGM-OS (Causal Flow Gap Memory OS) 통합 CLI\n`);
+  lines.push(`사용법: cfgm <command> [args...]   (전역 설치: repo 루트에서 'bun link')\n`);
+
+  const totalCount = COMMAND_GROUPS.reduce((n, g) => n + g.commands.length, 0);
+  let shownCount = 0;
   for (const g of COMMAND_GROUPS) {
-    console.log(`${g.title}`);
-    for (const c of g.commands) console.log(`  ${c.name.padEnd(20)} ${c.desc}`);
-    console.log("");
+    const commands = showAll ? g.commands : g.commands.filter((c) => c.core);
+    if (commands.length === 0) continue;
+    shownCount += commands.length;
+    lines.push(`${g.title}`);
+    for (const c of commands) lines.push(`  ${c.name.padEnd(20)} ${c.desc}`);
+    lines.push("");
   }
-  console.log(`미등록 명령도 bin/cfgm-<name>.ts 가 있으면 실행됩니다.`);
-  console.log(`자세한 옵션: cfgm <command> --help 또는 해당 스크립트 헤더 주석 참조.`);
+
+  if (!showAll && shownCount < totalCount) {
+    lines.push(`(고급/실험 명령 ${totalCount - shownCount}개 숨김 — 'cfgm help --all' 로 전체 ${totalCount}개 보기)`);
+    lines.push("");
+  }
+  lines.push(`미등록 명령도 bin/cfgm-<name>.ts 가 있으면 실행됩니다.`);
+  lines.push(`자세한 옵션: cfgm <command> --help 또는 해당 스크립트 헤더 주석 참조.`);
+  return lines.join("\n");
 }
 
 async function runDoctor(): Promise<number> {
@@ -324,7 +339,8 @@ async function runDoctor(): Promise<number> {
 const [cmd, ...rest] = process.argv.slice(2);
 
 if (!cmd || cmd === "help" || cmd === "--help" || cmd === "-h") {
-  printHelp();
+  const showAll = rest.includes("--all");
+  console.log(buildHelp(showAll));
   process.exit(0);
 }
 

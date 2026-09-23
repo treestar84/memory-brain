@@ -91,16 +91,42 @@ cfgm ask "메모리 라우팅이 뭐야"     # ← 여기까지 60초. 근거와
 <details>
 <summary><strong>⚙️ 세션이 끝나도 자동으로 기억을 남기고 싶다면 (선택)</strong></summary>
 
-지금까지는 `cfgm capture`/`ask`를 직접 호출하는 방식이었습니다. Claude Code 세션이 끝날 때마다 자동으로 기억 후보를 쌓아 두려면 훅을 등록해야 하고, 범위를 둘 중 하나로 고릅니다.
+지금까지는 `cfgm capture`/`ask`를 직접 호출하는 방식이었습니다. Claude Code 세션이 끝날 때마다 자동으로 기억 후보를 쌓아 두려면 훅을 등록하면 되는데, **대부분은 이거 한 줄이면 충분합니다**:
 
-- **사용자 레벨** (`./install.sh`) — `~/.claude-brain` 프로필 하나를 모든 프로젝트에서 공유(전용 launcher `claude-pai` 사용). 제거: `cfgm uninstall` (`--purge` 추가 시 identity·기억 데이터까지 삭제).
-- **프로젝트 레벨** (`./install-project.sh [--project <경로>]`) — 훅을 해당 프로젝트의 `<project>/.claude/settings.json` (Claude Code 가 그 디렉토리에서 네이티브로 읽는 설정 파일) 에 직접 등록. 별도 launcher·`CLAUDE_CONFIG_DIR` 불필요 — 그 프로젝트에서 평범한 `claude` 로 바로 동작. 기억 데이터는 `<project>/.memory-brain/` 에 격리. 기존 `.claude/settings.json` 내용(다른 훅·다른 설정)은 그대로 병합·보존되며, 처음 수정 전 `.bak-<timestamp>` 백업을 남깁니다. 제거: `./uninstall-project.sh [--project <경로>]` (`--purge` 추가 시 `<project>/.memory-brain/` 도 삭제). 두 스크립트 모두 `--dry-run` 으로 미리보기 가능(아무것도 쓰지 않음).
+```bash
+./install-project.sh [--project <경로>]   # 이 프로젝트에만 훅 등록 (권장 기본값)
+```
+
+훅을 해당 프로젝트의 `<project>/.claude/settings.json` (Claude Code 가 그 디렉토리에서 네이티브로 읽는 설정 파일) 에 직접 등록합니다. 별도 launcher·환경변수 불필요 — 그 프로젝트에서 평범한 `claude` 로 바로 동작. 기억 데이터는 `<project>/.memory-brain/` 에 격리됩니다. 기존 `.claude/settings.json` 내용(다른 훅·다른 설정)은 그대로 병합·보존되며, 처음 수정 전 `.bak-<timestamp>` 백업을 남깁니다. `--dry-run` 으로 미리보기 가능(아무것도 쓰지 않음). 제거: `./uninstall-project.sh [--project <경로>]` (`--purge` 추가 시 `<project>/.memory-brain/` 도 삭제).
+
+<details>
+<summary>여러 프로젝트에서 기억 하나를 공유하고 싶다면 (사용자 레벨, 고급)</summary>
+
+```bash
+./install.sh
+```
+
+`~/.claude-brain` 프로필 하나를 모든 프로젝트에서 공유합니다(전용 launcher `claude-pai` 사용). 프로젝트마다 기억을 분리하고 싶다면 위 프로젝트 레벨 설치를 쓰세요 — 대부분의 경우는 그쪽이 맞습니다. 제거: `cfgm uninstall` (`--purge` 추가 시 identity·기억 데이터까지 삭제).
+
+</details>
 
 **둘 다 설치하지 않아도 모든 CLI 명령은 독립적으로 동작합니다.**
 
 **플랫폼**: macOS·Linux 는 매 push 마다 CI로 검증됩니다. **Windows 는 실험적 지원**입니다 — 홈 디렉토리 해석·훅 설치에 더해, 훅 커맨드에 경로를 끼워 넣을 때 쓰는 인용(`shQuote`)도 이제 플랫폼을 인식해 Windows 에서는 cmd.exe 스타일(큰따옴표) 로 인용하지만, 실제 cmd.exe 에서의 동작은 아직 실기기 검증 전입니다(추적 중, 숨기지 않음).
 
 </details>
+
+---
+
+## 하루 사용 흐름
+
+1. **설치** — 위 60초 퀵스타트로 끝. 자동 캡처까지 원하면 `./install-project.sh` 한 줄 추가.
+2. **작업 중** — 훅을 설치했다면 세션이 끝날 때 자동으로 기억 후보가 쌓입니다. 안 했다면 직접 `cfgm capture --input <세션 노트>`.
+3. **후보 승인** — `cfgm capture-status` 로 대기 중인 draft를 확인하고 `cfgm capture-accept <id>` 로 사람이 한 번 검토한 뒤 승격합니다. 자동 승격은 없습니다 — 근거 없는 추측이 그대로 기억으로 쌓이는 걸 막는 지점입니다.
+4. **다음 세션(다음 날)** — 새 세션에서 `cfgm ask "어제 그거 왜 이렇게 했지"` 처럼 물으면, 어제 승인한 기억에서 claim id 근거와 함께 답이 나옵니다. 별도 LLM 호출 없이 지금 쓰고 있는 Claude Code/Codex 구독이 그대로 답을 만듭니다.
+5. **가끔** — `cfgm doctor` 로 자가진단, `cfgm governance-report` 로 중복·모순 확인, `cfgm decay` 로 오래 안 쓰는 기억을 정리(삭제 아님, 보관만).
+
+이 5단계가 전부입니다. 나머지(지식그래프, 워크플로우 재실행 등)는 필요할 때만 [영문 문서](./README.en.md)에서 찾아보세요.
 
 ---
 
@@ -151,6 +177,8 @@ cfgm dashboard            # 위키/검색/capture 큐 실시간 대시보드 (lo
 | 토큰 비용 | **실측 ~184 tokens/질의, $0/년**(LLM 호출 코드 자체가 없음) | ~1,900 tokens/세션, ~$10/년 | 연동 방식마다 다름 | 다양 |
 
 정직하게 말하면 **검색 정확도는 agentmemory보다 2%p 낮습니다** — 아직 못 따라잡은 부분이고 숨기지 않습니다. 대신 "서버·외부 의존성 완전히 0"이라는 건 이 표에 나온 도구 중 memory-brain만 실제로 검증되는 주장입니다(agentmemory도 "의존성 없음"이라 하지만 실제로는 별도 엔진 바이너리가 필수입니다). 9개 도구 전체와의 상세 비교(지식그래프·프라이버시 필터링·버전관리·감사로그 등 20개 항목)는 [`README.en.md`](./README.en.md) 의 "vs Competitors" 섹션에 있습니다.
+
+**markdown 파일이 쌓여도 안 느려지나요?** 실측했습니다 — LongMemEval 세션을 25%→100% 까지 누적시키며 recall 을 추적한 결과, naive(append-only 흉내)는 92.2%→79.7%로 떨어지는 반면 memory-brain 의 governed retrieval 은 96.9%→82.8%로 매 구간에서 더 낫게 유지됩니다. 둘 다 결국 떨어지긴 합니다 — "쌓여도 전혀 안 떨어진다"고 과장하지 않습니다. 방법론과 전체 수치는 [`docs/ROT-BENCH.md`](./docs/ROT-BENCH.md).
 
 ---
 

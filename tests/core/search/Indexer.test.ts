@@ -94,6 +94,25 @@ describe("Indexer", () => {
     expect(searchIndex.searchClaims("pattern")).toHaveLength(2);
   });
 
+  test("rebuild — _archive/ 로 옮겨진(decay) 페이지는 인덱스·검색에서 제외된다 (cfgm decay --archive 와의 계약)", async () => {
+    const mkPage = (id: string, status: string, body: string) =>
+      `---\nid: ${id}\ntype: concept\nstatus: ${status}\nupdated_at: 2026-04-28\n---\n\n${body}\n`;
+    await writeFile(join(memoryDir, "concepts", "active.md"), mkPage("concept.active", "active", "current-marker-111"));
+    await mkdir(join(memoryDir, "concepts", "_archive"), { recursive: true });
+    await writeFile(
+      join(memoryDir, "concepts", "_archive", "stale.md"),
+      mkPage("concept.stale", "archived", "stale-marker-222"),
+    );
+
+    const r = await indexer.rebuild();
+    expect(r.wikiCount).toBe(1);
+    expect(searchIndex.searchWiki("current-marker-111")).toHaveLength(1);
+    // FTS5 는 공유 토큰("marker")이 있으면 fuzzy 하게 다른 문서를 매치할 수 있으므로
+    // hit 개수가 아니라 archived 페이지 자체가 결과에 없는지로 검증한다.
+    const staleHits = searchIndex.searchWiki("stale-marker-222");
+    expect(staleHits.every((h) => h.pageId !== "concept.stale")).toBe(true);
+  });
+
   test("rebuild — 3 디렉토리 모두 스캔", async () => {
     const mkPage = (id: string, body: string) =>
       `---\nid: ${id}\ntype: ${id.split(".")[0]}\nstatus: active\nupdated_at: 2026-04-28\n---\n\n${body}\n`;

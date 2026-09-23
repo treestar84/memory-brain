@@ -223,6 +223,8 @@ Same category axes used across the memory-tool ecosystem's own comparisons (retr
 
 **Where memory-brain trails, honestly**: retrieval R@5 is 2pp behind agentmemory's on the same benchmark family — this is a structural gap (aggregation-style multi-session questions exceed retrieval depth, and the zero-dependency hashed n-gram embedder can't catch synonym/hypernym matches the way a real embedding model or benchmark-derived dictionary could) that we've chosen not to close by giving up the zero-LLM-call, zero-external-dep design; search has no general-purpose knowledge graph (only a skill-execution one); there are no consolidation tiers, just one human-gated promotion step; no SDK, only a CLI; multi-agent coordination doesn't exist by design. These are open items, not silently ignored — see [`docs/RULES.md`](./docs/RULES.md) for the design principles that make some of these deliberate trade-offs rather than oversights (no MCP, no direct LLM API calls, delete-never).
 
+**Does it stay usable as markdown files pile up?** That's exactly what the "Memory rot, measured" chart at the top of this document answers: naive (append-only) retrieval drops from 92.2% to 79.7% R@5 as sessions accumulate to 100%, while memory-brain's governed retrieval drops from 96.9% to 82.8% — worse at every checkpoint for naive, and neither claims to stay flat. See [`docs/ROT-BENCH.md`](./docs/ROT-BENCH.md) for the full methodology.
+
 ---
 
 ## 🧩 Why: four pain points
@@ -322,10 +324,24 @@ This repo itself contains real memory for dogfooding, so you get results right a
 <details>
 <summary><strong>⚙️ Want memory captured automatically when a session ends? (optional)</strong></summary>
 
-So far you've been calling `cfgm capture`/`ask` yourself. To have Claude Code automatically queue memory candidates every time a session ends, register hooks — pick one of two scopes:
+So far you've been calling `cfgm capture`/`ask` yourself. To have Claude Code automatically queue memory candidates every time a session ends, register a hook — **one line covers most cases**:
 
-- **User-level** (`./install.sh`) — one shared profile (`~/.claude-brain`) with its own launcher (`claude-pai`), used across all projects. Uninstall with `cfgm uninstall` (add `--purge` to also delete the identity/memory data under `~/.claude-brain`).
-- **Project-level** (`./install-project.sh [--project <path>]`) — registers hooks directly into `<project>/.claude/settings.json`, the config file Claude Code already reads natively for that directory. No launcher, no `CLAUDE_CONFIG_DIR` override — just run plain `claude` from the project. Memory data lives isolated at `<project>/.memory-brain/`. Existing `.claude/settings.json` content (other hooks, other settings keys) is preserved and merged, with a `.bak-<timestamp>` copy made before the first edit. Uninstall with `./uninstall-project.sh [--project <path>]` (add `--purge` to also delete `<project>/.memory-brain/`); add `--dry-run` to either script to preview changes with nothing written.
+```bash
+./install-project.sh [--project <path>]   # register hooks for this project only (recommended default)
+```
+
+Registers hooks directly into `<project>/.claude/settings.json`, the config file Claude Code already reads natively for that directory. No launcher, no environment variable override — just run plain `claude` from the project. Memory data lives isolated at `<project>/.memory-brain/`. Existing `.claude/settings.json` content (other hooks, other settings keys) is preserved and merged, with a `.bak-<timestamp>` copy made before the first edit. Add `--dry-run` to preview changes with nothing written. Uninstall with `./uninstall-project.sh [--project <path>]` (add `--purge` to also delete `<project>/.memory-brain/`).
+
+<details>
+<summary>Want one shared memory across multiple projects instead? (user-level, advanced)</summary>
+
+```bash
+./install.sh
+```
+
+One shared profile (`~/.claude-brain`) with its own launcher (`claude-pai`), used across all projects. If you want memory isolated per project, use the project-level install above instead — that's the right choice for most people. Uninstall with `cfgm uninstall` (add `--purge` to also delete the identity/memory data under `~/.claude-brain`).
+
+</details>
 
 **Every CLI works standalone without either install.**
 
@@ -334,6 +350,18 @@ So far you've been calling `cfgm capture`/`ask` yourself. To have Claude Code au
 **Both Claude Code and Codex, at once** — Claude Code auto-injects `CLAUDE.md` + hooks; Codex CLI reads [`AGENTS.md`](./AGENTS.md) at the repo root directly on session start and follows the same memory rules. Both hosts share the same `memory/` directory, so data stays consistent even when you mix hosts. With no dependency on MCP or a host-specific SDK, the same approach (bootloader file + direct CLI calls) can be ported to other CLIs too.
 
 </details>
+
+---
+
+## 📅 A day in the life
+
+1. **Install** — the 60-second quick start above is enough. Add `./install-project.sh` for automatic capture.
+2. **While you work** — with the hook installed, memory candidates queue automatically when a session ends. Without it, call `cfgm capture --input <session notes>` yourself.
+3. **Approve the candidates** — `cfgm capture-status` shows pending drafts; `cfgm capture-accept <id>` promotes one after a human reviews it. There is no auto-promotion — this is the gate that keeps unverified guesses from becoming "memory."
+4. **Next session (the next day)** — open a new session and ask `cfgm ask "why did we do that yesterday"`. You get an answer with claim-id citations pulled from what you approved yesterday, with zero extra LLM calls — the host CLI subscription you already pay for produces the answer.
+5. **Every so often** — `cfgm doctor` for a self-check, `cfgm governance-report` for duplicates/contradictions, `cfgm decay` to archive memory that's gone stale (never deletes).
+
+That's the whole loop. Everything else (knowledge graph, workflow replay, etc.) is in the "Advanced features" section further down, for when you actually need it.
 
 ## ⌨️ Unified CLI — `cfgm`
 

@@ -8,8 +8,13 @@ import { KGProjector } from "./KGProjector";
 
 const WIKI_SUBDIRS = ["projects", "concepts", "decisions"];
 
-// `_ssl/` is a derived artifact directory — exclude from wiki scan so
-// SSL JSON skeletons don't leak into wiki_pages as malformed pages.
+// Any path segment starting with `_` is excluded from the wiki scan. This
+// covers `_ssl/` (derived SSL JSON skeletons — keep them out of wiki_pages
+// as malformed pages) and, incidentally but load-bearingly, `_archive/`
+// (where `cfgm decay --archive` moves superseded pages, `bin/cfgm-decay.ts`)
+// — archived pages must never surface in search results, which is exactly
+// what this prefix filter already guarantees. See Indexer.test.ts for a
+// regression test locking this in.
 const WIKI_SUBDIR_EXCLUDE_PREFIX = "_";
 
 // V3.41: frontmatter 없는 원문(운영 일지, 벤치마크 리포트)도 검색 대상에 넣는다.
