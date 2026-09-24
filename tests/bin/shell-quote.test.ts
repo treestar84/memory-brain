@@ -12,8 +12,11 @@ describe("shQuote", () => {
     });
 
     test("defaults to process.platform when no platform arg given", () => {
-      // 이 테스트 프로세스는 posix 계열(darwin/linux)에서 돈다.
-      expect(shQuote("a b")).toBe("'a b'");
+      // CI 는 이 스위트를 win32 러너에서도 돌린다 — 실행 중인 실제 플랫폼
+      // 기준으로 기대값을 골라야, "인자 생략 시 process.platform 을 쓴다"는
+      // 이 테스트의 주장 자체가 모든 호스트에서 의미 있게 검증된다.
+      const expected = process.platform === "win32" ? '"a b"' : "'a b'";
+      expect(shQuote("a b")).toBe(expected);
     });
   });
 
